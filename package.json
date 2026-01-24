@@ -16,6 +16,7 @@
     "@hapi/boom": "^10.0.1",
     "@prisma/client": "^6.0.0",
     "@whiskeysockets/baileys": "^6.7.8",
+    "jimp": "^1.6.0",
     "next": "16.1.4",
     "next-auth": "^5.0.0-beta.30",
     "qrcode": "^1.5.4",
