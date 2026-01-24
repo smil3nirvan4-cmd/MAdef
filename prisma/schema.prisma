@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Cuidador {
+  id           String     @id @default(cuid())
+  telefone     String     @unique
+  nome         String?
+  area         String?
+  status       String     @default("CRIADO")
+  quizScore    Int?
+  scoreRH      Int?
+  competencias String?
+  endereco     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  alocacoes    Alocacao[]
+  mensagens    Mensagem[]
+}
+
+model Paciente {
+  id         String      @id @default(cuid())
+  telefone   String      @unique
+  nome       String?
+  cidade     String?
+  bairro     String?
+  tipo       String      @default("HOME_CARE")
+  hospital   String?
+  quarto     String?
+  status     String      @default("LEAD")
+  prioridade String      @default("NORMAL")
+  gqpScore   Int?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  alocacoes  Alocacao[]
+  avaliacoes Avaliacao[]
+  mensagens  Mensagem[]
+  orcamentos Orcamento[]
+}
+
+model Mensagem {
+  id         String    @id @default(cuid())
+  telefone   String
+  direcao    String
+  conteudo   String
+  flow       String?
+  step       String?
+  timestamp  DateTime  @default(now())
+  cuidadorId String?
+  pacienteId String?
+  paciente   Paciente? @relation(fields: [pacienteId], references: [id])
+  cuidador   Cuidador? @relation(fields: [cuidadorId], references: [id])
+}
+
+model Avaliacao {
+  id            String    @id @default(cuid())
+  pacienteId    String
+  abemidScore   Int?
+  katzScore     Int?
+  lawtonScore   Int?
+  gqp           Int?
+  nivelSugerido String?
+  cargaSugerida String?
+  nivelFinal    String?
+  cargaFinal    String?
+  avaliadorId   String?
+  validadoEm    DateTime?
+  status        String    @default("PENDENTE")
+  createdAt     DateTime  @default(now())
+  paciente      Paciente  @relation(fields: [pacienteId], references: [id])
+}
+
+model Orcamento {
+  id                 String    @id @default(cuid())
+  pacienteId         String
+  cenarioEconomico   String?
+  cenarioRecomendado String?
+  cenarioPremium     String?
+  cenarioSelecionado String?
+  valorFinal         Float?
+  status             String    @default("RASCUNHO")
+  aprovadoPor        String?
+  enviadoEm          DateTime?
+  aceitoEm           DateTime?
+  createdAt          DateTime  @default(now())
+  paciente           Paciente  @relation(fields: [pacienteId], references: [id])
+}
+
+model Alocacao {
+  id            String    @id @default(cuid())
+  cuidadorId    String
+  pacienteId    String?
+  slotId        String
+  turno         String
+  diaSemana     Int
+  dataInicio    DateTime
+  hospital      String?
+  quarto        String?
+  status        String    @default("PENDENTE_FEEDBACK")
+  ofertadoEm    DateTime  @default(now())
+  responditoEm  DateTime?
+  confirmadoT24 DateTime?
+  confirmadoT2  DateTime?
+  createdAt     DateTime  @default(now())
+  paciente      Paciente? @relation(fields: [pacienteId], references: [id])
+  cuidador      Cuidador  @relation(fields: [cuidadorId], references: [id])
+}
+
+model FormSubmission {
+  id        String   @id @default(cuid())
+  tipo      String
+  dados     String
+  telefone  String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model WhatsAppSession {
+  id             String    @id @default(cuid())
+  status         String    @default("DISCONNECTED")
+  qrCode         String?
+  connectedAt    DateTime?
+  disconnectedAt DateTime?
+  lastActivity   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model WhatsAppFlowState {
+  id              String   @id @default(cuid())
+  phone           String   @unique
+  currentFlow     String   @default("IDLE")
+  currentStep     String   @default("")
+  data            String
+  lastInteraction DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WhatsAppLock {
+  id         String   @id @default(cuid())
+  resourceId String   @unique
+  ownerId    String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+model WhatsAppCooldown {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
