@@ -1,5 +1,7 @@
 import { getCuidadoresAguardandoRH } from '@/lib/database';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CandidatosPage() {
     const cuidadores = await getCuidadoresAguardandoRH();
 

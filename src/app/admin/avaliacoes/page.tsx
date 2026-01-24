@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { getAvaliacoesPendentes } from '@/lib/database';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AvaliacoesPage() {
     const avaliacoes = await getAvaliacoesPendentes();
 
