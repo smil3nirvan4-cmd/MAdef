@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleIncomingMessage } from '@/lib/whatsapp/handlers';
+import crypto from 'crypto';
 
 const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET;
 const ALLOWED_ORIGINS = process.env.WHATSAPP_ALLOWED_ORIGINS?.split(',') || [];
@@ -37,13 +38,12 @@ function validateWebhookSignature(request: NextRequest, body: string): boolean {
         return false;
     }
 
-    const cryptoModule = await import('crypto');
-    const expectedSignature = cryptoModule
+    const expectedSignature = crypto
         .createHmac('sha256', WEBHOOK_SECRET)
         .update(body)
         .digest('hex');
 
-    return cryptoModule.timingSafeEqual(
+    return crypto.timingSafeEqual(
         Buffer.from(signature),
         Buffer.from(expectedSignature)
     );

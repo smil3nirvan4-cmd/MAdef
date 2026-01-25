@@ -27,9 +27,11 @@ export type PacienteCreateInput = Prisma.PacienteCreateInput;
 export type PacienteUpdateInput = Prisma.PacienteUpdateInput;
 
 export interface ICuidadorRepository {
+    findById(id: string): Promise<Cuidador | null>;
     findByPhone(phone: string): Promise<Cuidador | null>;
     findAllPending(): Promise<Cuidador[]>;
     upsert(phone: string, data: Partial<CuidadorCreateInput>): Promise<Cuidador>;
+    update(id: string, data: Partial<CuidadorUpdateInput>): Promise<Cuidador>;
 }
 
 export interface IPacienteRepository {
@@ -73,6 +75,7 @@ export interface AvaliacaoCreateInput {
     gqp?: number;
     nivelSugerido?: string;
     cargaSugerida?: string;
+    status?: string;
 }
 
 export interface IAvaliacaoRepository {

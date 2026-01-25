@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
+import { DB } from '@/lib/database';
 
 export async function PATCH(
     request: NextRequest,
@@ -17,9 +17,7 @@ export async function PATCH(
             );
         }
 
-        const cuidador = await prisma.cuidador.findUnique({
-            where: { id }
-        });
+        const cuidador = await DB.cuidador.findById(id);
 
         if (!cuidador) {
             return NextResponse.json(
@@ -49,10 +47,7 @@ export async function PATCH(
                 break;
         }
 
-        const updatedCuidador = await prisma.cuidador.update({
-            where: { id },
-            data: updateData
-        });
+        const updatedCuidador = await DB.cuidador.update(id, updateData);
 
         return NextResponse.json({
             success: true,

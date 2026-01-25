@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/database';
+import { DB } from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const cuidadores = await prisma.cuidador.findMany({
-            where: {
-                status: 'AGUARDANDO_RH'
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
-
+        const cuidadores = await DB.cuidador.findAllPending();
         return NextResponse.json(cuidadores);
     } catch (error) {
         console.error('Erro ao buscar candidatos:', error);
