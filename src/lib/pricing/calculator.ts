@@ -1,13 +1,45 @@
 import type { ComplexidadeNivel, TipoProfissional } from '@/types/evaluation';
 
-// Tabela de preços por hora
+/**
+ * CALCULADORA DE ORÇAMENTOS - MÃOS AMIGAS
+ * 
+ * Este módulo implementa a lógica de precificação para serviços de cuidado domiciliar
+ * e acompanhamento hospitalar. O sistema gera três cenários de orçamento:
+ * - Econômico: Profissional de nível inferior ao solicitado
+ * - Recomendado: Exatamente o que foi solicitado
+ * - Premium: Profissional de nível superior + supervisão de enfermagem
+ * 
+ * A precificação considera:
+ * - Tipo de profissional (Cuidador, Auxiliar, Técnico de Enfermagem)
+ * - Complexidade do caso (Baixa, Média, Alta)
+ * - Horas diárias de atendimento
+ * - Duração do serviço em dias
+ * - Adicional noturno (plantões > 12h)
+ * - Adicional de feriados
+ * - Taxa administrativa (20%)
+ */
+
+/**
+ * Tabela de preços por hora para cada tipo de profissional.
+ * Valores em R$ por hora de trabalho.
+ * - diurno: 6h às 22h
+ * - noturno: 22h às 6h (adicional de 20%)
+ * - feriado: adicional de 50% sobre o valor diurno
+ */
 const TABELA_PRECOS: Record<TipoProfissional, { diurno: number; noturno: number; feriado: number }> = {
     CUIDADOR: { diurno: 15.00, noturno: 18.00, feriado: 22.50 },
     AUXILIAR_ENF: { diurno: 22.00, noturno: 26.40, feriado: 33.00 },
     TECNICO_ENF: { diurno: 30.00, noturno: 36.00, feriado: 45.00 },
 };
 
-// Multiplicador por complexidade
+/**
+ * Multiplicadores de complexidade do caso.
+ * Aplicados sobre o valor base para refletir a demanda de cuidado.
+ * - NAO_ELEGIVEL: Paciente não elegível para atendimento domiciliar
+ * - BAIXA: Cuidados básicos (AVDs, companhia)
+ * - MEDIA: Cuidados intermediários (medicação, curativos simples)
+ * - ALTA: Cuidados complexos (sondas, traqueostomia, etc)
+ */
 const MULTIPLICADOR_COMPLEXIDADE: Record<ComplexidadeNivel, number> = {
     NAO_ELEGIVEL: 0,
     BAIXA: 1.0,
@@ -15,7 +47,10 @@ const MULTIPLICADOR_COMPLEXIDADE: Record<ComplexidadeNivel, number> = {
     ALTA: 1.50,
 };
 
-// Taxa administrativa
+/**
+ * Taxa administrativa cobrada sobre o valor total.
+ * Cobre custos operacionais, gestão de equipe e suporte 24h.
+ */
 const TAXA_ADMINISTRATIVA = 0.20;
 
 export interface OrcamentoInput {

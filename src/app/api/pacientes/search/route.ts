@@ -9,6 +9,13 @@ export async function GET(request: NextRequest) {
         return NextResponse.json([]);
     }
 
+    if (query.length < 3) {
+        return NextResponse.json(
+            { error: 'A busca deve ter no mínimo 3 caracteres' },
+            { status: 400 }
+        );
+    }
+
     try {
         const results = await searchPaciente(query);
         return NextResponse.json(results);

@@ -9,6 +9,7 @@ import { handleQuiz } from './quiz';
 import { handleAceiteOrcamento } from './aceite-orcamento';
 import { handleAssinaturaContrato } from './assinatura-contrato';
 import { handleCheckinPlantao } from './checkin';
+import { notifyAdminHelp } from '@/lib/notifications/emergency';
 
 
 
@@ -108,9 +109,17 @@ Digite:
         }
     } catch (error) {
         console.error('Erro ao processar mensagem:', error);
-        await sendMessage(phone,
-            'Desculpe, ocorreu um erro. Tente novamente ou digite AJUDA.'
-        );
+        await sendMessage(phone, `
+Ops! Tivemos um problema técnico ao processar sua mensagem.
+
+Por favor, tente novamente em alguns instantes. Se o problema persistir:
+
+1️⃣ Digite *MENU* para voltar ao início
+2️⃣ Digite *AJUDA* para falar com um atendente
+3️⃣ Ligue para 0800-XXX-XXXX
+
+Pedimos desculpas pelo inconveniente!
+        `.trim());
     }
 }
 
@@ -140,7 +149,7 @@ Horário: Seg-Sex, 8h-18h
 Um atendente entrará em contato em breve!
   `.trim());
 
-    // TODO: Notificar admin
+    await notifyAdminHelp(phone);
 }
 
 // Handlers pendentes (placeholder)

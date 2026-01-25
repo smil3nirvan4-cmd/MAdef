@@ -1,0 +1,123 @@
+interface EmergencyNotificationData {
+    telefone: string;
+    timestamp: Date;
+    mensagem?: string;
+}
+
+async function sendSlackNotification(data: EmergencyNotificationData): Promise<boolean> {
+    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    if (!webhookUrl) return false;
+
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: `🚨 *EMERGÊNCIA MÉDICA* 🚨`,
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `*ALERTA DE EMERGÊNCIA MÉDICA*\n\nUm usuário reportou uma emergência médica via WhatsApp.\n\n*Telefone:* ${data.telefone}\n*Horário:* ${data.timestamp.toLocaleString('pt-BR')}\n\n⚠️ O usuário foi orientado a ligar para o 192 (SAMU).`
+                        }
+                    }
+                ]
+            })
+        });
+        return response.ok;
+    } catch (error) {
+        console.error('Erro ao enviar notificação Slack:', error);
+        return false;
+    }
+}
+
+async function sendTelegramNotification(data: EmergencyNotificationData): Promise<boolean> {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (!botToken || !chatId) return false;
+
+    try {
+        const message = `🚨 *EMERGÊNCIA MÉDICA* 🚨
+
+Um usuário reportou uma emergência médica via WhatsApp.
+
+📞 *Telefone:* ${data.telefone}
+🕐 *Horário:* ${data.timestamp.toLocaleString('pt-BR')}
+
+⚠️ O usuário foi orientado a ligar para o 192 (SAMU).`;
+
+        const response = await fetch(
+            `https://api.telegram.org/bot${botToken}/sendMessage`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            }
+        );
+        return response.ok;
+    } catch (error) {
+        console.error('Erro ao enviar notificação Telegram:', error);
+        return false;
+    }
+}
+
+async function sendEmailNotification(data: EmergencyNotificationData): Promise<boolean> {
+    const emergencyEmail = process.env.EMERGENCY_NOTIFICATION_EMAIL;
+    if (!emergencyEmail) return false;
+
+    console.log(`[EMAIL] Notificação de emergência para ${emergencyEmail}:`, {
+        telefone: data.telefone,
+        timestamp: data.timestamp
+    });
+
+    return true;
+}
+
+export async function notifyEmergencyTeam(telefone: string): Promise<void> {
+    const data: EmergencyNotificationData = {
+        telefone,
+        timestamp: new Date()
+    };
+
+    console.log('🚨 [EMERGÊNCIA] Notificando equipe sobre emergência médica:', data);
+
+    const results = await Promise.allSettled([
+        sendSlackNotification(data),
+        sendTelegramNotification(data),
+        sendEmailNotification(data)
+    ]);
+
+    const successCount = results.filter(
+        r => r.status === 'fulfilled' && r.value === true
+    ).length;
+
+    if (successCount === 0) {
+        console.warn('⚠️ [EMERGÊNCIA] Nenhum canal de notificação configurado ou disponível');
+    } else {
+        console.log(`✅ [EMERGÊNCIA] Notificação enviada para ${successCount} canal(is)`);
+    }
+}
+
+export async function notifyAdminHelp(telefone: string): Promise<void> {
+    console.log(`📞 [AJUDA] Usuário ${telefone} solicitou falar com atendente`);
+
+    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    if (webhookUrl) {
+        try {
+            await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: `📞 *Solicitação de Atendimento*\n\nUsuário solicitou falar com atendente.\n*Telefone:* ${telefone}\n*Horário:* ${new Date().toLocaleString('pt-BR')}`
+                })
+            });
+        } catch (error) {
+            console.error('Erro ao notificar admin:', error);
+        }
+    }
+}
