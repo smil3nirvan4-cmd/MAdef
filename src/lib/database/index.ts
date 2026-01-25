@@ -5,10 +5,17 @@ import { IDatabaseFactory } from '../repositories/types';
 let db: IDatabaseFactory;
 
 const FORCE_MOCK = process.env.USE_MOCK_DB === 'true';
+const DATABASE_URL = process.env.DATABASE_URL || '';
+
+// Check if DATABASE_URL is valid for PostgreSQL
+const isValidPostgresUrl = DATABASE_URL.startsWith('postgresql://') || DATABASE_URL.startsWith('postgres://');
 
 try {
     if (FORCE_MOCK) {
         throw new Error('Forcing Mock DB via Env Var');
+    }
+    if (!isValidPostgresUrl) {
+        throw new Error('Invalid or missing PostgreSQL DATABASE_URL');
     }
     // Try to load Prisma Implementation
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -16,7 +23,8 @@ try {
     db = PrismaRepository;
     console.log('✅ [DB] Using Prisma Real Database');
 } catch (e) {
-    console.warn('⚠️ [DB] Using In-Memory Mock Repository (Reason: Prisma not found or Mock forced)');
+    const reason = FORCE_MOCK ? 'Mock forced' : !isValidPostgresUrl ? 'Invalid DATABASE_URL' : 'Prisma not found';
+    console.warn(`⚠️ [DB] Using In-Memory Mock Repository (Reason: ${reason})`);
     db = MockRepository;
 }
 

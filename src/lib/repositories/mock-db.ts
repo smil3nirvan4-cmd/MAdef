@@ -30,6 +30,7 @@ const store = globalState.mockRepoStore;
 
 export const MockRepository: IDatabaseFactory = {
     cuidador: {
+        async findById(id) { return store.cuidadores.find((c: any) => c.id === id) || null; },
         async findByPhone(phone) { return store.cuidadores.find((c: any) => c.telefone === phone) || null; },
         async findAllPending() { return store.cuidadores.filter((c: any) => c.status === 'AGUARDANDO_RH'); },
         async upsert(phone, data) {
@@ -41,6 +42,14 @@ export const MockRepository: IDatabaseFactory = {
             const novo = { id: Date.now().toString(), telefone: phone, ...data, createdAt: new Date() };
             store.cuidadores.push(novo);
             return novo;
+        },
+        async update(id, data) {
+            const idx = store.cuidadores.findIndex((c: any) => c.id === id);
+            if (idx >= 0) {
+                store.cuidadores[idx] = { ...store.cuidadores[idx], ...data };
+                return store.cuidadores[idx];
+            }
+            throw new Error('Cuidador not found');
         }
     },
     paciente: {
@@ -84,7 +93,15 @@ export const MockRepository: IDatabaseFactory = {
     },
     form: {
         async logSubmission(tipo, data, phone) {
-            const sub = { id: Date.now().toString(), type: tipo, dados: JSON.stringify(data), telefone: phone, createdAt: new Date() };
+            const sub = { 
+                id: Date.now().toString(), 
+                tipo, 
+                dados: JSON.stringify(data), 
+                telefone: phone || null, 
+                createdAt: new Date(),
+                ipAddress: null,
+                userAgent: null
+            };
             store.submissions.unshift(sub);
             return sub;
         },
@@ -92,7 +109,22 @@ export const MockRepository: IDatabaseFactory = {
     },
     avaliacao: {
         async create(data) {
-            const nova = { id: Date.now().toString(), ...data, createdAt: new Date() };
+            const nova = { 
+                id: Date.now().toString(), 
+                pacienteId: data.pacienteId,
+                abemidScore: data.abemidScore ?? null,
+                katzScore: data.katzScore ?? null,
+                lawtonScore: data.lawtonScore ?? null,
+                gqp: data.gqp ?? null,
+                nivelSugerido: data.nivelSugerido ?? null,
+                cargaSugerida: data.cargaSugerida ?? null,
+                status: data.status ?? 'PENDENTE',
+                nivelFinal: null,
+                cargaFinal: null,
+                avaliadorId: null,
+                validadoEm: null,
+                createdAt: new Date() 
+            };
             store.avaliacoes.push(nova);
             return nova;
         },
@@ -100,7 +132,20 @@ export const MockRepository: IDatabaseFactory = {
     },
     orcamento: {
         async create(data) {
-            const novo = { id: Date.now().toString(), ...data, createdAt: new Date() };
+            const novo = { 
+                id: Date.now().toString(), 
+                pacienteId: data.pacienteId,
+                cenarioEconomico: data.cenarioEconomico ?? null,
+                cenarioRecomendado: data.cenarioRecomendado ?? null,
+                cenarioPremium: data.cenarioPremium ?? null,
+                status: 'RASCUNHO',
+                cenarioSelecionado: null,
+                valorFinal: null,
+                aprovadoPor: null,
+                enviadoEm: null,
+                aceitoEm: null,
+                createdAt: new Date() 
+            };
             store.orcamentos.push(novo);
             return novo;
         },
@@ -110,13 +155,29 @@ export const MockRepository: IDatabaseFactory = {
                 store.orcamentos[idx] = { ...store.orcamentos[idx], ...data };
                 return store.orcamentos[idx];
             }
-            return null;
+            throw new Error('Orcamento not found');
         },
         async findByPaciente(pacienteId) { return store.orcamentos.filter((o: any) => o.pacienteId === pacienteId); }
     },
     alocacao: {
         async create(data) {
-            const novo = { id: Date.now().toString(), ...data, createdAt: new Date() };
+            const novo = { 
+                id: Date.now().toString(), 
+                cuidadorId: data.cuidadorId,
+                pacienteId: data.pacienteId ?? null,
+                slotId: data.slotId,
+                turno: data.turno,
+                diaSemana: data.diaSemana,
+                dataInicio: data.dataInicio,
+                hospital: data.hospital ?? null,
+                quarto: data.quarto ?? null,
+                status: 'PENDENTE_FEEDBACK',
+                ofertadoEm: new Date(),
+                respondidoEm: null,
+                confirmadoT24: null,
+                confirmadoT2: null,
+                createdAt: new Date() 
+            };
             store.alocacoes.push(novo);
             return novo;
         },
@@ -126,7 +187,7 @@ export const MockRepository: IDatabaseFactory = {
                 store.alocacoes[idx] = { ...store.alocacoes[idx], ...data };
                 return store.alocacoes[idx];
             }
-            return null;
+            throw new Error('Alocacao not found');
         },
         async findByCuidador(cuidadorId) { return store.alocacoes.filter((a: any) => a.cuidadorId === cuidadorId); },
         async findByPaciente(pacienteId) { return store.alocacoes.filter((a: any) => a.pacienteId === pacienteId); }

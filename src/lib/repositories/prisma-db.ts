@@ -9,6 +9,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 export const PrismaRepository: IDatabaseFactory = {
     cuidador: {
+        async findById(id) { return prisma.cuidador.findUnique({ where: { id } }); },
         async findByPhone(phone) { return prisma.cuidador.findUnique({ where: { telefone: phone } }); },
         async findAllPending() { return prisma.cuidador.findMany({ where: { status: 'AGUARDANDO_RH' }, orderBy: { createdAt: 'desc' } }); },
         async upsert(phone, data) {
@@ -17,7 +18,8 @@ export const PrismaRepository: IDatabaseFactory = {
                 update: data,
                 create: { telefone: phone, ...data }
             });
-        }
+        },
+        async update(id, data) { return prisma.cuidador.update({ where: { id }, data }); }
     },
     paciente: {
         async findByPhone(phone) { return prisma.paciente.findUnique({ where: { telefone: phone } }); },
@@ -48,7 +50,10 @@ export const PrismaRepository: IDatabaseFactory = {
             return prisma.whatsAppSession.upsert({
                 where: { id: 'main' },
                 update: data,
-                create: { id: 'main', ...data }
+                create: { 
+                    id: 'main', 
+                    status: typeof data.status === 'string' ? data.status : 'DISCONNECTED'
+                }
             });
         }
     },
@@ -103,7 +108,19 @@ export const PrismaRepository: IDatabaseFactory = {
     alocacao: {
         async create(data) { return prisma.alocacao.create({ data }); },
         async update(id, data) { return prisma.alocacao.update({ where: { id }, data }); },
-        async findByCuidador(cuidadorId) { return prisma.alocacao.findMany({ where: { cuidadorId }, orderBy: { createdAt: 'desc' } }); },
-        async findByPaciente(pacienteId) { return prisma.alocacao.findMany({ where: { pacienteId }, orderBy: { createdAt: 'desc' } }); }
+        async findByCuidador(cuidadorId) { 
+            return prisma.alocacao.findMany({ 
+                where: { cuidadorId }, 
+                orderBy: { createdAt: 'desc' },
+                include: { cuidador: true, paciente: true }
+            }); 
+        },
+        async findByPaciente(pacienteId) { 
+            return prisma.alocacao.findMany({ 
+                where: { pacienteId }, 
+                orderBy: { createdAt: 'desc' },
+                include: { cuidador: true, paciente: true }
+            }); 
+        }
     }
 };

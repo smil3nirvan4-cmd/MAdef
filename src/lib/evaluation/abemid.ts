@@ -1,5 +1,30 @@
 import type { ABEMIDEvaluation, ComplexidadeNivel } from '@/types/evaluation';
 
+/**
+ * AVALIAÇÃO ABEMID - ATENÇÃO DOMICILIAR
+ * 
+ * Este módulo implementa o algoritmo de classificação ABEMID (Associação Brasileira
+ * de Empresas de Medicina Domiciliar) para determinar a elegibilidade e o nível
+ * de complexidade de pacientes para atendimento domiciliar.
+ * 
+ * O algoritmo considera três dimensões principais:
+ * 1. Elegibilidade: Critérios obrigatórios para admissão no programa
+ * 2. Suporte Terapêutico: Procedimentos e dispositivos em uso
+ * 3. Grau de Dependência: Capacidade funcional do paciente
+ * 
+ * A pontuação final determina:
+ * - Nível de complexidade (Baixa, Média, Alta)
+ * - Horas de assistência recomendadas (6h, 12h, 24h)
+ * - Tipo de profissional necessário
+ */
+
+/**
+ * Pontuação por tipo de suporte terapêutico.
+ * Itens com 5 pontos são considerados "críticos" e afetam a classificação final.
+ * - 5 pontos: Procedimentos de alta complexidade (diálise, traqueostomia com aspiração, acesso venoso contínuo)
+ * - 3 pontos: Procedimentos de média complexidade (sondas, acesso intermitente)
+ * - 1-2 pontos: Procedimentos de baixa complexidade (via oral, subcutânea)
+ */
 const PONTUACAO_SUPORTE: Record<string, number> = {
     dialise: 5,
     traqueostomiaComAspiracao: 5,
@@ -14,6 +39,13 @@ const PONTUACAO_SUPORTE: Record<string, number> = {
     aspiracaoViasAereas: 3,
 };
 
+/**
+ * Pontuação por grau de dependência funcional.
+ * Baseado na capacidade do paciente realizar Atividades de Vida Diária (AVDs).
+ * - independente: Realiza AVDs sem auxílio
+ * - parcial: Necessita auxílio em algumas AVDs
+ * - total: Dependente completo para todas as AVDs
+ */
 const PONTUACAO_DEPENDENCIA: Record<string, number> = {
     independente: 1,
     parcial: 3,

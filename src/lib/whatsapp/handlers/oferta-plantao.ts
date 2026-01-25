@@ -17,7 +17,7 @@ export async function handleOfertaPlantao(
 
         await DB.alocacao.update(state.data.alocacaoId, {
             status: 'CONFIRMADO',
-            responditoEm: new Date()
+            respondidoEm: new Date()
         });
 
         await sendMessage(from, `
@@ -43,7 +43,7 @@ Obrigado! 🙏
         const { DB } = await import('@/lib/database');
         await DB.alocacao.update(state.data.alocacaoId, {
             status: 'RECUSADO',
-            responditoEm: new Date()
+            respondidoEm: new Date()
         });
 
         await sendMessage(from, `

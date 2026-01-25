@@ -5,21 +5,33 @@ import { MemoryInMemState } from '../state/memory';
 let stateManager: IStateManager;
 
 const FORCE_MEMORY_STATE = process.env.USE_MEMORY_STATE === 'true';
+const REDIS_URL = process.env.REDIS_URL;
 
-try {
+function initializeStateManager(): IStateManager {
     if (FORCE_MEMORY_STATE) {
-        throw new Error('Forcing Memory State via Env Var');
+        console.warn('⚠️ [State] Using In-Memory State Manager (Forced via Env Var)');
+        return MemoryInMemState;
     }
-    // Try to load Prisma Implementation
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { PrismaState } = require('../state/prisma');
-    // Simple check if prisma works or if we are in a mode that supports it
-    stateManager = PrismaState;
-    console.log('✅ [State] Using Prisma Database State');
-} catch (e) {
-    console.warn('⚠️ [State] Using In-Memory State Manager (Fallback)');
-    stateManager = MemoryInMemState;
+
+    if (REDIS_URL && process.env.NODE_ENV === 'production') {
+        console.log('🔴 [State] Redis URL configured - Redis state manager recommended for production');
+        console.log('   Configure Redis implementation for better scalability');
+    }
+
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { PrismaState } = require('../state/prisma');
+        stateManager = PrismaState;
+        console.log('✅ [State] Using Prisma Database State');
+        return PrismaState;
+    } catch (e) {
+        console.warn('⚠️ [State] Using In-Memory State Manager (Fallback)');
+        console.warn('   For production, configure REDIS_URL or ensure Prisma is available');
+        return MemoryInMemState;
+    }
 }
+
+stateManager = initializeStateManager();
 
 // Re-export interface for types
 export type { UserState };

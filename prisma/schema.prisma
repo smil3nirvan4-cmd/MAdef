@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -103,7 +103,7 @@ model Alocacao {
   quarto        String?
   status        String    @default("PENDENTE_FEEDBACK")
   ofertadoEm    DateTime  @default(now())
-  responditoEm  DateTime?
+  respondidoEm  DateTime?
   confirmadoT24 DateTime?
   confirmadoT2  DateTime?
   createdAt     DateTime  @default(now())

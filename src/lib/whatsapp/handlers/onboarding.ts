@@ -1,6 +1,7 @@
 import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
+import { notifyEmergencyTeam } from '@/lib/notifications/emergency';
 
 export async function handleOnboarding(
     message: WhatsAppMessage,
@@ -100,7 +101,7 @@ Nós somos um serviço de cuidados domiciliares e NÃO atendemos emergências co
 Nossa equipe administrativa foi notificada do seu contato e tentará falar com você em breve, mas *não aguarde* para buscar socorro especializado.
             `.trim());
 
-            // TODO: Notificar Admin via Telegram/Slack/Email com urgência máxima
+            await notifyEmergencyTeam(from);
 
             // Resetar ou pausar estado
             await setUserState(from, {
@@ -162,12 +163,12 @@ Qual o *Nome Completo do Paciente*?
 
     // Step 5: Detecção de Prioridade (Coleta básica)
     if (state.currentStep === 'AWAITING_PATIENT_NAME') {
-        // Exemplo simples de coleta e detecção
         const nome = body.trim();
         const priorityKeywords = ['alta', 'hospital', 'sonda', 'uti', 'acamado', 'urgente'];
 
-        // Apenas para demonstração, checando na próxima resposta ou aqui mesmo
-        // Num fluxo real, coletaríamos anamnese completa. 
+        const hasPriorityKeyword = priorityKeywords.some(keyword => 
+            nome.toLowerCase().includes(keyword)
+        );
 
         await sendMessage(from, `
 Obrigado. Em qual *Cidade e Bairro* o paciente está?
@@ -175,7 +176,155 @@ Obrigado. Em qual *Cidade e Bairro* o paciente está?
 
         await setUserState(from, {
             currentStep: 'AWAITING_LOCATION',
-            data: { ...state.data, nomePaciente: nome }
+            data: { 
+                ...state.data, 
+                nomePaciente: nome,
+                prioridade: hasPriorityKeyword ? 'ALTA' : 'NORMAL'
+            }
+        });
+        return;
+    }
+
+    // Step 6: Coleta de Localização
+    if (state.currentStep === 'AWAITING_LOCATION') {
+        const localizacao = body.trim();
+        const parts = localizacao.split(',').map(p => p.trim());
+        const cidade = parts[0] || localizacao;
+        const bairro = parts[1] || '';
+
+        await sendMessage(from, `
+Entendi! ${cidade}${bairro ? `, ${bairro}` : ''}.
+
+Qual o *tipo de cuidado* necessário?
+
+1️⃣ Cuidado Domiciliar (Home Care)
+2️⃣ Acompanhamento Hospitalar (Plantão)
+
+Digite o número:
+        `.trim());
+
+        await setUserState(from, {
+            currentStep: 'AWAITING_CARE_TYPE',
+            data: { 
+                ...state.data, 
+                cidade,
+                bairro
+            }
+        });
+        return;
+    }
+
+    // Step 7: Tipo de Cuidado
+    if (state.currentStep === 'AWAITING_CARE_TYPE') {
+        const option = body.trim();
+
+        if (option === '1' || option === '2') {
+            const tipoCuidado = option === '1' ? 'HOME_CARE' : 'HOSPITAL';
+
+            await sendMessage(from, `
+Qual a *condição principal* do paciente?
+
+1️⃣ Idoso com dificuldade de locomoção
+2️⃣ Pós-operatório
+3️⃣ Doença crônica (diabetes, hipertensão, etc)
+4️⃣ Demência/Alzheimer
+5️⃣ Acamado
+6️⃣ Outro
+
+Digite o número:
+            `.trim());
+
+            await setUserState(from, {
+                currentStep: 'AWAITING_CONDITION',
+                data: { 
+                    ...state.data, 
+                    tipoCuidado
+                }
+            });
+            return;
+        }
+
+        await sendMessage(from, 'Digite 1 para Cuidado Domiciliar ou 2 para Acompanhamento Hospitalar.');
+        return;
+    }
+
+    // Step 8: Condição do Paciente
+    if (state.currentStep === 'AWAITING_CONDITION') {
+        const option = body.trim();
+        const condicoes: Record<string, string> = {
+            '1': 'IDOSO_LOCOMOCAO',
+            '2': 'POS_OPERATORIO',
+            '3': 'DOENCA_CRONICA',
+            '4': 'DEMENCIA',
+            '5': 'ACAMADO',
+            '6': 'OUTRO'
+        };
+
+        const condicao = condicoes[option];
+        if (!condicao) {
+            await sendMessage(from, 'Digite um número de 1 a 6.');
+            return;
+        }
+
+        await sendMessage(from, `
+Quantas *horas por dia* de cuidado são necessárias?
+
+1️⃣ 6 horas (meio período)
+2️⃣ 12 horas (período integral)
+3️⃣ 24 horas (cuidado contínuo)
+
+Digite o número:
+        `.trim());
+
+        await setUserState(from, {
+            currentStep: 'AWAITING_HOURS',
+            data: { 
+                ...state.data, 
+                condicao
+            }
+        });
+        return;
+    }
+
+    // Step 9: Horas de Cuidado
+    if (state.currentStep === 'AWAITING_HOURS') {
+        const option = body.trim();
+        const horasMap: Record<string, number> = {
+            '1': 6,
+            '2': 12,
+            '3': 24
+        };
+
+        const horasDiarias = horasMap[option];
+        if (!horasDiarias) {
+            await sendMessage(from, 'Digite 1, 2 ou 3.');
+            return;
+        }
+
+        await sendMessage(from, `
+Perfeito! Resumo do seu pedido:
+
+👤 *Paciente:* ${state.data?.nomePaciente || 'Não informado'}
+📍 *Local:* ${state.data?.cidade || 'Não informado'}${state.data?.bairro ? `, ${state.data.bairro}` : ''}
+🏥 *Tipo:* ${state.data?.tipoCuidado === 'HOME_CARE' ? 'Cuidado Domiciliar' : 'Acompanhamento Hospitalar'}
+⏰ *Horas:* ${horasDiarias}h/dia
+
+Nossa equipe de avaliação entrará em contato em breve para agendar uma visita e elaborar um orçamento personalizado.
+
+📞 Se precisar de algo urgente, digite *AJUDA*.
+
+Obrigado por escolher a Mãos Amigas! 🤝
+        `.trim());
+
+        await setUserState(from, {
+            currentFlow: 'AGUARDANDO_AVALIACAO',
+            currentStep: 'CADASTRO_COMPLETO',
+            data: { 
+                ...state.data, 
+                horasDiarias,
+                cadastroCompleto: true,
+                dataCadastro: new Date().toISOString()
+            }
         });
         return;
     }

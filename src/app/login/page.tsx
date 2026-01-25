@@ -27,8 +27,7 @@ export default function LoginPage() {
                             id="email"
                             type="email"
                             name="email"
-                            placeholder="admin@maosamigas.com"
-                            defaultValue="admin@maosamigas.com"
+                            placeholder="seu@email.com"
                             required
                         />
                     </div>
@@ -42,7 +41,6 @@ export default function LoginPage() {
                             type="password"
                             name="password"
                             placeholder="********"
-                            defaultValue="admin123"
                             required
                             minLength={6}
                         />
