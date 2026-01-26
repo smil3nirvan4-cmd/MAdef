@@ -1,30 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getWhatsAppSession } from '@/lib/database';
+import path from 'path';
+import fs from 'fs';
+
+const SESSION_FILE = path.join(process.cwd(), '.wa-session.json');
+
+function loadSession() {
+    try {
+        if (fs.existsSync(SESSION_FILE)) {
+            return JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
+        }
+    } catch (_e) {
+        console.error('Erro ao ler sessão:', _e);
+    }
+    return { status: 'DISCONNECTED', qrCode: null, connectedAt: null };
+}
 
 export async function GET() {
-    try {
-        const session = await getWhatsAppSession();
-
-        if (!session) {
-            return NextResponse.json({
-                status: 'DISCONNECTED',
-                qrCode: null,
-                connectedAt: null,
-            });
-        }
-
-        return NextResponse.json({
-            status: session.status,
-            qrCode: session.qrCode,
-            connectedAt: session.connectedAt?.toISOString() || null,
-        });
-    } catch (error) {
-        console.error('Error getting WhatsApp status:', error);
-        return NextResponse.json({
-            status: 'DISCONNECTED',
-            qrCode: null,
-            connectedAt: null,
-            error: 'Database not initialized',
-        });
-    }
+    const session = loadSession();
+    return NextResponse.json(session);
 }

@@ -55,7 +55,7 @@ export const PrismaState: IStateManager = {
     async clearUserState(phone: string) {
         try {
             await prisma.whatsAppFlowState.delete({ where: { phone } });
-        } catch (e) {
+        } catch (_e) {
             // Ignore if not found
         }
     },
@@ -89,7 +89,7 @@ export const PrismaState: IStateManager = {
                 }
             });
             return true;
-        } catch (e) {
+        } catch (_e) {
             // Lock already exists and is not expired
             return false;
         }
@@ -98,7 +98,7 @@ export const PrismaState: IStateManager = {
     async releaseLock(resourceId: string) {
         try {
             await prisma.whatsAppLock.delete({ where: { resourceId } });
-        } catch (e) {
+        } catch (_e) {
             // Ignore if not found
         }
     },

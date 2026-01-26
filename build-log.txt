@@ -1,0 +1,270 @@
+﻿
+> mao001@0.1.0 build
+> next build
+
+node.exe : ÔÜá 
+Warning: Next.js 
+inferred your 
+workspace root, but 
+it may not be correct.
+No linha:1 caractere:1
++ & "C:\Program Files\
+nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (ÔÜá Warnin   
+ g: Ne...not be co    
+rrect.:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+ We detected multiple 
+lockfiles and 
+selected the 
+directory of C:\Users\
+dramo\package-lock.jso
+n as the root 
+directory.
+ To silence this 
+warning, set 
+`turbopack.root` in 
+your Next.js config, 
+or consider removing 
+one of the lockfiles 
+if it's not needed.
+   See https://nextjs.
+org/docs/app/api-refer
+ence/config/next-confi
+g-js/turbopack#root-di
+rectory for more 
+information.
+ Detected additional 
+lockfiles: 
+   * C:\Users\dramo\Do
+wnloads\MA1\package-lo
+ck.json
+
+Ôû▓ Next.js 16.1.4 (Turbopack)
+- Environments: .env.local, .env
+
+ÔÜá The "middleware" 
+file convention is 
+deprecated. Please 
+use "proxy" instead. 
+Learn more: https://ne
+xtjs.org/docs/messages
+/middleware-to-proxy
+  Creating an optimized production build ...
+Error: Can't resolve '
+./styles/tokens/colors
+.css' in 'C:\Users\dra
+mo\Downloads\MA1\src\a
+pp'
+    [2m[at 
+finishWithoutResolve (
+C:\Users\dramo\Downloa
+ds\MA1\node_modules\en
+hanced-resolve\lib\Res
+olver.js:565:18)][0m
+    [2m[at C:\Users\d
+ramo\Downloads\MA1\nod
+e_modules\enhanced-res
+olve\lib\Resolver.js:6
+57:14][0m
+    [2m[at C:\Users\d
+ramo\Downloads\MA1\nod
+e_modules\enhanced-res
+olve\lib\Resolver.js:7
+18:5][0m
+    [2m[at eval 
+(eval at create (C:\Us
+ers\dramo\Downloads\MA
+1\node_modules\tapable
+\lib\HookCodeFactory.j
+s:31:10), 
+<anonymous>:15:1)][0m
+    [2m[at C:\Users\d
+ramo\Downloads\MA1\nod
+e_modules\enhanced-res
+olve\lib\Resolver.js:7
+18:5][0m
+    [2m[at eval 
+(eval at create (C:\Us
+ers\dramo\Downloads\MA
+1\node_modules\tapable
+\lib\HookCodeFactory.j
+s:31:10), 
+<anonymous>:27:1)][0m
+    [2m[at C:\Users\d
+ramo\Downloads\MA1\nod
+e_modules\enhanced-res
+olve\lib\DescriptionFi
+lePlugin.js:89:43][0m
+    [2m[at C:\Users\d
+ramo\Downloads\MA1\nod
+e_modules\enhanced-res
+olve\lib\Resolver.js:7
+18:5][0m
+    [2m[at eval 
+(eval at create (C:\Us
+ers\dramo\Downloads\MA
+1\node_modules\tapable
+\lib\HookCodeFactory.j
+s:31:10), 
+<anonymous>:15:1)][0m
+    [2m[at C:\Users\d
+ramo\Downloads\MA1\nod
+e_modules\enhanced-res
+olve\lib\Resolver.js:7
+18:5][0m {
+  details: "resolve '.
+/styles/tokens/colors.
+css' in 'C:\\Users\\dr
+amo\\Downloads\\MA1\\s
+rc\\app'\n" +
+    '  using 
+description file: C:\\
+Users\\dramo\\Download
+s\\MA1\\package.json 
+(relative path: 
+./src/app)\n' +
+    '    using 
+description file: C:\\
+Users\\dramo\\Download
+s\\MA1\\package.json 
+(relative path: ./src/
+app/styles/tokens/colo
+rs.css)\n' +
+    '      no 
+extension\n' +
+    "        C:\\Users
+\\dramo\\Downloads\\MA
+1\\src\\app\\styles\\t
+okens\\colors.css 
+doesn't exist\n" +
+    '      .css\n' +
+    "        C:\\Users
+\\dramo\\Downloads\\MA
+1\\src\\app\\styles\\t
+okens\\colors.css.css 
+doesn't exist\n" +
+    '      as 
+directory\n' +
+    "        C:\\Users
+\\dramo\\Downloads\\MA
+1\\src\\app\\styles\\t
+okens\\colors.css 
+doesn't exist"
+}
+
+> Build error occurred
+Error: Turbopack 
+build failed with 1 
+errors:
+./Downloads/MA1/src/ap
+p/globals.css
+Error evaluating 
+Node.js code
+CssSyntaxError: 
+tailwindcss: C:\Users\
+dramo\Downloads\MA1\sr
+c\app\globals.css:1:1:
+ Can't resolve './styl
+es/tokens/colors.css' 
+in 'C:\Users\dramo\Dow
+nloads\MA1\src\app'
+    at Input.error (Do
+wnloads/MA1/node_modul
+es/postcss/lib/input.j
+s:135:16) [C:\Users\dr
+amo\Downloads\MA1\.nex
+t\build\chunks\2b155_e
+e3ea576._.js:4651:22]
+    at Root.error (Dow
+nloads/MA1/node_module
+s/postcss/lib/node.js:
+146:32) [C:\Users\dram
+o\Downloads\MA1\.next\
+build\chunks\2b155_ee3
+ea576._.js:928:38]
+    [at Object.Once (C
+:\Users\dramo\Download
+s\MA1\node_modules\@ta
+ilwindcss\postcss\dist
+\index.js:10:6911)]
+    [at process.proces
+sTicksAndRejections (n
+ode:internal/process/t
+ask_queues:103:5)]
+    at async 
+LazyResult.runAsync (D
+ownloads/MA1/node_modu
+les/postcss/lib/lazy-r
+esult.js:293:11) [C:\U
+sers\dramo\Downloads\M
+A1\.next\build\chunks\
+2b155_ee3ea576._.js:62
+06:21]
+    at async 
+transform (turbopack:/
+//[turbopack-node]/tra
+nsforms/postcss.ts:70:
+34) [C:\Users\dramo\Do
+wnloads\MA1\.next\buil
+d\chunks\[root-of-the-
+server]__6272e7a4._.js
+:146:36]
+    at async run (turb
+opack:///[turbopack-no
+de]/ipc/evaluate.ts:92
+:23) [C:\Users\dramo\D
+ownloads\MA1\.next\bui
+ld\chunks\[root-of-the
+-server]__c4e3ae01._.j
+s:443:31]
+
+Import traces:
+  App Route:
+    ./Downloads/MA1/sr
+c/app/globals.css
+    ./Downloads/MA1/sr
+c/app/api/admin/whatsa
+pp/export/route.ts
+
+  Client Component 
+Browser:
+    ./Downloads/MA1/sr
+c/app/globals.css 
+[Client Component 
+Browser]
+    ./Downloads/MA1/sr
+c/app/layout.tsx 
+[Server Component]
+
+
+    at async 
+transform (turbopack:/
+//[turbopack-node]/tra
+nsforms/postcss.ts:70:
+34) [C:\Users\dramo\Do
+wnloads\MA1\.next\buil
+d\chunks\[root-of-the-
+server]__6272e7a4._.js
+:146:36])
+    at async run (turb
+opack:///[turbopack-no
+de]/ipc/evaluate.ts:92
+:23) [C:\Users\dramo\D
+ownloads\MA1\.next\bui
+ld\chunks\[root-of-the
+-server]__c4e3ae01._.j
+s:443:31])

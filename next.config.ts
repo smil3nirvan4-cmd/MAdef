@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  // React Compiler disabled due to setState-in-effect warnings
+  // Can be re-enabled after fixing cascading render patterns
+  reactCompiler: false,
   serverExternalPackages: ['pino', 'pino-pretty', 'jimp', 'sharp'],
 };
 

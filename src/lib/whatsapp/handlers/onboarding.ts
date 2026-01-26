@@ -9,6 +9,8 @@ export async function handleOnboarding(
 ) {
     const { body, from } = message;
 
+    console.log(`🚀 HandleOnboarding: Step atual = ${state.currentStep}, De = ${from}`);
+
     // Step 1: Welcome
     if (state.currentStep === 'WELCOME') {
         await sendMessage(from, `
@@ -166,7 +168,7 @@ Qual o *Nome Completo do Paciente*?
         const nome = body.trim();
         const priorityKeywords = ['alta', 'hospital', 'sonda', 'uti', 'acamado', 'urgente'];
 
-        const hasPriorityKeyword = priorityKeywords.some(keyword => 
+        const hasPriorityKeyword = priorityKeywords.some(keyword =>
             nome.toLowerCase().includes(keyword)
         );
 
@@ -176,8 +178,8 @@ Obrigado. Em qual *Cidade e Bairro* o paciente está?
 
         await setUserState(from, {
             currentStep: 'AWAITING_LOCATION',
-            data: { 
-                ...state.data, 
+            data: {
+                ...state.data,
                 nomePaciente: nome,
                 prioridade: hasPriorityKeyword ? 'ALTA' : 'NORMAL'
             }
@@ -205,8 +207,8 @@ Digite o número:
 
         await setUserState(from, {
             currentStep: 'AWAITING_CARE_TYPE',
-            data: { 
-                ...state.data, 
+            data: {
+                ...state.data,
                 cidade,
                 bairro
             }
@@ -236,8 +238,8 @@ Digite o número:
 
             await setUserState(from, {
                 currentStep: 'AWAITING_CONDITION',
-                data: { 
-                    ...state.data, 
+                data: {
+                    ...state.data,
                     tipoCuidado
                 }
             });
@@ -278,8 +280,8 @@ Digite o número:
 
         await setUserState(from, {
             currentStep: 'AWAITING_HOURS',
-            data: { 
-                ...state.data, 
+            data: {
+                ...state.data,
                 condicao
             }
         });
@@ -319,8 +321,8 @@ Obrigado por escolher a Mãos Amigas! 🤝
         await setUserState(from, {
             currentFlow: 'AGUARDANDO_AVALIACAO',
             currentStep: 'CADASTRO_COMPLETO',
-            data: { 
-                ...state.data, 
+            data: {
+                ...state.data,
                 horasDiarias,
                 cadastroCompleto: true,
                 dataCadastro: new Date().toISOString()

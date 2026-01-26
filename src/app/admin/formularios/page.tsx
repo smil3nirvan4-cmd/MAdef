@@ -26,7 +26,7 @@ export default async function FormulariosPage() {
                             let parsedData: FormDados = {};
                             try {
                                 parsedData = typeof sub.dados === 'string' ? JSON.parse(sub.dados) : sub.dados;
-                            } catch (e) {
+                            } catch (_e) {
                                 parsedData = { error: 'Erro ao ler dados' };
                             }
 

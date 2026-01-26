@@ -300,8 +300,8 @@ async function finishQuiz(phone: string, score: number) {
             area: area,
             nome: state?.data?.nome || null
         });
-    } catch (e) {
-        console.error('Erro ao persistir resultado do quiz:', e);
+    } catch (_e) {
+        console.error('Erro ao persistir resultado do quiz:', _e);
     }
 
     if (passed) {

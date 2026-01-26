@@ -1,0 +1,13 @@
+{
+  "autoReplyEnabled": true,
+  "autoTriagemCuidador": true,
+  "autoTriagemPaciente": true,
+  "workingHoursOnly": false,
+  "workingHoursStart": "08:00",
+  "workingHoursEnd": "18:00",
+  "maxMessagesPerMinute": 20,
+  "cooldownSeconds": 3,
+  "welcomeMessage": "Olá! Bem-vindo à Mãos Amigas. Como posso ajudar?",
+  "awayMessage": "Estamos fora do horário de atendimento. Retornaremos em breve!",
+  "fallbackMessage": "Desculpe, não entendi. Digite MENU para ver as opções."
+}

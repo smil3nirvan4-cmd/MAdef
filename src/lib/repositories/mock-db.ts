@@ -93,11 +93,11 @@ export const MockRepository: IDatabaseFactory = {
     },
     form: {
         async logSubmission(tipo, data, phone) {
-            const sub = { 
-                id: Date.now().toString(), 
-                tipo, 
-                dados: JSON.stringify(data), 
-                telefone: phone || null, 
+            const sub = {
+                id: Date.now().toString(),
+                tipo,
+                dados: JSON.stringify(data),
+                telefone: phone || null,
                 createdAt: new Date(),
                 ipAddress: null,
                 userAgent: null
@@ -109,8 +109,8 @@ export const MockRepository: IDatabaseFactory = {
     },
     avaliacao: {
         async create(data) {
-            const nova = { 
-                id: Date.now().toString(), 
+            const nova = {
+                id: Date.now().toString(),
                 pacienteId: data.pacienteId,
                 abemidScore: data.abemidScore ?? null,
                 katzScore: data.katzScore ?? null,
@@ -119,11 +119,19 @@ export const MockRepository: IDatabaseFactory = {
                 nivelSugerido: data.nivelSugerido ?? null,
                 cargaSugerida: data.cargaSugerida ?? null,
                 status: data.status ?? 'PENDENTE',
+                dadosDetalhados: (data as any).dadosDetalhados ?? null,
                 nivelFinal: null,
                 cargaFinal: null,
                 avaliadorId: null,
                 validadoEm: null,
-                createdAt: new Date() 
+                // WhatsApp tracking fields
+                whatsappEnviado: false,
+                whatsappEnviadoEm: null,
+                whatsappMessageId: null,
+                whatsappErro: null,
+                whatsappTentativas: 0,
+                valorProposto: null,
+                createdAt: new Date()
             };
             store.avaliacoes.push(nova);
             return nova;
@@ -132,8 +140,8 @@ export const MockRepository: IDatabaseFactory = {
     },
     orcamento: {
         async create(data) {
-            const novo = { 
-                id: Date.now().toString(), 
+            const novo = {
+                id: Date.now().toString(),
                 pacienteId: data.pacienteId,
                 cenarioEconomico: data.cenarioEconomico ?? null,
                 cenarioRecomendado: data.cenarioRecomendado ?? null,
@@ -144,7 +152,7 @@ export const MockRepository: IDatabaseFactory = {
                 aprovadoPor: null,
                 enviadoEm: null,
                 aceitoEm: null,
-                createdAt: new Date() 
+                createdAt: new Date()
             };
             store.orcamentos.push(novo);
             return novo;
@@ -161,8 +169,8 @@ export const MockRepository: IDatabaseFactory = {
     },
     alocacao: {
         async create(data) {
-            const novo = { 
-                id: Date.now().toString(), 
+            const novo = {
+                id: Date.now().toString(),
                 cuidadorId: data.cuidadorId,
                 pacienteId: data.pacienteId ?? null,
                 slotId: data.slotId,
@@ -176,7 +184,7 @@ export const MockRepository: IDatabaseFactory = {
                 respondidoEm: null,
                 confirmadoT24: null,
                 confirmadoT2: null,
-                createdAt: new Date() 
+                createdAt: new Date()
             };
             store.alocacoes.push(novo);
             return novo;

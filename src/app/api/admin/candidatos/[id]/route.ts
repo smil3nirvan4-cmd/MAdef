@@ -1,5 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DB } from '@/lib/database';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const cuidador = await prisma.cuidador.findUnique({
+            where: { id },
+            include: {
+                mensagens: { orderBy: { timestamp: 'desc' }, take: 50 },
+                alocacoes: { include: { paciente: true }, orderBy: { createdAt: 'desc' }, take: 20 }
+            }
+        });
+        if (!cuidador) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+        return NextResponse.json({ cuidador });
+    } catch (error) {
+        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+    }
+}
 
 export async function PATCH(
     request: NextRequest,
@@ -8,57 +28,45 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { action, scoreRH } = body;
+        const { action, scoreRH, ...updateFields } = body;
 
-        if (!action || !['aprovar', 'rejeitar', 'entrevistar'].includes(action)) {
-            return NextResponse.json(
-                { error: 'Ação inválida. Use: aprovar, rejeitar ou entrevistar' },
-                { status: 400 }
-            );
-        }
-
-        const cuidador = await DB.cuidador.findById(id);
-
-        if (!cuidador) {
-            return NextResponse.json(
-                { error: 'Cuidador não encontrado' },
-                { status: 404 }
-            );
-        }
-
-        let updateData: Record<string, unknown> = {};
+        let updateData: any = {};
 
         switch (action) {
             case 'aprovar':
-                updateData = {
-                    status: 'APROVADO',
-                    scoreRH: scoreRH || cuidador.scoreRH
-                };
+                updateData = { status: 'APROVADO', scoreRH: scoreRH || undefined };
                 break;
             case 'rejeitar':
-                updateData = {
-                    status: 'REJEITADO'
-                };
+                updateData = { status: 'REJEITADO' };
                 break;
             case 'entrevistar':
-                updateData = {
-                    status: 'EM_ENTREVISTA'
-                };
+                updateData = { status: 'EM_ENTREVISTA' };
                 break;
+            case 'reativar':
+                updateData = { status: 'AGUARDANDO_RH' };
+                break;
+            default:
+                updateData = updateFields;
         }
 
-        const updatedCuidador = await DB.cuidador.update(id, updateData);
-
-        return NextResponse.json({
-            success: true,
-            cuidador: updatedCuidador,
-            message: `Cuidador ${action === 'aprovar' ? 'aprovado' : action === 'rejeitar' ? 'rejeitado' : 'marcado para entrevista'} com sucesso`
-        });
+        const cuidador = await prisma.cuidador.update({ where: { id }, data: updateData });
+        return NextResponse.json({ success: true, cuidador });
     } catch (error) {
-        console.error('Erro ao atualizar candidato:', error);
-        return NextResponse.json(
-            { error: 'Erro ao processar ação' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        await prisma.mensagem.deleteMany({ where: { cuidadorId: id } });
+        await prisma.alocacao.deleteMany({ where: { cuidadorId: id } });
+        await prisma.cuidador.delete({ where: { id } });
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });
     }
 }

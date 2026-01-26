@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -73,6 +73,15 @@ model Avaliacao {
   status        String    @default("PENDENTE")
   createdAt     DateTime  @default(now())
   paciente      Paciente  @relation(fields: [pacienteId], references: [id])
+  dadosDetalhados String? // JSON com discovery, patient, clinical, abemid, etc
+  
+  // Campos de rastreamento WhatsApp
+  whatsappEnviado    Boolean   @default(false)
+  whatsappEnviadoEm  DateTime?
+  whatsappMessageId  String?
+  whatsappErro       String?
+  whatsappTentativas Int       @default(0)
+  valorProposto      String?
 }
 
 model Orcamento {
@@ -156,3 +165,27 @@ model WhatsAppCooldown {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+// ==========================================
+// SISTEMA DE LOGS
+// ==========================================
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  type      String   // ERROR | INFO | WARNING | WHATSAPP | DEBUG
+  action    String   // Identificador da ação (ex: "avaliacao_criada")
+  message   String   // Descrição legível
+  metadata  String?  // JSON stringificado com dados contextuais
+  stack     String?  // Stack trace para erros
+  userId    String?  // Referência opcional ao usuário
+  ipAddress String?  // IP da requisição
+  userAgent String?  // Browser/Device info
+  duration  Int?     // Duração em ms (para performance)
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([action])
+  @@index([createdAt])
+  @@index([type, createdAt])
+}
+

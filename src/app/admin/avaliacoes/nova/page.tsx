@@ -2,8 +2,20 @@
 
 import { useState } from 'react';
 
+import StepDiscovery, { DiscoveryData } from './steps/StepDiscovery';
+import StepPatientInfo, { PatientInfoData } from './steps/StepPatientInfo';
+import StepClinical, { ClinicalData } from './steps/StepClinical';
+import StepABEMID, { AbemidData } from './steps/StepABEMID';
+import StepKatz from './steps/StepKatz';
+import StepLawton from './steps/StepLawton';
+import StepResponsibilities, { ResponsibilitiesData } from './steps/StepResponsibilities';
+import { KATZEvaluation, LawtonEvaluation } from '@/types/evaluation';
+
 export default function NewEvaluationPage() {
-    const [step, setStep] = useState<'selector' | 'homecare' | 'hospital'>('selector');
+    // NAVEGAÇÃO
+    const [step, setStep] = useState<'selector' | 'discovery' | 'patient' | 'clinical' | 'abemid' | 'katz' | 'lawton' | 'responsibilities' | 'proposal' | 'hospital'>('selector');
+
+    // STATE GERAL
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<any | null>(null);
@@ -12,214 +24,472 @@ export default function NewEvaluationPage() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    const handleSearch = async (q: string) => {
-        setSearchQuery(q);
-        if (q.length < 3) {
-            setSearchResults([]);
-            return;
-        }
+    // STATES DOS STEPS (EXPANDIDOS)
+    const [discoveryData, setDiscoveryData] = useState<DiscoveryData>({
+        gatilho: '', gatilhoDescricao: '', urgencia: 'BAIXA', situacaoAtual: '',
+        sobrecargaFamiliar: 5, preocupacoes: [], experienciaAnterior: ''
+    });
 
-        // Simples debounce
-        const res = await fetch(`/api/pacientes/search?q=${q}`);
-        const data = await res.json();
-        setSearchResults(data);
-    };
+    const [patientData, setPatientData] = useState<PatientInfoData>({
+        nome: '', dataNascimento: '', cpf: '', telefone: '',
+        sexo: '', peso: '', altura: '', estadoCivil: '', religiao: '', endereco: '',
+        profissaoAnterior: '', hobbies: '', temperamento: [],
+        rotina: { acorda: '07:00', cafe: '08:00', lancheManha: '', almoco: '12:00', lancheTarde: '', jantar: '19:00', ceia: '', dormir: '21:00' },
+        sono: '', preferenciasAlimentares: ''
+    });
 
-    const selectPatient = (p: any) => {
-        setSelectedPatient(p);
-        setSearchQuery(p.nome);
-        setSearchResults([]);
-        // Pre-fill hospital if it exists in lead data
-        if (p.hospital) setHospitalDetails(prev => ({ ...prev, hospital: p.hospital }));
-    };
+    const [clinicalData, setClinicalData] = useState<ClinicalData>({
+        condicoes: { neurologico: [], cardiovascular: [], respiratorio: [], mobilidade: [], endocrino: [], psiquiatrico: [], gastro: [], outros: '' },
+        quedas: 'Nenhuma',
+        medicamentos: { total: '1-3', lista: '', alergias: '', restricoes: '' },
+        dispositivos: []
+    });
 
-    const handleSubmitHospital = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    const [abemidData, setAbemidData] = useState<AbemidData>({
+        consciencia: '', respiracao: '', alimentacao: '', medicacao: '', pele: '', eliminacoes: '', observacoes: ''
+    });
 
+    const [katzData, setKatzData] = useState<KATZEvaluation>({
+        banho: 'independente', vestir: 'independente', higiene: 'independente',
+        transferencia: 'independente', continencia: 'independente', alimentacao: 'independente'
+    });
+
+    const [lawtonData, setLawtonData] = useState<LawtonEvaluation>({
+        telefone: 3, compras: 3, cozinhar: 3, tarefasDomesticas: 3,
+        lavanderia: 3, transporte: 3, medicacao: 3, financas: 3
+    });
+
+    const [responsibilitiesData, setResponsibilitiesData] = useState<ResponsibilitiesData>({
+        medicamentos: { separacao: 'Familia', administracao: 'Paciente' },
+        insumos: 'Familia',
+        alimentacao: 'FamiliaPronta',
+        limpeza: 'QuartoBanheiro',
+        checklistAmbiente: {
+            iluminacaoCorredor: false, iluminacaoQuarto: false, iluminacaoBanheiro: false,
+            tapetesSala: false, tapetesQuarto: false, tapetesBanheiro: false,
+            barrasBox: false, barrasVaso: false, pisoBox: false,
+            degrausEntrada: false, escadasInternas: false, corrimadaoEscada: false,
+            espacoCadeira: false, interruptoresAcesso: false, alturaCama: false,
+            campainhaEmergencia: false, detectoresFumaca: false, fiosSoltos: false
+        },
+        observacoes: ''
+    });
+
+    // PROPOSAL STATE
+    const [orcamentos, setOrcamentos] = useState<any>(null);
+    const [loadingOrcamento, setLoadingOrcamento] = useState(false);
+    const [proposal, setProposal] = useState({
+        valorTotal: 0, entrada: 0, parcelas: 1, valorParcela: 0,
+        vencimento: new Date().toISOString().split('T')[0],
+        descontos: 0, acrescimos: 0, nome: '', phone: '', email: ''
+    });
+    const [sending, setSending] = useState(false);
+
+    // ========== LOGIC & HANDLERS ==========
+
+    const handleCalcularOrcamento = async () => {
+        setLoadingOrcamento(true);
         try {
-            const res = await fetch('/api/avaliacoes/hospital', {
+            // Lógica Simplificada de Complexidade
+            let complexidade: 'BAIXA' | 'MEDIA' | 'ALTA' = 'BAIXA';
+
+            // Critérios de Alta (Exemplos)
+            const altaComplexidade =
+                abemidData.respiracao === 'Ventilacao' ||
+                abemidData.medicacao === 'IV' ||
+                abemidData.pele === 'LPP 3' || abemidData.pele === 'LPP 4';
+
+            // Critérios de Média
+            const mediaComplexidade =
+                !altaComplexidade && (
+                    abemidData.consciencia === 'Agressivo' ||
+                    abemidData.alimentacao === 'SNE' || abemidData.alimentacao === 'GTT' ||
+                    abemidData.medicacao === 'IM' || abemidData.medicacao === 'Subcutanea' ||
+                    katzData.transferencia === 'dependente'
+                );
+
+            if (altaComplexidade) complexidade = 'ALTA';
+            else if (mediaComplexidade) complexidade = 'MEDIA';
+            else complexidade = 'BAIXA';
+
+            // Sugestão de Carga Horária baseada na complexidade
+            const horasDiarias = complexidade === 'ALTA' ? 24 : 12;
+
+            const res = await fetch('/api/orcamento', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    nome: searchQuery,
-                    hospital: hospitalDetails.hospital,
-                    quarto: hospitalDetails.quarto,
-                    nivel: selectedNivel,
-                    phone: selectedPatient?.telefone
+                    tipoProfissional: complexidade === 'ALTA' ? 'TECNICO_ENF' : complexidade === 'MEDIA' ? 'AUXILIAR_ENF' : 'CUIDADOR',
+                    complexidade, horasDiarias, duracaoDias: 30, feriados: 2,
                 })
             });
 
             if (res.ok) {
-                setSuccess(true);
-                setTimeout(() => window.location.href = '/admin/avaliacoes', 2000);
+                const data = await res.json();
+                setOrcamentos(data.data);
+                const parc = data.data.parcelamento;
+
+                setProposal(prev => ({
+                    ...prev,
+                    valorTotal: data.data.total,
+                    entrada: parc?.entrada || 0,
+                    parcelas: parc?.quantidadeParcelas || 1,
+                    valorParcela: parc?.valorParcela || data.data.total,
+                    nome: patientData.nome || selectedPatient?.nome || '',
+                    phone: patientData.telefone || selectedPatient?.telefone || '',
+                    email: selectedPatient?.email || ''
+                }));
+                // Advance to Proposal
+                setStep('proposal');
             }
         } catch (error) {
-            console.error('Erro ao enviar:', error);
-            alert('Falha ao acionar plantão.');
+            console.error('Erro orçamento', error);
         } finally {
-            setLoading(false);
+            setLoadingOrcamento(false);
         }
     };
+
+    const handleSendProposal = async () => {
+        setSending(true);
+        try {
+            // CONSTRUIR PAYLOAD COMPLETO (JSON)
+            const fullPayload = {
+                // Proposal Data
+                ...proposal,
+                // Full Evaluation Data (JSON)
+                dadosDetalhados: {
+                    discovery: discoveryData,
+                    patient: patientData,
+                    clinical: clinicalData,
+                    abemid: abemidData,
+                    katz: katzData,
+                    lawton: lawtonData,
+                    responsibilities: responsibilitiesData,
+                    orcamento: orcamentos // Snapshot do calculo
+                }
+            };
+
+            const res = await fetch('/api/propostas/enviar', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(fullPayload)
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                alert('✅ Proposta enviada e Avaliação Salva com Sucesso!');
+                window.location.href = '/admin/avaliacoes';
+            } else {
+                alert('Erro: ' + data.error);
+            }
+        } catch (_e) { alert('Erro conexão'); }
+        finally { setSending(false); }
+    };
+
+    // Reuse Hospital Logic
+    const handleSearch = async (q: string) => {
+        setSearchQuery(q);
+        if (q.length < 3) { setSearchResults([]); return; }
+        const res = await fetch(`/api/pacientes/search?q=${q}`);
+        const data = await res.json();
+        setSearchResults(data);
+    };
+    const selectPatient = (p: any) => {
+        setSelectedPatient(p); setSearchQuery(p.nome); setSearchResults([]);
+        if (p.hospital) setHospitalDetails(prev => ({ ...prev, hospital: p.hospital }));
+    };
+    const handleSubmitHospital = async (e: React.FormEvent) => {
+        e.preventDefault(); setLoading(true);
+        try {
+            const res = await fetch('/api/avaliacoes/hospital', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome: searchQuery, hospital: hospitalDetails.hospital, quarto: hospitalDetails.quarto, nivel: selectedNivel, phone: selectedPatient?.telefone })
+            });
+            if (res.ok) { setSuccess(true); setTimeout(() => window.location.href = '/admin/avaliacoes', 2000); }
+        } catch (error) { alert('Falha ao acionar plantão.'); } finally { setLoading(false); }
+    };
+
+    // ========== RENDER MAPPING ==========
 
     if (success) {
         return (
             <div className="p-8 text-center mt-20">
                 <div className="text-6xl mb-4">🚀</div>
                 <h2 className="text-2xl font-bold text-green-600">Plantão Acionado!</h2>
-                <p className="text-gray-600 mt-2">Rede de cuidadores notificada. Redirecionando...</p>
+                <p className="text-gray-600 mt-2">Rede notificada. Redirecionando...</p>
             </div>
         );
     }
 
-    if (step === 'selector') {
-
-
-        return (
-            <div className="p-8 max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold mb-8 text-center">Nova Avaliação</h1>
-
-                <div className="grid md:grid-cols-2 gap-8 mt-12">
-                    {/* Opção 1: Home Care */}
-                    <button
-                        onClick={() => setStep('homecare')}
-                        className="group p-8 bg-white border-2 border-transparent hover:border-blue-500 rounded-2xl shadow-lg transition-all text-left"
-                    >
-                        <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏠</div>
-                        <h2 className="text-2xl font-bold mb-2">Cuidado Domiciliar (Idoso)</h2>
-                        <p className="text-gray-600 text-sm">
-                            Fluxo completo com anamnese, escalas ABEMID/KATZ e geração de orçamento em 3 cenários. Ideal para casos planejados.
-                        </p>
-                        <div className="mt-6 flex items-center text-blue-600 font-bold text-sm">
-                            Selecionar Fluxo Domiciliar →
-                        </div>
-                    </button>
-
-                    {/* Opção 2: Plantão Hospitalar */}
-                    <button
-                        onClick={() => setStep('hospital')}
-                        className="group p-8 bg-white border-2 border-transparent hover:border-green-500 rounded-2xl shadow-lg transition-all text-left"
-                    >
-                        <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏥</div>
-                        <h2 className="text-2xl font-bold mb-2 text-green-800">Plantão Hospitalar (Agile)</h2>
-                        <p className="text-gray-600 text-sm">
-                            Fluxo simplificado para urgências em hospitais. Foco em alocação imediata de Técnico/Enfermeiro sem escalas iniciais.
-                        </p>
-                        <div className="mt-6 flex items-center text-green-600 font-bold text-sm">
-                            Selecionar Fluxo Ágil (Hospital) →
-                        </div>
-                    </button>
-                </div>
-
-                <div className="mt-12 text-center">
-                    <a href="/admin/avaliacoes" className="text-gray-500 hover:underline">← Voltar para listagem</a>
-                </div>
+    if (step === 'selector') return (
+        <div className="p-8 max-w-4xl mx-auto text-center">
+            <h1 className="text-3xl font-bold mb-8">Nova Avaliação</h1>
+            <div className="grid md:grid-cols-2 gap-8 mt-12">
+                <button onClick={() => setStep('discovery')} className="group p-8 bg-white rounded-2xl shadow-lg border-2 border-transparent hover:border-blue-500 transition-all text-left">
+                    <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏠</div>
+                    <h2 className="text-2xl font-bold mb-2">Avaliação Completa</h2>
+                    <p className="text-gray-600">Fluxo Premium (9 Etapas): Social, Clínico, ABEMID, Katz, Lawton e Ambiente. Gera contrato detalhado.</p>
+                    <div className="mt-6 text-blue-600 font-bold">Iniciar →</div>
+                </button>
+                <button onClick={() => setStep('hospital')} className="group p-8 bg-white rounded-2xl shadow-lg border-2 border-transparent hover:border-green-500 transition-all text-left">
+                    <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🏥</div>
+                    <h2 className="text-2xl font-bold mb-2 text-green-800">Hospital Agile</h2>
+                    <p className="text-gray-600">Fluxo Expresso para alocação de plantão. Sem burocracia.</p>
+                    <div className="mt-6 text-green-600 font-bold">Selecionar →</div>
+                </button>
             </div>
-        );
-    }
-
-    if (step === 'hospital') {
-        return (
-            <div className="p-8 max-w-2xl mx-auto bg-white rounded-2xl shadow mt-8 border-t-8 border-green-500">
-                <h1 className="text-2xl font-bold mb-2 text-green-900">Hospital Shift (Urgente)</h1>
-                <p className="text-sm text-gray-500 mb-8 italic">Preencha apenas o essencial para a primeira alocação.</p>
-
-                <form className="space-y-6" onSubmit={handleSubmitHospital}>
-                    <div className="relative">
-                        <label className="block text-sm font-bold text-gray-700">Nome do Paciente</label>
-                        <input
-                            type="text"
-                            required
-                            value={searchQuery}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border"
-                            placeholder="Nome Completo ou Telefone"
-                        />
-                        {searchResults.length > 0 && (
-                            <div className="absolute z-10 w-full bg-white border rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
-                                {searchResults.map((p) => (
-                                    <button
-                                        key={p.id}
-                                        type="button"
-                                        onClick={() => selectPatient(p)}
-                                        className="w-full text-left p-2 hover:bg-blue-50 border-b last:border-0"
-                                    >
-                                        <div className="font-bold text-sm">{p.nome}</div>
-                                        <div className="text-xs text-gray-500">{p.telefone} - {p.cidade}</div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                        {selectedPatient && (
-                            <div className="mt-2 p-2 bg-blue-50 text-blue-700 text-xs rounded flex justify-between items-center">
-                                <span>✨ Paciente encontrado no sistema (Lead)</span>
-                                <button type="button" onClick={() => setSelectedPatient(null)} className="underline">Limpar</button>
-                            </div>
-                        )}
-                    </div>
-
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700">Hospital</label>
-                            <input
-                                type="text"
-                                required
-                                value={hospitalDetails.hospital}
-                                onChange={(e) => setHospitalDetails(prev => ({ ...prev, hospital: e.target.value }))}
-                                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border"
-                                placeholder="Nome do Hospital"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700">Setor/Quarto</label>
-                            <input
-                                type="text"
-                                value={hospitalDetails.quarto}
-                                onChange={(e) => setHospitalDetails(prev => ({ ...prev, quarto: e.target.value }))}
-                                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border"
-                                placeholder="Ex: UTI 301"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700">Nível do Profissional Solicitado</label>
-                        <div className="mt-2 grid grid-cols-3 gap-2">
-                            {['Cuidador', 'Téc. Enfermagem', 'Enfermeiro'].map((nivel) => (
-                                <button
-                                    key={nivel}
-                                    type="button"
-                                    onClick={() => setSelectedNivel(nivel)}
-                                    className={`p-3 border rounded-lg text-sm transition ${selectedNivel === nivel ? 'bg-green-600 text-white border-green-600' : 'hover:bg-green-50 hover:border-green-500'}`}
-                                >
-                                    {nivel}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="pt-6 border-t flex justify-between">
-                        <button type="button" onClick={() => setStep('selector')} className="text-gray-500">Voltar</button>
-                        <button
-                            type="submit"
-                            disabled={loading || !selectedNivel || !searchQuery}
-                            className={`bg-green-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg transition ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'}`}
-                        >
-                            {loading ? 'Processando...' : '🚀 Acionar Alocação Imediata'}
-                        </button>
-                    </div>
-                </form>
-
-            </div>
-        );
-    }
-
-    return (
-        <div className="p-8 text-center text-gray-500">
-            Fluxo Domiciliar Completo será integrado em seguida.
-            <br />
-            <button onClick={() => setStep('selector')} className="mt-4 text-blue-600 underline">Voltar</button>
+            <div className="mt-12 text-center"><a href="/admin/avaliacoes" className="text-gray-500 hover:underline">← Voltar para listagem</a></div>
         </div>
     );
+
+    // 1. DESCOBERTA
+    if (step === 'discovery') return <StepDiscovery
+        data={discoveryData}
+        onUpdate={(d) => setDiscoveryData(p => ({ ...p, ...d }))}
+        onNext={() => setStep('patient')}
+        onBack={() => setStep('selector')}
+    />;
+
+    // 2. DADOS PESSOAIS
+    if (step === 'patient') return <StepPatientInfo
+        data={patientData}
+        onUpdate={(d) => setPatientData(p => ({ ...p, ...d }))}
+        onNext={() => setStep('clinical')}
+        onBack={() => setStep('discovery')}
+    />;
+
+    // 3. CLÍNICO
+    if (step === 'clinical') return <StepClinical
+        data={clinicalData}
+        onUpdate={(d) => setClinicalData(p => ({ ...p, ...d }))}
+        onNext={() => setStep('abemid')}
+        onBack={() => setStep('patient')}
+    />;
+
+    // 4. ABEMID
+    if (step === 'abemid') return <StepABEMID
+        data={abemidData}
+        onUpdate={(d) => setAbemidData(p => ({ ...p, ...d }))}
+        onNext={() => setStep('katz')}
+        onBack={() => setStep('clinical')}
+    />;
+
+    // 5. KATZ
+    if (step === 'katz') return <StepKatz
+        data={katzData}
+        onUpdate={(f, v) => setKatzData(p => ({ ...p, [f]: v }))}
+        onNext={() => setStep('lawton')}
+        onBack={() => setStep('abemid')}
+    />;
+
+    // 5b (6). LAWTON
+    if (step === 'lawton') return <StepLawton
+        data={lawtonData}
+        onUpdate={(f, v) => setLawtonData(p => ({ ...p, [f]: v }))}
+        onNext={() => setStep('responsibilities')}
+        onBack={() => setStep('katz')}
+    />;
+
+    // 6 (7). RESPONSIBILIDADES
+    if (step === 'responsibilities') return <StepResponsibilities
+        data={responsibilitiesData}
+        onUpdate={(d) => setResponsibilitiesData(p => ({ ...p, ...d }))}
+        onNext={handleCalcularOrcamento}
+        onBack={() => setStep('lawton')}
+    />;
+
+    // 7 (8). PROPOSTA
+    if (step === 'proposal') return (
+        <div className="min-h-screen bg-gray-50 py-12 px-4">
+            <div className="max-w-6xl mx-auto">
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">✨ Proposta Final de Cuidados</h1>
+                        <p className="text-gray-500">Revisão e envio do contrato digital.</p>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-sm text-gray-500 uppercase font-bold tracking-wider">Investimento Mensal</div>
+                        <div className="text-4xl font-black text-green-600">R$ {proposal.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                </div>
+
+                <div className="grid lg:grid-cols-3 gap-8">
+                    {/* LEFT COL: Editor */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-800 border-b pb-4 mb-6 flex items-center gap-2">
+                                <span className="text-xl">🛠️</span> Configuração Comercial
+                            </h3>
+
+                            <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Valor Mensal (R$)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-3 text-gray-400">R$</span>
+                                        <input
+                                            type="number"
+                                            value={proposal.valorTotal}
+                                            onChange={e => setProposal({ ...proposal, valorTotal: parseFloat(e.target.value) })}
+                                            className="w-full border p-3 pl-10 rounded-lg font-bold text-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Data Vencimento</label>
+                                    <input
+                                        type="date"
+                                        value={proposal.vencimento}
+                                        onChange={e => setProposal({ ...proposal, vencimento: e.target.value })}
+                                        className="w-full border p-3 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Descontos (R$)</label>
+                                    <input
+                                        type="number"
+                                        value={proposal.descontos}
+                                        onChange={e => setProposal({ ...proposal, descontos: parseFloat(e.target.value) })}
+                                        className="w-full border p-3 rounded-lg text-gray-600"
+                                        placeholder="0,00"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Acréscimos (R$)</label>
+                                    <input
+                                        type="number"
+                                        value={proposal.acrescimos}
+                                        onChange={e => setProposal({ ...proposal, acrescimos: parseFloat(e.target.value) })}
+                                        className="w-full border p-3 rounded-lg text-gray-600"
+                                        placeholder="0,00"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Forma de Pagamento (Parcelamento)</label>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {[1, 2, 3, 4].map(p => (
+                                        <button
+                                            key={p}
+                                            onClick={() => setProposal({ ...proposal, parcelas: p, valorParcela: (proposal.valorTotal - proposal.entrada) / p })}
+                                            className={`py-2 rounded border font-medium transition ${proposal.parcelas === p ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}
+                                        >
+                                            {p}x Sem Juros
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                            <h3 className="font-bold text-gray-800 border-b pb-4 mb-6 flex items-center gap-2">
+                                <span className="text-xl">📝</span> Dados do Contratante
+                            </h3>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Nome Responsável</label>
+                                    <input
+                                        value={proposal.nome}
+                                        onChange={e => setProposal({ ...proposal, nome: e.target.value })}
+                                        className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white transition"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">WhatsApp / Email</label>
+                                    <input
+                                        value={proposal.phone}
+                                        onChange={e => setProposal({ ...proposal, phone: e.target.value })}
+                                        className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white transition"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT COL: Preview */}
+                    <div className="space-y-6">
+                        <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-xl shadow-lg">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-6">Resumo do Plano</h3>
+
+                            <div className="space-y-4 mb-8">
+                                <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                                    <span className="text-gray-300">Complexidade</span>
+                                    <span className="font-bold bg-white/10 px-2 py-1 rounded text-sm">{orcamentos?.complexidade || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                                    <span className="text-gray-300">Carga Horária</span>
+                                    <span className="font-bold">{orcamentos?.cargaHoraria || '12h'} / Dia</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                                    <span className="text-gray-300">Profissional</span>
+                                    <span className="font-bold text-blue-300">{orcamentos?.tipoProfissional || 'Cuidador'}</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white/5 p-4 rounded-lg">
+                                <div className="flex justify-between mb-2">
+                                    <span className="text-sm text-gray-400">Total Bruto</span>
+                                    <span>R$ {proposal.valorTotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between mb-2 text-green-400">
+                                    <span className="text-sm">Descontos</span>
+                                    <span>- R$ {proposal.descontos.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between font-bold text-xl pt-2 border-t border-gray-600 mt-2">
+                                    <span>Total Final</span>
+                                    <span>R$ {(proposal.valorTotal - proposal.descontos + proposal.acrescimos).toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleSendProposal}
+                                disabled={sending}
+                                className={`mt-8 w-full py-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 text-lg transition transform active:scale-95 ${sending ? 'bg-gray-600 cursor-wait' : 'bg-green-500 hover:bg-green-400 text-white'}`}
+                            >
+                                {sending ? 'Enviando...' : (
+                                    <>
+                                        🚀 Enviar via WhatsApp
+                                    </>
+                                )}
+                            </button>
+                            <div className="text-center mt-4">
+                                <button onClick={() => setStep('responsibilities')} className="text-gray-400 text-sm hover:text-white underline">← Voltar para Revisão</button>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-sm text-blue-800">
+                            <strong>💡 Dica:</strong> Este valor inclui gestão de escala, substituição em caso de faltas e supervisão técnica semanal de enfermagem.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // HOSPITAL FLOW (Agile)
+    if (step === 'hospital') return (
+        <div className="p-8 max-w-2xl mx-auto bg-white rounded-2xl shadow mt-8 border-t-8 border-green-500">
+            <h1 className="text-2xl font-bold mb-2 text-green-900">Hospital Shift (Urgente)</h1>
+            <button onClick={() => setStep('selector')} className="text-sm text-gray-500 mb-6">← Cancelar</button>
+            <form className="space-y-6" onSubmit={handleSubmitHospital}>
+                <div>
+                    <label className="font-bold">Nome do Paciente</label>
+                    <input type="text" required value={searchQuery} onChange={e => handleSearch(e.target.value)} className="w-full border p-2 rounded" placeholder="Busca rápida..." />
+                    {searchResults.map(p => <div key={p.id} onClick={() => selectPatient(p)} className="p-2 border-b cursor-pointer hover:bg-gray-50">{p.nome} - {p.telefone}</div>)}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div><label className="font-bold">Hospital</label><input type="text" required value={hospitalDetails.hospital} onChange={e => setHospitalDetails({ ...hospitalDetails, hospital: e.target.value })} className="w-full border p-2 rounded" /></div>
+                    <div><label className="font-bold">Quarto</label><input type="text" value={hospitalDetails.quarto} onChange={e => setHospitalDetails({ ...hospitalDetails, quarto: e.target.value })} className="w-full border p-2 rounded" /></div>
+                </div>
+                <div>
+                    <label className="font-bold">Nível Profissional</label>
+                    <div className="flex gap-2 mt-2">{['Cuidador', 'Téc. Enfermagem', 'Enfermeiro'].map(n => <button type="button" key={n} onClick={() => setSelectedNivel(n)} className={`p-2 border rounded ${selectedNivel === n ? 'bg-green-600 text-white' : ''}`}>{n}</button>)}</div>
+                </div>
+                <button type="submit" disabled={loading} className="w-full bg-green-600 text-white py-3 rounded font-bold">{loading ? '...' : 'Acionar Plantão'}</button>
+            </form>
+        </div>
+    );
+
+    return null;
 }

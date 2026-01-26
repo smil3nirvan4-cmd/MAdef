@@ -50,8 +50,8 @@ export const PrismaRepository: IDatabaseFactory = {
             return prisma.whatsAppSession.upsert({
                 where: { id: 'main' },
                 update: data,
-                create: { 
-                    id: 'main', 
+                create: {
+                    id: 'main',
                     status: typeof data.status === 'string' ? data.status : 'DISCONNECTED'
                 }
             });
@@ -94,7 +94,7 @@ export const PrismaRepository: IDatabaseFactory = {
         async create(data) { return prisma.avaliacao.create({ data }); },
         async findPending() {
             return prisma.avaliacao.findMany({
-                where: { status: 'PENDENTE' },
+                where: { status: { in: ['PENDENTE', 'ENVIADA'] } },
                 include: { paciente: true },
                 orderBy: { createdAt: 'desc' }
             });
@@ -108,19 +108,19 @@ export const PrismaRepository: IDatabaseFactory = {
     alocacao: {
         async create(data) { return prisma.alocacao.create({ data }); },
         async update(id, data) { return prisma.alocacao.update({ where: { id }, data }); },
-        async findByCuidador(cuidadorId) { 
-            return prisma.alocacao.findMany({ 
-                where: { cuidadorId }, 
+        async findByCuidador(cuidadorId) {
+            return prisma.alocacao.findMany({
+                where: { cuidadorId },
                 orderBy: { createdAt: 'desc' },
                 include: { cuidador: true, paciente: true }
-            }); 
+            });
         },
-        async findByPaciente(pacienteId) { 
-            return prisma.alocacao.findMany({ 
-                where: { pacienteId }, 
+        async findByPaciente(pacienteId) {
+            return prisma.alocacao.findMany({
+                where: { pacienteId },
                 orderBy: { createdAt: 'desc' },
                 include: { cuidador: true, paciente: true }
-            }); 
+            });
         }
     }
 };

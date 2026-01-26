@@ -19,19 +19,50 @@ export async function handleAceiteOrcamento(
             aceitoEm: new Date()
         });
 
-        await sendMessage(from, `
-✅ *Orçamento Aceito!*
+        // Gerar Contrato Digital via Provider
+        try {
+            await sendMessage(from, '🔄 Gerando contrato digital seguro... Aguarde um instante.');
 
-Excelente escolha! Estamos preparando o contrato digital para sua assinatura. 
+            const { getSignatureProvider } = await import('@/lib/services/signature');
+            const provider = getSignatureProvider();
 
-Você receberá o link em instantes. 
-        `.trim());
+            const result = await provider.createEnvelope({
+                title: `Contrato Mãos Amigas - Orçamento #${orcamentoId || '000'}`,
+                signers: [
+                    {
+                        name: state.data.nome || 'Cliente',
+                        email: state.data.email || 'cliente@email.com',
+                        phone: from.split('@')[0]
+                    }
+                ]
+            });
 
-        await setUserState(from, {
-            currentFlow: 'AGUARDANDO_ASSINATURA',
-            currentStep: 'WAITING_CONTRACT',
-            data: { ...state.data, statusOrcamento: 'ACEITO' }
-        });
+            await sendMessage(from, `
+✍️ *Assinatura Requerida*
+
+Para formalizar nossa parceria com segurança jurídica, precisamos que você assine o contrato digital.
+
+🔗 *Clique no link para assinar:*
+${result.signingUrl}
+
+Após assinar no site, digite *JÁ ASSINEI* aqui para liberarmos o início do atendimento.
+            `.trim());
+
+            await setUserState(from, {
+                currentFlow: 'AGUARDANDO_ASSINATURA',
+                currentStep: 'WAITING_SIGNATURE_CONFIRMATION',
+                data: {
+                    ...state.data,
+                    statusOrcamento: 'ACEITO',
+                    envelopeId: result.envelopeId,
+                    signingUrl: result.signingUrl
+                }
+            });
+
+        } catch (error) {
+            console.error('Erro ao gerar contrato:', error);
+            await sendMessage(from, '❌ Erro ao gerar contrato. Nossa equipe entrará em contato manualmente.');
+        }
         return;
     }
 

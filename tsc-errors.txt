@@ -1,0 +1,24 @@
+﻿next.config.ts(17,3): error TS2353: Object literal may only specify known properties, and 'eslint' does not exist in type 'NextConfig'.
+src/app/admin/triagens/page.tsx(31,27): error TS2304: Cannot find name 'e'.
+src/app/admin/whatsapp/FlowBuilder.tsx(192,47): error TS2322: Type '"default" | "outline"' is not assignable to type '"primary" | "secondary" | "outline" | "ghost" | "danger" | undefined'.
+  Type '"default"' is not assignable to type '"primary" | "secondary" | "outline" | "ghost" | "danger" | undefined'.
+src/app/api/admin/whatsapp/scheduled/route.ts(11,24): error TS2353: Object literal may only specify known properties, and 'timestamp' does not exist in type 'SystemLogOrderByWithRelationInput | SystemLogOrderByWithRelationInput[]'.
+src/app/api/admin/whatsapp/scheduled/route.ts(22,30): error TS2339: Property 'timestamp' does not exist on type '{ id: string; createdAt: Date; type: string; message: string; action: string; metadata: string | null; stack: string | null; userId: string | null; ipAddress: string | null; userAgent: string | null; duration: number | null; }'.
+src/app/api/propostas/enviar/route.ts(121,97): error TS2304: Cannot find name 'e'.
+src/app/api/propostas/enviar/route.ts(122,91): error TS2304: Cannot find name 'e'.
+src/app/api/whatsapp/connect/route.ts(21,46): error TS2304: Cannot find name 'e'.
+src/app/api/whatsapp/status/route.ts(13,46): error TS2304: Cannot find name 'e'.
+src/lib/env-loader.ts(20,46): error TS2304: Cannot find name 'e'.
+src/lib/repositories/mock-db.ts(111,15): error TS2322: Type '(data: AvaliacaoCreateInput) => Promise<{ id: string; pacienteId: string; abemidScore: number | null; katzScore: number | null; lawtonScore: number | null; gqp: number | null; ... 8 more ...; createdAt: Date; }>' is not assignable to type '(data: AvaliacaoCreateInput) => Promise<{ id: string; pacienteId: string; abemidScore: number | null; katzScore: number | null; lawtonScore: number | null; gqp: number | null; ... 14 more ...; valorProposto: string | null; }>'.
+  Type 'Promise<{ id: string; pacienteId: string; abemidScore: number | null; katzScore: number | null; lawtonScore: number | null; gqp: number | null; nivelSugerido: string | null; cargaSugerida: string | null; ... 6 more ...; createdAt: Date; }>' is not assignable to type 'Promise<{ id: string; pacienteId: string; abemidScore: number | null; katzScore: number | null; lawtonScore: number | null; gqp: number | null; nivelSugerido: string | null; cargaSugerida: string | null; ... 12 more ...; valorProposto: string | null; }>'.
+    Type '{ id: string; pacienteId: string; abemidScore: number | null; katzScore: number | null; lawtonScore: number | null; gqp: number | null; nivelSugerido: string | null; cargaSugerida: string | null; ... 6 more ...; createdAt: Date; }' is missing the following properties from type '{ id: string; pacienteId: string; abemidScore: number | null; katzScore: number | null; lawtonScore: number | null; gqp: number | null; nivelSugerido: string | null; cargaSugerida: string | null; ... 12 more ...; valorProposto: string | null; }': whatsappEnviado, whatsappEnviadoEm, whatsappMessageId, whatsappErro, and 2 more.
+src/lib/state/memory.ts(15,49): error TS2304: Cannot find name 'e'.
+src/lib/state/memory.ts(27,51): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/client.ts(25,31): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/client.ts(146,68): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/client.ts(157,66): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/handlers/assinatura-contrato.ts(62,58): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/handlers/quiz.ts(304,63): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/queue.ts(37,57): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/queue.ts(47,55): error TS2304: Cannot find name 'e'.
+src/lib/whatsapp/queue.ts(139,58): error TS2304: Cannot find name 'e'.

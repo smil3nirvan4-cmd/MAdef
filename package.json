@@ -2,40 +2,54 @@
   "name": "mao001",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "whatsapp": "tsx src/lib/whatsapp/server.ts",
+    "diagnose:whatsapp": "tsx scripts/diagnose-whatsapp.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@prisma/client": "^6.0.0",
-    "@whiskeysockets/baileys": "^6.7.8",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "clsx": "^2.1.1",
     "jimp": "^1.6.0",
+    "lucide-react": "^0.563.0",
     "next": "16.1.4",
     "next-auth": "^5.0.0-beta.30",
+    "pino": "^10.3.0",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "prisma": "^6.0.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.18",
+    "pino-pretty": "^13.1.3"
   }
 }

@@ -1,0 +1,123 @@
+﻿
+> mao001@0.1.0 build
+> next build
+
+node.exe : ÔÜá Warning: Next.js inferred your workspace root, but it may not be 
+correct.
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ÔÜá Warning: Ne...not be correct.:String) 
+    [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ We detected multiple lockfiles and selected the directory of 
+C:\Users\dramo\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider 
+removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-d
+irectory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\dramo\Downloads\MA1\package-lock.json
+
+Ôû▓ Next.js 16.1.4 (Turbopack)
+- Environments: .env.local, .env
+
+ÔÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn 
+more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 17.4s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+Ô£à [DB] Using Prisma Real Database
+Ô£à [DB] Using Prisma Real Database
+Ô£à [DB] Using Prisma Real Database
+­ƒôª Estado carregado de C:\Users\dramo\Downloads\MA1\.wa-state.json (3 registros)
+Ô£à [DB] Using Prisma Real Database
+Ô£à [State] Using Prisma Database State
+Ô£à [DB] Using Prisma Real Database
+  Generating static pages using 7 workers (0/55) ...
+  Generating static pages using 7 workers (13/55) 
+  Generating static pages using 7 workers (27/55) 
+­ƒôª Estado carregado de C:\Users\dramo\Downloads\MA1\.wa-state.json (3 registros)
+Ô£à [State] Using Prisma Database State
+  Generating static pages using 7 workers (41/55) 
+Ô£à [DB] Using Prisma Real Database
+Ô£ô Generating static pages using 7 workers (55/55) in 1195.4ms
+  Finalizing page optimization ...
+
+Route (app)
+Ôöî Ôùï /
+Ôö£ Ôùï /_not-found
+Ôö£ Ôùï /admin
+Ôö£ Ôùï /admin/alocacao
+Ôö£ Ôùï /admin/avaliacoes
+Ôö£ ãÆ /admin/avaliacoes/[id]
+Ôö£ Ôùï /admin/avaliacoes/nova
+Ôö£ Ôùï /admin/candidatos
+Ôö£ ãÆ /admin/candidatos/[id]
+Ôö£ Ôùï /admin/cuidadores
+Ôö£ ãÆ /admin/cuidadores/[id]
+Ôö£ Ôùï /admin/dashboard
+Ôö£ Ôùï /admin/formularios
+Ôö£ Ôùï /admin/leads
+Ôö£ Ôùï /admin/logs
+Ôö£ Ôùï /admin/orcamentos
+Ôö£ Ôùï /admin/pacientes
+Ôö£ Ôùï /admin/triagens
+Ôö£ Ôùï /admin/usuarios
+Ôö£ ãÆ /admin/usuarios/logs/[telefone]
+Ôö£ Ôùï /admin/whatsapp
+Ôö£ ãÆ /api/admin/alocacoes
+Ôö£ ãÆ /api/admin/alocacoes/[id]
+Ôö£ ãÆ /api/admin/avaliacoes
+Ôö£ ãÆ /api/admin/avaliacoes/[id]
+Ôö£ ãÆ /api/admin/avaliacoes/reenviar-whatsapp
+Ôö£ ãÆ /api/admin/candidatos
+Ôö£ ãÆ /api/admin/candidatos/[id]
+Ôö£ ãÆ /api/admin/dashboard/stats
+Ôö£ ãÆ /api/admin/leads
+Ôö£ ãÆ /api/admin/logs
+Ôö£ ãÆ /api/admin/orcamentos
+Ôö£ ãÆ /api/admin/orcamentos/[id]
+Ôö£ ãÆ /api/admin/pacientes
+Ôö£ ãÆ /api/admin/pacientes/[id]
+Ôö£ ãÆ /api/admin/usuarios
+Ôö£ ãÆ /api/admin/usuarios/[telefone]/logs
+Ôö£ ãÆ /api/admin/whatsapp/analytics
+Ôö£ ãÆ /api/admin/whatsapp/autoreplies
+Ôö£ ãÆ /api/admin/whatsapp/blacklist
+Ôö£ ãÆ /api/admin/whatsapp/broadcast
+Ôö£ ãÆ /api/admin/whatsapp/chat/[phone]
+Ôö£ ãÆ /api/admin/whatsapp/contacts
+Ôö£ ãÆ /api/admin/whatsapp/export
+Ôö£ ãÆ /api/admin/whatsapp/flow-definitions
+Ôö£ ãÆ /api/admin/whatsapp/flows
+Ôö£ ãÆ /api/admin/whatsapp/labels
+Ôö£ ãÆ /api/admin/whatsapp/queue
+Ôö£ ãÆ /api/admin/whatsapp/quick-replies
+Ôö£ ãÆ /api/admin/whatsapp/scheduled
+Ôö£ ãÆ /api/admin/whatsapp/settings
+Ôö£ ãÆ /api/admin/whatsapp/templates
+Ôö£ ãÆ /api/admin/whatsapp/webhooks
+Ôö£ ãÆ /api/alocacao/iniciar
+Ôö£ ãÆ /api/auth/[...nextauth]
+Ôö£ ãÆ /api/avaliacoes/hospital
+Ôö£ ãÆ /api/orcamento
+Ôö£ ãÆ /api/pacientes/search
+Ôö£ ãÆ /api/propostas/enviar
+Ôö£ ãÆ /api/whatsapp/connect
+Ôö£ ãÆ /api/whatsapp/data-dump
+Ôö£ ãÆ /api/whatsapp/disconnect
+Ôö£ ãÆ /api/whatsapp/messages
+Ôö£ ãÆ /api/whatsapp/queue
+Ôö£ ãÆ /api/whatsapp/status
+Ôö£ ãÆ /api/whatsapp/webhook
+Ôöö Ôùï /login
+
+
+ãÆ Proxy (Middleware)
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+

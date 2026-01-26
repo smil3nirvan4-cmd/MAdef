@@ -1,13 +1,46 @@
 import { IStateManager, UserState } from './types';
 
-// Global storage to survive HMR in local dev
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Arquivo de persistência
+const STATE_FILE = path.resolve(process.cwd(), '.wa-state.json');
+
+// Helper para salvar
+function saveToDisk(map: Map<string, string>) {
+    try {
+        const obj = Object.fromEntries(map);
+        fs.writeFileSync(STATE_FILE, JSON.stringify(obj, null, 2));
+    } catch (_e) {
+        console.error('Erro ao salvar estado:', _e);
+    }
+}
+
+// Helper para carregar
+function loadFromDisk(): Map<string, string> {
+    try {
+        if (fs.existsSync(STATE_FILE)) {
+            const data = fs.readFileSync(STATE_FILE, 'utf-8');
+            return new Map(Object.entries(JSON.parse(data)));
+        }
+    } catch (_e) {
+        console.error('Erro ao carregar estado:', _e);
+    }
+    return new Map();
+}
+
+// Global storage
 const globalState = globalThis as any;
 if (!globalState.memoryStateStore) {
+    // Tenta carregar do disco primeiro
+    const loadedStates = loadFromDisk();
+
     globalState.memoryStateStore = {
-        states: new Map<string, string>(),
+        states: loadedStates,
         locks: new Map<string, string>(),
         cooldowns: new Map<string, number>(),
     };
+    console.log(`📦 Estado carregado de ${STATE_FILE} (${loadedStates.size} registros)`);
 }
 
 const { states, locks, cooldowns } = globalState.memoryStateStore;
@@ -29,11 +62,16 @@ export const MemoryInMemState: IStateManager = {
 
         const updated = { ...current, ...update, lastInteraction: new Date() };
         states.set(`state:${phone}`, JSON.stringify(updated));
+
+        // Persiste no arquivo
+        saveToDisk(states);
+
         return updated;
     },
 
     async clearUserState(phone: string) {
         states.delete(`state:${phone}`);
+        saveToDisk(states);
     },
 
     async acquireLock(resourceId: string, ownerId: string, ttlSeconds: number) {

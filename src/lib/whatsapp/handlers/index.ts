@@ -10,6 +10,8 @@ import { handleAceiteOrcamento } from './aceite-orcamento';
 import { handleAssinaturaContrato } from './assinatura-contrato';
 import { handleCheckinPlantao } from './checkin';
 import { notifyAdminHelp } from '@/lib/notifications/emergency';
+import { handleReprovado } from './reprovado';
+import { handleAguardando } from './aguardando';
 
 
 
@@ -18,26 +20,123 @@ import { notifyAdminHelp } from '@/lib/notifications/emergency';
 let logMessage: ((params: { telefone: string; direcao: 'IN' | 'OUT'; conteudo: string; flow?: string; step?: string }) => Promise<void>) | null = null;
 import('@/lib/database').then(db => { logMessage = db.logMessage; }).catch(() => { });
 
+/**
+ * Parse button response payload
+ * Formato esperado: "action:confirm|order:12345"
+ */
+function parseButtonPayload(payload: string): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (!payload) return result;
+
+    payload.split('|').forEach(part => {
+        const [key, value] = part.split(':');
+        if (key && value) {
+            result[key.trim()] = value.trim();
+        }
+    });
+    return result;
+}
+
 export async function handleIncomingMessage(msg: any) {
-    const phone = msg.key.remoteJid?.replace('@s.whatsapp.net', '') || '';
-    const text = msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text || '';
+    // Get full JID for database storage
+    const fullJid = msg.key.remoteJid || '';
+    // Extract phone number for logic (remove @s.whatsapp.net or @lid suffix)
+    const phone = fullJid.replace('@s.whatsapp.net', '').replace('@lid', '');
+
+    // Extrair texto - suporta múltiplos formatos incluindo button_reply
+    let text = '';
+    let buttonResponse: { id: string; text: string; payload?: Record<string, string> } | null = null;
+    let listResponse: { id: string; title: string; description?: string } | null = null;
+
+    // Texto normal
+    if (msg.message?.conversation) {
+        text = msg.message.conversation;
+    } else if (msg.message?.extendedTextMessage?.text) {
+        text = msg.message.extendedTextMessage.text;
+    }
+
+    // BUTTON REPLY - Resposta de botão (formato Baileys)
+    if (msg.message?.buttonsResponseMessage) {
+        const btnResp = msg.message.buttonsResponseMessage;
+        buttonResponse = {
+            id: btnResp.selectedButtonId || '',
+            text: btnResp.selectedDisplayText || '',
+            payload: parseButtonPayload(btnResp.selectedButtonId || '')
+        };
+        text = btnResp.selectedDisplayText || btnResp.selectedButtonId || '';
+        console.log('🔘 BOTÃO CLICADO:', JSON.stringify(buttonResponse));
+    }
+
+    // TEMPLATE BUTTON REPLY
+    if (msg.message?.templateButtonReplyMessage) {
+        const tplResp = msg.message.templateButtonReplyMessage;
+        buttonResponse = {
+            id: tplResp.selectedId || '',
+            text: tplResp.selectedDisplayText || '',
+            payload: parseButtonPayload(tplResp.selectedId || '')
+        };
+        text = tplResp.selectedDisplayText || tplResp.selectedId || '';
+        console.log('🔘 TEMPLATE BUTTON CLICADO:', JSON.stringify(buttonResponse));
+    }
+
+    // LIST RESPONSE - Resposta de lista
+    if (msg.message?.listResponseMessage) {
+        const listResp = msg.message.listResponseMessage;
+        listResponse = {
+            id: listResp.singleSelectReply?.selectedRowId || '',
+            title: listResp.title || '',
+            description: listResp.description || ''
+        };
+        text = listResp.singleSelectReply?.selectedRowId || listResp.title || '';
+        console.log('📋 LISTA SELECIONADA:', JSON.stringify(listResponse));
+    }
+
+    // INTERACTIVE RESPONSE (formato mais recente)
+    if (msg.message?.interactiveResponseMessage) {
+        const intResp = msg.message.interactiveResponseMessage;
+        try {
+            const body = JSON.parse(intResp.nativeFlowResponseMessage?.paramsJson || '{}');
+            buttonResponse = {
+                id: body.id || '',
+                text: body.display_text || '',
+                payload: parseButtonPayload(body.id || '')
+            };
+            text = body.display_text || body.id || '';
+            console.log('🔘 INTERACTIVE RESPONSE:', JSON.stringify(buttonResponse));
+        } catch (_e) {
+            console.warn('⚠️ Erro ao parsear interactiveResponseMessage');
+        }
+    }
 
     const message: WhatsAppMessage = {
         from: phone,
         body: text.trim(),
-        type: 'text',
+        type: buttonResponse ? 'button_reply' : listResponse ? 'list_reply' : 'text',
         timestamp: Date.now(),
         messageId: msg.key.id || '',
+        buttonResponse,
+        listResponse,
     };
 
-    // LOG: Mensagem recebida
+    // Ignore protocol messages (status updates, etc)
+    if (!message.body && !buttonResponse && !listResponse) {
+        return;
+    }
+
+    console.log('═══════════════════════════════════════════════════');
+    console.log(`📩 MENSAGEM RECEBIDA DE: ${fullJid}`);
+    console.log(`💬 CONTEÚDO: "${message.body}"`);
+    if (buttonResponse) console.log(`🔘 BOTÃO: ${JSON.stringify(buttonResponse)}`);
+    if (listResponse) console.log(`📋 LISTA: ${JSON.stringify(listResponse)}`);
+    console.log('═══════════════════════════════════════════════════');
+
+    // LOG: Mensagem recebida - save with FULL JID for dashboard display
     if (logMessage) {
         const state = await getUserState(phone);
         await logMessage({
-            telefone: phone,
+            telefone: fullJid, // Use full JID so contacts API can find it
             direcao: 'IN',
-            conteudo: text.trim(),
+            conteudo: buttonResponse ? `[BUTTON] ${text} (${buttonResponse.id})` : text.trim(),
             flow: state?.currentFlow,
             step: state?.currentStep,
         });
@@ -94,8 +193,17 @@ export async function handleIncomingMessage(msg: any) {
                 return await handleCheckinPlantao(message, state);
 
             case 'QUIZ':
-
                 return await handleQuiz(message, state);
+
+            case 'REPROVADO_TRIAGEM':
+                return await handleReprovado(message, state);
+
+            case 'AGUARDANDO_RH':
+            case 'AGUARDANDO_AVALIACAO':
+                return await handleAguardando(message, state);
+
+            case 'MAIN_MENU':
+                return await handleMainMenu(message, state);
 
             default:
                 await sendMessage(phone, `
@@ -108,22 +216,66 @@ Digite:
         `.trim());
         }
     } catch (error) {
-        console.error('Erro ao processar mensagem:', error);
-        await sendMessage(phone, `
-Ops! Tivemos um problema técnico ao processar sua mensagem.
-
-Por favor, tente novamente em alguns instantes. Se o problema persistir:
-
-1️⃣ Digite *MENU* para voltar ao início
-2️⃣ Digite *AJUDA* para falar com um atendente
-3️⃣ Ligue para 0800-XXX-XXXX
-
-Pedimos desculpas pelo inconveniente!
-        `.trim());
+        // ...
     }
 }
 
+async function handleMainMenu(message: WhatsAppMessage, state: UserState) {
+    const { body, from } = message;
+
+    // Opção 1: Meus Plantões
+    if (body === '1') {
+        await sendMessage(from, `
+📅 *Meus Plantões*
+
+Você ainda não tem plantões agendados.
+Quando tiver, eles aparecerão aqui.
+
+Digite *MENU* para voltar.
+        `.trim());
+        return;
+    }
+
+    // Opção 2: Meus Dados
+    if (body === '2') {
+        const dados = state.data || {};
+        const nome = dados.nome || dados.nomePaciente || 'Não informado';
+
+        await sendMessage(from, `
+👤 *Meus Dados*
+
+Nome: ${nome}
+Telefone: ${from.split('@')[0]}
+
+Para alterar, entre em contato com o suporte.
+Digite *MENU* para voltar.
+        `.trim());
+        return;
+    }
+
+    // Opção 3: Ajuda
+    if (body === '3') {
+        await sendHelpMessage(from);
+        return;
+    }
+
+    // Opção 4: Atendente
+    if (body === '4') {
+        await sendMessage(from, 'Um atendente humano foi notificado. Aguarde...');
+        await notifyAdminHelp(from);
+        return;
+    }
+
+    // Opção inválida
+    await sendMessage(from, 'Opção inválida. Digite 1, 2, 3 ou 4.');
+}
+
 async function sendMainMenu(phone: string) {
+    await setUserState(phone, {
+        currentFlow: 'MAIN_MENU',
+        currentStep: 'SELECT_OPTION'
+    });
+
     await sendMessage(phone, `
 📋 *MENU PRINCIPAL*
 
@@ -133,7 +285,7 @@ async function sendMainMenu(phone: string) {
 4️⃣ Falar com Atendente
 
 Digite o número da opção:
-  `.trim());
+    `.trim());
 }
 
 async function sendHelpMessage(phone: string) {
