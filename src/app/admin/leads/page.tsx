@@ -25,11 +25,18 @@ interface Lead {
     _count: { avaliacoes: number; mensagens: number; };
 }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'purple' }> = {
-    LEAD: { label: 'Novo Lead', variant: 'default' },
-    AVALIACAO: { label: 'Em Avaliação', variant: 'info' },
-    PROPOSTA_ENVIADA: { label: 'Proposta Enviada', variant: 'purple' },
-    CONTRATO_ENVIADO: { label: 'Contrato Enviado', variant: 'warning' },
+// Etapas do Fluxo: Pendente → Em Análise → Proposta → Contrato → Aprovada → Concluída
+const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'purple'; stage: string }> = {
+    LEAD: { label: 'Pendente', variant: 'default', stage: 'Pendente' },
+    EM_AVALIACAO: { label: 'Em Análise', variant: 'info', stage: 'Em Análise' },
+    AVALIACAO: { label: 'Em Análise', variant: 'info', stage: 'Em Análise' },
+    PROPOSTA_ENVIADA: { label: 'Proposta Enviada', variant: 'purple', stage: 'Proposta' },
+    PROPOSTA_ACEITA: { label: 'Proposta Aceita', variant: 'success', stage: 'Proposta' },
+    PROPOSTA_RECUSADA: { label: 'Proposta Recusada', variant: 'error', stage: 'Proposta' },
+    AGUARDANDO_CONTRATO: { label: 'Aguardando Contrato', variant: 'warning', stage: 'Contrato' },
+    CONTRATO_ENVIADO: { label: 'Contrato Enviado', variant: 'warning', stage: 'Contrato' },
+    ATIVO: { label: 'Aprovada', variant: 'success', stage: 'Aprovada' },
+    CONCLUIDO: { label: 'Concluída', variant: 'success', stage: 'Concluída' },
 };
 
 const PRIORIDADE_CONFIG: Record<string, { label: string; variant: 'default' | 'warning' | 'error' }> = {
