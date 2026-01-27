@@ -116,6 +116,39 @@ ${signature.signingUrl}
                     pacienteId: paciente.id,
                     valorTotal,
                 });
+
+                // Atualizar status do paciente para PROPOSTA_ENVIADA
+                await prisma.paciente.update({
+                    where: { id: paciente.id },
+                    data: { status: 'PROPOSTA_ENVIADA' }
+                });
+
+                // Atualizar estado do WhatsApp para aguardar resposta (Confirmo/Recuso)
+                await prisma.whatsAppFlowState.upsert({
+                    where: { phone },
+                    update: {
+                        currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
+                        currentStep: 'ESPERANDO_CONFIRMACAO',
+                        data: JSON.stringify({
+                            avaliacaoId: novaAvaliacao.id,
+                            valorTotal,
+                            propostaEnviadaEm: new Date().toISOString()
+                        }),
+                        lastInteraction: new Date()
+                    },
+                    create: {
+                        phone,
+                        currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
+                        currentStep: 'ESPERANDO_CONFIRMACAO',
+                        data: JSON.stringify({
+                            avaliacaoId: novaAvaliacao.id,
+                            valorTotal,
+                            propostaEnviadaEm: new Date().toISOString()
+                        })
+                    }
+                });
+
+                console.log(`📱 Estado do WhatsApp atualizado para AGUARDANDO_RESPOSTA_PROPOSTA para ${phone}`);
             }
         } catch (_e) {
             console.error('❌ Erro CRÍTICO de conexão com Bridge (Bot Offline na porta 4000?):', _e);

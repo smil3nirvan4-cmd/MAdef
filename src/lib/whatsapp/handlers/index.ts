@@ -12,6 +12,7 @@ import { handleCheckinPlantao } from './checkin';
 import { notifyAdminHelp } from '@/lib/notifications/emergency';
 import { handleReprovado } from './reprovado';
 import { handleAguardando } from './aguardando';
+import { handleConfirmacaoProposta, handleAssinaturaContrato as handleAssinaturaContratoNovo } from './confirmacao-proposta';
 
 
 
@@ -201,6 +202,17 @@ export async function handleIncomingMessage(msg: any) {
             case 'AGUARDANDO_RH':
             case 'AGUARDANDO_AVALIACAO':
                 return await handleAguardando(message, state);
+
+            // Fluxos de proposta e contrato
+            case 'AGUARDANDO_RESPOSTA_PROPOSTA':
+                return await handleConfirmacaoProposta(message, state);
+
+            case 'AGUARDANDO_CONTRATO':
+                return await handleAssinaturaContratoNovo(message, state);
+
+            case 'CLIENTE_ATIVO':
+                // Cliente ativo pode acessar menu normalmente
+                return await handleMainMenu(message, state);
 
             case 'MAIN_MENU':
                 return await handleMainMenu(message, state);
