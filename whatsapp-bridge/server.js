@@ -35,7 +35,7 @@ function saveSession() {
 
 async function sendToWebhook(data) {
     try {
-        // Enviar o evento raw do Baileys para o Next.js processar
+        // Enviar A MENSAGEM INDIVIDUAL para o Next.js processar
         await fetch(WEBHOOK_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -70,11 +70,14 @@ async function connectWhatsApp() {
 
         // 1. Ouvir mensagens para Webhook
         sock.ev.on('messages.upsert', async (m) => {
-            // Apenas mensagens novas (notify) ou todas? 
-            // Geralmente notify é o que queremos para chatbots
             if (m.type === 'notify') {
-                console.log(`📩 Nova mensagem recebida. Enviando para Webhook...`);
-                await sendToWebhook(m);
+                for (const msg of m.messages) {
+                    // Ignora mensagens enviadas por mim mesmo (para evitar loop infinito se o bot responder a si mesmo)
+                    if (!msg.key.fromMe) {
+                        console.log(`📩 Webhook: Mensagem recebida de ${msg.key.remoteJid}`);
+                        await sendToWebhook(msg);
+                    }
+                }
             }
         });
 
@@ -98,7 +101,7 @@ async function connectWhatsApp() {
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut &&
                     statusCode !== 403 &&
                     statusCode !== 405 &&
-                    retryCount < 5;
+                    retryCount < 10; // Aumentado retry
 
                 connectionStatus = 'DISCONNECTED';
                 qrCode = null;
