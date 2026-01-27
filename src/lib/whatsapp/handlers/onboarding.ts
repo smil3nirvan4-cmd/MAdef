@@ -2,6 +2,66 @@ import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
 import { notifyEmergencyTeam } from '@/lib/notifications/emergency';
+import { prisma } from '@/lib/db';
+
+// Salvar lead de paciente no banco de dados
+async function savePatientLead(phone: string, data: Record<string, unknown>) {
+    try {
+        // Usar upsert para criar ou atualizar
+        const paciente = await prisma.paciente.upsert({
+            where: { telefone: phone },
+            update: {
+                nome: (data.nomePaciente as string) || undefined,
+                cidade: (data.cidade as string) || undefined,
+                bairro: (data.bairro as string) || undefined,
+                tipo: (data.tipoCuidado as string) || 'HOME_CARE',
+                hospital: (data.hospital as string) || undefined,
+                prioridade: data.isEmergency ? 'URGENTE' : 'NORMAL',
+                status: 'LEAD',
+            },
+            create: {
+                telefone: phone,
+                nome: (data.nomePaciente as string) || null,
+                cidade: (data.cidade as string) || null,
+                bairro: (data.bairro as string) || null,
+                tipo: (data.tipoCuidado as string) || 'HOME_CARE',
+                hospital: (data.hospital as string) || null,
+                prioridade: data.isEmergency ? 'URGENTE' : 'NORMAL',
+                status: 'LEAD',
+            },
+        });
+        console.log(`✅ [DB] Lead de paciente salvo: ${paciente.id} - ${phone}`);
+        return paciente;
+    } catch (error) {
+        console.error('❌ [DB] Erro ao salvar lead de paciente:', error);
+        return null;
+    }
+}
+
+// Salvar candidato cuidador no banco de dados
+async function saveCaregiverCandidate(phone: string, data: Record<string, unknown>) {
+    try {
+        const cuidador = await prisma.cuidador.upsert({
+            where: { telefone: phone },
+            update: {
+                nome: (data.nome as string) || undefined,
+                area: (data.area as string) || undefined,
+                status: 'CANDIDATO',
+            },
+            create: {
+                telefone: phone,
+                nome: (data.nome as string) || null,
+                area: (data.area as string) || null,
+                status: 'CANDIDATO',
+            },
+        });
+        console.log(`✅ [DB] Candidato cuidador salvo: ${cuidador.id} - ${phone}`);
+        return cuidador;
+    } catch (error) {
+        console.error('❌ [DB] Erro ao salvar candidato cuidador:', error);
+        return null;
+    }
+}
 
 export async function handleOnboarding(
     message: WhatsAppMessage,
@@ -330,6 +390,13 @@ Obrigado por escolher a Mãos Amigas! 🤝
                 dataCadastro: new Date().toISOString()
             }
         });
+
+        // Salvar lead no banco de dados
+        await savePatientLead(phone, {
+            ...state.data,
+            horasDiarias,
+        });
+
         return;
     }
 }
