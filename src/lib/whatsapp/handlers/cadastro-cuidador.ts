@@ -122,28 +122,31 @@ export async function handleCadastroCuidador(
     if (state.currentStep === 'AWAITING_BAIRROS') {
         const bairros = body.split(',').map(b => b.trim()).join(', ');
 
-        const dadosCompletos = {
-            ...state.data,
-            bairros,
-            telefone: phone,
-        };
+        // Acessar dados do estado com tipagem explícita
+        const stateData = state.data as Record<string, unknown> || {};
+        const nome = (stateData.nome as string) || '';
+        const area = (stateData.area as string) || '';
+        const cidade = (stateData.cidade as string) || '';
+        const email = (stateData.email as string) || '';
+        const cpf = (stateData.cpf as string) || '';
+        const coren = stateData.coren as string | null;
 
         // Persistir no Banco de Dados usando Prisma
         try {
             const cuidador = await prisma.cuidador.upsert({
                 where: { telefone: phone },
                 update: {
-                    nome: dadosCompletos.nome as string,
-                    area: dadosCompletos.area as string,
+                    nome: nome,
+                    area: area,
                     status: 'CANDIDATO',
-                    endereco: `${bairros}, ${dadosCompletos.cidade}`,
+                    endereco: `${bairros}, ${cidade}`,
                 },
                 create: {
                     telefone: phone,
-                    nome: dadosCompletos.nome as string || null,
-                    area: dadosCompletos.area as string || null,
+                    nome: nome || null,
+                    area: area || null,
                     status: 'CANDIDATO',
-                    endereco: `${bairros}, ${dadosCompletos.cidade}`,
+                    endereco: `${bairros}, ${cidade}`,
                 },
             });
             console.log(`✅ [DB] Candidato cuidador salvo: ${cuidador.id} - ${phone}`);
@@ -151,18 +154,18 @@ export async function handleCadastroCuidador(
             console.error('❌ [DB] Erro ao salvar candidato cuidador:', error);
         }
 
-        const areaLabel = AREA_LABELS[dadosCompletos.area as string] || dadosCompletos.area;
+        const areaLabel = AREA_LABELS[area] || area;
 
         await sendMessage(from, `
-Perfeito, ${dadosCompletos.nome}! 👏
+Perfeito, ${nome}! 👏
 
 📋 *Resumo do seu cadastro:*
 
-👤 *Nome:* ${dadosCompletos.nome}
+👤 *Nome:* ${nome}
 💼 *Área:* ${areaLabel}
-📍 *Local:* ${bairros}, ${dadosCompletos.cidade}
-📧 *Email:* ${dadosCompletos.email}
-${dadosCompletos.coren ? `🏥 *COREN:* ${dadosCompletos.coren}` : ''}
+📍 *Local:* ${bairros}, ${cidade}
+📧 *Email:* ${email}
+${coren ? `🏥 *COREN:* ${coren}` : ''}
 
 Nossa equipe de RH entrará em contato para agendar uma entrevista e continuar o processo seletivo.
 
@@ -173,7 +176,9 @@ Digite *MENU* para ver opções ou *AJUDA* para falar conosco.
             currentFlow: 'AGUARDANDO_RH',
             currentStep: 'CADASTRO_COMPLETO',
             data: {
-                ...dadosCompletos,
+                ...stateData,
+                bairros,
+                telefone: phone,
                 cadastroCompleto: true,
                 dataCadastro: new Date().toISOString(),
             },
