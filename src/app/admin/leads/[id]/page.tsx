@@ -27,8 +27,10 @@ interface Lead {
     createdAt: string;
     updatedAt: string;
     mensagens?: Array<{ id: string; conteudo: string; direcao: string; timestamp: string; flow?: string; step?: string; }>;
-    avaliacoes?: Array<{ id: string; status: string; createdAt: string; dadosDetalhados?: string; valorProposto?: string; }>;
-    orcamentos?: Array<{ id: string; status: string; valorFinal: number; createdAt: string; }>;
+    avaliacoes?: Array<{ id: string; status: string; createdAt: string; dadosDetalhados?: string; valorProposto?: string; whatsappEnviado?: boolean; whatsappEnviadoEm?: string; }>;
+    orcamentos?: Array<{ id: string; status: string; valorFinal: number; createdAt: string; cenarioEconomico?: string; cenarioRecomendado?: string; cenarioPremium?: string; }>;
+    formSubmissions?: Array<{ id: string; tipo: string; dados: string; createdAt: string; }>;
+    alocacoes?: Array<{ id: string; status: string; turno: string; diaSemana: number; dataInicio: string; cuidador?: { nome?: string; telefone: string; } }>;
 }
 
 // ====================================
@@ -425,7 +427,7 @@ export default function LeadDetailPage() {
             <Card>
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                     <MessageCircle className="w-5 h-5 text-green-600" />
-                    Histórico de Conversas WhatsApp
+                    Histórico de Conversas WhatsApp ({lead.mensagens?.length || 0} mensagens)
                 </h3>
 
                 {!lead.mensagens?.length ? (
@@ -436,14 +438,14 @@ export default function LeadDetailPage() {
                             <div
                                 key={msg.id}
                                 className={`p-3 rounded-lg text-sm ${msg.direcao === 'IN'
-                                        ? 'bg-gray-100 mr-12'
-                                        : 'bg-green-100 ml-12'
+                                    ? 'bg-gray-100 mr-12'
+                                    : 'bg-green-100 ml-12'
                                     }`}
                             >
                                 <div className="flex justify-between items-start gap-2">
-                                    <p className="flex-1">{msg.conteudo}</p>
+                                    <p className="flex-1 whitespace-pre-wrap">{msg.conteudo}</p>
                                     <span className="text-xs text-gray-500 whitespace-nowrap">
-                                        {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(msg.timestamp).toLocaleDateString('pt-BR')} {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
                                 {(msg.flow || msg.step) && (
@@ -456,6 +458,145 @@ export default function LeadDetailPage() {
                     </div>
                 )}
             </Card>
+
+            {/* ====================================
+                HISTÓRICO DE AVALIAÇÕES
+            ==================================== */}
+            {lead.avaliacoes && lead.avaliacoes.length > 0 && (
+                <Card>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                        <ClipboardList className="w-5 h-5 text-purple-600" />
+                        Histórico de Avaliações ({lead.avaliacoes.length})
+                    </h3>
+                    <div className="space-y-4">
+                        {lead.avaliacoes.map((av, idx) => {
+                            let dados: Record<string, unknown> | null = null;
+                            try {
+                                if (av.dadosDetalhados) dados = JSON.parse(av.dadosDetalhados);
+                            } catch { /* ignore */ }
+
+                            return (
+                                <div key={av.id} className="border rounded-lg p-4">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="font-medium">Avaliação #{lead.avaliacoes!.length - idx}</span>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant={av.status === 'ENVIADA' ? 'success' : 'info'}>{av.status}</Badge>
+                                            <span className="text-xs text-gray-500">
+                                                {new Date(av.createdAt).toLocaleString('pt-BR')}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {av.valorProposto && (
+                                        <div className="p-3 bg-yellow-50 rounded mb-3">
+                                            <p className="text-sm text-yellow-700">Valor Proposto: <strong>R$ {av.valorProposto}</strong></p>
+                                        </div>
+                                    )}
+
+                                    {av.whatsappEnviado && (
+                                        <div className="p-2 bg-green-50 rounded text-xs text-green-700 mb-3">
+                                            ✅ Proposta enviada via WhatsApp em {av.whatsappEnviadoEm ? new Date(av.whatsappEnviadoEm).toLocaleString('pt-BR') : 'N/A'}
+                                        </div>
+                                    )}
+
+                                    {dados && (
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            {(dados as Record<string, Record<string, string>>).discovery?.gatilho && (
+                                                <div className="p-2 bg-blue-50 rounded">
+                                                    <span className="text-xs text-blue-600">Gatilho:</span>
+                                                    <p>{(dados as Record<string, Record<string, string>>).discovery.gatilho}</p>
+                                                </div>
+                                            )}
+                                            {(dados as Record<string, Record<string, string>>).patient?.idade && (
+                                                <div className="p-2 bg-purple-50 rounded">
+                                                    <span className="text-xs text-purple-600">Idade:</span>
+                                                    <p>{(dados as Record<string, Record<string, string>>).patient.idade} anos</p>
+                                                </div>
+                                            )}
+                                            {(dados as Record<string, Record<string, string>>).orcamento?.complexidade && (
+                                                <div className="p-2 bg-orange-50 rounded">
+                                                    <span className="text-xs text-orange-600">Complexidade:</span>
+                                                    <p>{(dados as Record<string, Record<string, string>>).orcamento.complexidade}</p>
+                                                </div>
+                                            )}
+                                            {(dados as Record<string, Record<string, Record<string, string>>>).clinical?.medicamentos?.total && (
+                                                <div className="p-2 bg-red-50 rounded">
+                                                    <span className="text-xs text-red-600">Medicamentos:</span>
+                                                    <p>{(dados as Record<string, Record<string, Record<string, string>>>).clinical.medicamentos.total}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
+
+            {/* ====================================
+                ORÇAMENTOS
+            ==================================== */}
+            {lead.orcamentos && lead.orcamentos.length > 0 && (
+                <Card>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        Orçamentos ({lead.orcamentos.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {lead.orcamentos.map(orc => (
+                            <div key={orc.id} className="border rounded-lg p-4 flex justify-between items-center">
+                                <div>
+                                    <p className="font-medium">R$ {orc.valorFinal?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                    <p className="text-xs text-gray-500">{new Date(orc.createdAt).toLocaleString('pt-BR')}</p>
+                                </div>
+                                <Badge variant={orc.status === 'APROVADO' ? 'success' : orc.status === 'RECUSADO' ? 'error' : 'warning'}>
+                                    {orc.status}
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            )}
+
+            {/* ====================================
+                DADOS DE FORMULÁRIOS (SITE)
+            ==================================== */}
+            {lead.formSubmissions && lead.formSubmissions.length > 0 && (
+                <Card>
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                        <Edit className="w-5 h-5 text-indigo-600" />
+                        Formulários Recebidos (Site) ({lead.formSubmissions.length})
+                    </h3>
+                    <div className="space-y-3">
+                        {lead.formSubmissions.map(form => {
+                            let dados: Record<string, unknown> | null = null;
+                            try {
+                                dados = JSON.parse(form.dados);
+                            } catch { /* ignore */ }
+
+                            return (
+                                <div key={form.id} className="border rounded-lg p-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <Badge variant="info">{form.tipo}</Badge>
+                                        <span className="text-xs text-gray-500">{new Date(form.createdAt).toLocaleString('pt-BR')}</span>
+                                    </div>
+                                    {dados && (
+                                        <div className="text-sm space-y-1">
+                                            {Object.entries(dados).slice(0, 8).map(([key, value]) => (
+                                                <div key={key} className="flex gap-2">
+                                                    <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                                    <span>{String(value)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
         </div>
     );
 }

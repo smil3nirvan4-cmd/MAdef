@@ -12,7 +12,7 @@ export async function GET(
             include: {
                 avaliacoes: {
                     orderBy: { createdAt: 'desc' },
-                    take: 10
+                    take: 20
                 },
                 orcamentos: {
                     orderBy: { createdAt: 'desc' },
@@ -25,7 +25,7 @@ export async function GET(
                 },
                 mensagens: {
                     orderBy: { timestamp: 'desc' },
-                    take: 50
+                    take: 100
                 }
             }
         });
@@ -34,7 +34,41 @@ export async function GET(
             return NextResponse.json({ error: 'Paciente não encontrado' }, { status: 404 });
         }
 
-        return NextResponse.json({ paciente });
+        // Buscar mensagens adicionais pelo telefone (caso não estejam linkadas por pacienteId)
+        const mensagensPorTelefone = await prisma.mensagem.findMany({
+            where: {
+                telefone: paciente.telefone,
+                pacienteId: null // Apenas mensagens não linkadas
+            },
+            orderBy: { timestamp: 'desc' },
+            take: 100
+        });
+
+        // Buscar submissões de formulário pelo telefone
+        const formSubmissions = await prisma.formSubmission.findMany({
+            where: { telefone: paciente.telefone },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+        });
+
+        // Combinar mensagens (linkadas + por telefone)
+        const todasMensagens = [
+            ...(paciente.mensagens || []),
+            ...mensagensPorTelefone
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        // Remover duplicatas
+        const mensagensUnicas = todasMensagens.filter((msg, index, self) =>
+            index === self.findIndex(m => m.id === msg.id)
+        );
+
+        return NextResponse.json({
+            paciente: {
+                ...paciente,
+                mensagens: mensagensUnicas,
+                formSubmissions
+            }
+        });
     } catch (error) {
         console.error('Error fetching paciente:', error);
         return NextResponse.json({ error: 'Erro ao buscar paciente' }, { status: 500 });
