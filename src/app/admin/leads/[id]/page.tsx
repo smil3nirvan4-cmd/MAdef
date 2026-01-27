@@ -181,7 +181,7 @@ export default function LeadDetailPage() {
                     <h3 className="font-semibold text-lg mb-4">Fluxo de Conversão</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Button
-                            variant={lead.status === 'PROPOSTA_ENVIADA' ? 'default' : 'outline'}
+                            variant={lead.status === 'PROPOSTA_ENVIADA' ? 'primary' : 'outline'}
                             className={`h-auto py-4 flex flex-col gap-2 ${lead.status === 'PROPOSTA_ENVIADA' ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' : ''}`}
                             onClick={() => handleAction('enviar_proposta')}
                             isLoading={actionLoading === 'enviar_proposta'}
@@ -192,7 +192,7 @@ export default function LeadDetailPage() {
                         </Button>
 
                         <Button
-                            variant={lead.status === 'CONTRATO_ENVIADO' ? 'default' : 'outline'}
+                            variant={lead.status === 'CONTRATO_ENVIADO' ? 'primary' : 'outline'}
                             className={`h-auto py-4 flex flex-col gap-2 ${lead.status === 'CONTRATO_ENVIADO' ? 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100' : ''}`}
                             onClick={() => handleAction('enviar_contrato')}
                             isLoading={actionLoading === 'enviar_contrato'}
@@ -203,7 +203,7 @@ export default function LeadDetailPage() {
                         </Button>
 
                         <Button
-                            variant={lead.status === 'ATIVO' ? 'default' : 'outline'}
+                            variant={lead.status === 'ATIVO' ? 'primary' : 'outline'}
                             className={`h-auto py-4 flex flex-col gap-2 ${lead.status === 'ATIVO' ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : ''}`}
                             onClick={() => handleAction('converter')}
                             isLoading={actionLoading === 'converter'}
