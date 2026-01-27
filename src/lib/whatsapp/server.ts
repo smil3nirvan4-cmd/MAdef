@@ -107,7 +107,6 @@ async function startWhatsAppServer() {
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({
                             success: true,
-                            messageId: result?.messageId,
                             timestamp: new Date().toISOString()
                         }));
                     } catch (e: any) {
