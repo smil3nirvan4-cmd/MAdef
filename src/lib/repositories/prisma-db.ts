@@ -59,13 +59,17 @@ export const PrismaRepository: IDatabaseFactory = {
     },
     messaging: {
         async logMessage(data) {
-            // Best effort lookup for relation linkage
-            const cuidador = await prisma.cuidador.findUnique({ where: { telefone: data.telefone } });
-            const paciente = await prisma.paciente.findUnique({ where: { telefone: data.telefone } });
+            // Normalize phone number (remove @lid or @s.whatsapp.net suffix)
+            const normalizedPhone = data.telefone.replace('@s.whatsapp.net', '').replace('@lid', '');
+
+            // Best effort lookup for relation linkage using normalized phone
+            const cuidador = await prisma.cuidador.findUnique({ where: { telefone: normalizedPhone } });
+            const paciente = await prisma.paciente.findUnique({ where: { telefone: normalizedPhone } });
 
             await prisma.mensagem.create({
                 data: {
                     ...data,
+                    telefone: normalizedPhone, // Store normalized phone
                     cuidadorId: cuidador?.id,
                     pacienteId: paciente?.id
                 }

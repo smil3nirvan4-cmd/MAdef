@@ -5,6 +5,10 @@ const BRIDGE_URL = 'http://localhost:4000';
 // Read port from file if available, else default to 4000
 const PORT_FILE = path.join(process.cwd(), '.wa-bridge-port');
 
+// Import logMessage for tracking sent messages
+let logMessage: ((params: { telefone: string; direcao: 'IN' | 'OUT'; conteudo: string; flow?: string; step?: string }) => Promise<void>) | null = null;
+import('@/lib/database').then(db => { logMessage = db.logMessage; }).catch(() => { });
+
 function getBridgeUrl() {
     try {
         if (fs.existsSync(PORT_FILE)) {
@@ -37,6 +41,16 @@ export async function sendMessage(to: string, text: string): Promise<{ success: 
         }
 
         const data = await res.json();
+
+        // Log mensagem enviada para histórico
+        if (logMessage) {
+            await logMessage({
+                telefone: jid,
+                direcao: 'OUT',
+                conteudo: text.substring(0, 500), // Limitar tamanho
+            });
+        }
+
         return { success: true };
     } catch (error: any) {
         console.error('❌ [Bridge] Erro ao enviar:', error.message);
