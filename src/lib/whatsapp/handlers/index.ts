@@ -109,7 +109,7 @@ export async function handleIncomingMessage(msg: any) {
     }
 
     const message: WhatsAppMessage = {
-        from: phone,
+        from: fullJid, // IMPORTANTE: usar JID completo para respostas (@lid ou @s.whatsapp.net)
         body: text.trim(),
         type: buttonResponse ? 'button_reply' : listResponse ? 'list_reply' : 'text',
         timestamp: Date.now(),

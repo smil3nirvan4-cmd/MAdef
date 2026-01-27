@@ -68,14 +68,48 @@ async function connectWhatsApp() {
 
         sock.ev.on('creds.update', saveCreds);
 
+
         // 1. Ouvir mensagens para Webhook
         sock.ev.on('messages.upsert', async (m) => {
             if (m.type === 'notify') {
                 for (const msg of m.messages) {
                     // Ignora mensagens enviadas por mim mesmo (para evitar loop infinito se o bot responder a si mesmo)
                     if (!msg.key.fromMe) {
-                        console.log(`📩 Webhook: Mensagem recebida de ${msg.key.remoteJid}`);
-                        await sendToWebhook(msg);
+                        // O remoteJid pode ser @lid ou @s.whatsapp.net
+                        // Para mensagens normais 1-1, o participante é nulo, então usamos o remoteJid
+                        // Precisamos garantir que temos o formato @s.whatsapp.net para responder
+
+                        let replyJid = msg.key.remoteJid;
+
+                        // Se for um LID, tentar obter o JID real via API do Baileys
+                        if (replyJid && replyJid.includes('@lid')) {
+                            try {
+                                // Tentar resolver o LID para o número real
+                                const lidNumber = replyJid.split('@')[0];
+                                // Buscar na lista de contatos ou usar conversão direta
+                                // Por enquanto, vamos tentar extrair do key.participant se existir
+                                if (msg.key.participant && !msg.key.participant.includes('@lid')) {
+                                    replyJid = msg.key.participant;
+                                } else {
+                                    // Tentar resolver via store ou API
+                                    console.log(`⚠️ [Bridge] LID detectado: ${replyJid}, tentando resolver...`);
+                                    // O Baileys pode ter o mapeamento LID -> Phone
+                                    // Usar sock.authState.creds.lid pode ajudar
+                                }
+                            } catch (err) {
+                                console.log(`⚠️ [Bridge] Erro ao resolver LID: ${err.message}`);
+                            }
+                        }
+
+                        console.log(`📩 Webhook: Mensagem recebida de ${msg.key.remoteJid} (reply to: ${replyJid})`);
+
+                        // Adicionar o replyJid ao payload para que o Next.js use para responder
+                        const payload = {
+                            ...msg,
+                            _replyJid: replyJid
+                        };
+
+                        await sendToWebhook(payload);
                     }
                 }
             }
@@ -178,13 +212,25 @@ app.post('/send', async (req, res) => {
     }
 
     try {
-        // Normalizar JID: remover @lid, @s.whatsapp.net, etc e reconstruir
-        let cleanNumber = target.replace(/@.+$/, '').replace(/\D/g, '');
-        // Formato do Brasil: garantir que tenha DDI
-        if (cleanNumber.length === 10 || cleanNumber.length === 11) {
-            cleanNumber = '55' + cleanNumber;
+        let jid;
+
+        // Se já tem um sufixo válido do WhatsApp (@lid ou @s.whatsapp.net), usar diretamente
+        if (target.includes('@lid')) {
+            // LID format - usar como está
+            jid = target;
+            console.log(`📤 [Bridge] Usando LID diretamente: ${jid}`);
+        } else if (target.includes('@s.whatsapp.net')) {
+            // Já está no formato correto
+            jid = target;
+        } else {
+            // É um número, normalizar para @s.whatsapp.net
+            let cleanNumber = target.replace(/@.+$/, '').replace(/\D/g, '');
+            // Formato do Brasil: garantir que tenha DDI
+            if (cleanNumber.length === 10 || cleanNumber.length === 11) {
+                cleanNumber = '55' + cleanNumber;
+            }
+            jid = `${cleanNumber}@s.whatsapp.net`;
         }
-        let jid = `${cleanNumber}@s.whatsapp.net`;
 
         console.log(`📤 [Bridge] Enviando para: ${jid} (original: ${target})`);
         console.log(`📝 [Bridge] Mensagem: ${message.substring(0, 50)}...`);
