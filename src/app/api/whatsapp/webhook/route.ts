@@ -28,7 +28,7 @@ function checkRateLimit(ip: string): boolean {
 
 function validateWebhookSignature(request: NextRequest, body: string): boolean {
     const signature = request.headers.get('x-webhook-signature');
-    
+
     if (!WEBHOOK_SECRET) {
         console.warn('WHATSAPP_WEBHOOK_SECRET não configurado - validação de assinatura desabilitada');
         return true;
@@ -60,9 +60,9 @@ function validateOrigin(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
     try {
-        const ip = request.headers.get('x-forwarded-for') || 
-                   request.headers.get('x-real-ip') || 
-                   'unknown';
+        const ip = request.headers.get('x-forwarded-for') ||
+            request.headers.get('x-real-ip') ||
+            'unknown';
 
         if (!checkRateLimit(ip)) {
             return NextResponse.json(
@@ -89,6 +89,18 @@ export async function POST(request: NextRequest) {
 
         const body = JSON.parse(bodyText);
 
+        // SAFETY CHECK: Verificar se a mensagem tem a estrutura esperada
+        if (!body || !body.key || !body.key.remoteJid) {
+            console.warn('[Webhook] Mensagem sem estrutura válida:', JSON.stringify(body).substring(0, 200));
+            return NextResponse.json({ success: true, skipped: true });
+        }
+
+        // Ignorar mensagens enviadas por mim mesmo (já filtrado no Bridge, mas dupla segurança)
+        if (body.key.fromMe) {
+            return NextResponse.json({ success: true, skipped: true });
+        }
+
+        console.log(`📩 [Webhook] Processando mensagem de: ${body.key.remoteJid}`);
         await handleIncomingMessage(body);
 
         return NextResponse.json({ success: true });

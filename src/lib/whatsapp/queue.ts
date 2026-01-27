@@ -1,7 +1,7 @@
 /**
  * WhatsApp Message Queue
  * Garante envio de mensagens mesmo com conexão instável
- * Armazena mensagens pendentes e reenvia quando a conexão estabiliza
+ * Usa o Bridge API para enviar mensagens
  */
 
 import fs from 'fs';
@@ -19,6 +19,7 @@ interface QueuedMessage {
 }
 
 const QUEUE_FILE = path.join(process.cwd(), '.wa-queue.json');
+const BRIDGE_URL = 'http://localhost:4000';
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 10000; // 10 segundos
 
@@ -70,10 +71,9 @@ export function addToQueue(to: string, text: string): string {
     return id;
 }
 
-// Processar fila de mensagens
+// Processar fila de mensagens VIA BRIDGE API
 export async function processQueue(): Promise<void> {
     if (isProcessing) {
-        console.log('[Queue] Já está processando, ignorando...');
         return;
     }
 
@@ -87,14 +87,21 @@ export async function processQueue(): Promise<void> {
             return;
         }
 
-        console.log(`📤 [Queue] Processando ${pendingMessages.length} mensagens pendentes...`);
+        console.log(`📤 [Queue] Processando ${pendingMessages.length} mensagens via Bridge API...`);
 
-        // Importar dinamicamente para evitar circular dependency
-        const { getSocket } = await import('./client');
-        const sock = getSocket();
+        // Verificar se o Bridge está online
+        try {
+            const statusRes = await fetch(`${BRIDGE_URL}/status`);
+            const status = await statusRes.json();
 
-        if (!sock) {
-            console.log('⏳ [Queue] Socket não disponível, reagendando...');
+            if (!status.connected) {
+                console.log('⏳ [Queue] Bridge não conectado, reagendando...');
+                isProcessing = false;
+                setTimeout(() => processQueue(), RETRY_DELAY);
+                return;
+            }
+        } catch (e) {
+            console.log('⏳ [Queue] Bridge indisponível, reagendando...');
             isProcessing = false;
             setTimeout(() => processQueue(), RETRY_DELAY);
             return;
@@ -107,10 +114,19 @@ export async function processQueue(): Promise<void> {
 
                 const jid = msg.to.includes('@') ? msg.to : `${msg.to}@s.whatsapp.net`;
 
-                await sock.sendMessage(jid, { text: msg.text });
+                const res = await fetch(`${BRIDGE_URL}/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: jid, message: msg.text })
+                });
 
-                msg.status = 'SENT';
-                console.log(`✅ [Queue] Mensagem enviada: ${msg.id}`);
+                if (res.ok) {
+                    msg.status = 'SENT';
+                    console.log(`✅ [Queue] Mensagem enviada via Bridge: ${msg.id}`);
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Erro no Bridge');
+                }
 
             } catch (error: any) {
                 console.error(`❌ [Queue] Erro ao enviar ${msg.id}:`, error.message);
@@ -124,7 +140,7 @@ export async function processQueue(): Promise<void> {
 
             saveQueue();
 
-            // Pequeno delay entre mensagens para evitar rate limiting
+            // Pequeno delay entre mensagens
             await new Promise(r => setTimeout(r, 1000));
         }
 
