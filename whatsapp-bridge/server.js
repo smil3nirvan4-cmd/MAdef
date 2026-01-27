@@ -160,8 +160,11 @@ app.post('/disconnect', async (req, res) => {
 });
 
 app.post('/send', async (req, res) => {
+    console.log('📨 [Bridge] Recebendo requisição /send:', JSON.stringify(req.body).substring(0, 100));
+
     // Endpoint essencial para envio de propostas
     if (!sock || connectionStatus !== 'CONNECTED') {
+        console.log('❌ [Bridge] WhatsApp não conectado');
         return res.status(503).json({ error: 'WhatsApp não conectado' });
     }
     const { phone, message } = req.body;
@@ -169,14 +172,28 @@ app.post('/send', async (req, res) => {
     // Suporte a payload "to" (retrocompatibilidade)
     const target = phone || req.body.to;
 
-    if (!target || !message) return res.status(400).json({ error: 'Dados inválidos' });
+    if (!target || !message) {
+        console.log('❌ [Bridge] Dados inválidos:', { target, hasMessage: !!message });
+        return res.status(400).json({ error: 'Dados inválidos' });
+    }
 
     try {
-        let jid = target.includes('@') ? target : `${target.replace(/\D/g, '')}@s.whatsapp.net`;
+        // Normalizar JID: remover @lid, @s.whatsapp.net, etc e reconstruir
+        let cleanNumber = target.replace(/@.+$/, '').replace(/\D/g, '');
+        // Formato do Brasil: garantir que tenha DDI
+        if (cleanNumber.length === 10 || cleanNumber.length === 11) {
+            cleanNumber = '55' + cleanNumber;
+        }
+        let jid = `${cleanNumber}@s.whatsapp.net`;
+
+        console.log(`📤 [Bridge] Enviando para: ${jid} (original: ${target})`);
+        console.log(`📝 [Bridge] Mensagem: ${message.substring(0, 50)}...`);
+
         const sent = await sock.sendMessage(jid, { text: message });
+        console.log(`✅ [Bridge] Enviado com sucesso: ${sent.key.id}`);
         res.json({ success: true, id: sent.key.id });
     } catch (error) {
-        console.error('Send error:', error);
+        console.error('❌ [Bridge] Send error:', error);
         res.status(500).json({ error: error.message });
     }
 });
