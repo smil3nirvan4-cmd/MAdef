@@ -1,58 +1,33 @@
 module.exports = {
     apps: [
         {
-            name: 'nextjs',
+            name: 'maosamigas',
             script: 'npm',
             args: 'start',
-            cwd: '/var/www/maosamigas',
-            instances: 1,
-            autorestart: true,
-            watch: false,
-            max_memory_restart: '500M',
+            cwd: '/home/imsmiilew/maosamigas',
             env: {
                 NODE_ENV: 'production',
-                PORT: 3000,
-            },
-            error_file: '/var/log/pm2/nextjs-error.log',
-            out_file: '/var/log/pm2/nextjs-out.log',
-            log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-            merge_logs: true,
+                DATABASE_URL: 'file:./dev.db',
+                AUTH_SECRET: 'b4f9d2a1c8e7f6g5h4i3j2k1l0m9n8o7p6q5r4s3t2u1v0w9x8y7z6',
+                AUTH_TRUST_HOST: 'true',
+                AUTH_URL: 'http://34.39.221.223:3000',
+                NEXTAUTH_SECRET: 'b4f9d2a1c8e7f6g5h4i3j2k1l0m9n8o7p6q5r4s3t2u1v0w9x8y7z6',
+                NEXTAUTH_URL: 'http://34.39.221.223:3000',
+                ADMIN_EMAIL: 'admin@maosamigas.com',
+                ADMIN_PASSWORD: 'SuaSenhaSegura123'
+            }
         },
         {
-            name: 'whatsapp',
-            script: 'npx',
-            args: 'tsx src/lib/whatsapp/server.ts',
-            cwd: '/var/www/maosamigas',
-            instances: 1,
-            autorestart: true,
-            watch: false,
-            max_memory_restart: '300M',
+            name: 'whatsapp-bridge',
+            script: 'server.js',
+            cwd: '/home/imsmiilew/maosamigas/whatsapp-bridge',
             env: {
                 NODE_ENV: 'production',
+                WA_BRIDGE_PORT: '4000'
             },
-            error_file: '/var/log/pm2/whatsapp-error.log',
-            out_file: '/var/log/pm2/whatsapp-out.log',
-            log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-            merge_logs: true,
-            // Delay restart to allow graceful shutdown
-            restart_delay: 5000,
-            // Don't restart more than 10 times in 1 minute
-            max_restarts: 10,
-            min_uptime: '10s',
-        },
-    ],
-
-    // Deployment configuration
-    deploy: {
-        production: {
-            user: 'deploy',
-            host: 'your-vm-ip',
-            ref: 'origin/main',
-            repo: 'git@github.com:your-repo/maosamigas.git',
-            path: '/var/www/maosamigas',
-            'pre-deploy-local': '',
-            'post-deploy': 'npm install && npx prisma generate && npx prisma db push && npm run build && pm2 reload ecosystem.config.js --env production',
-            'pre-setup': '',
-        },
-    },
+            watch: false,
+            autorestart: true,
+            max_restarts: 10
+        }
+    ]
 };

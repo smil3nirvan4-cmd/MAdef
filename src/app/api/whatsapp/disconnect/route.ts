@@ -1,44 +1,29 @@
 import { NextResponse } from 'next/server';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
-import fs from 'fs';
-
-const SESSION_FILE = path.join(process.cwd(), '.wa-session.json');
-
-// Global declaration moved to types/globals.d.ts
-
-function saveSession(data: { status: string; qrCode: string | null; connectedAt: string | null }) {
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2));
-}
 
 export async function POST() {
+    const portFile = path.join(process.cwd(), '.wa-bridge-port');
+    let bridgePort = '4000';
+
+    if (existsSync(portFile)) {
+        bridgePort = readFileSync(portFile, 'utf-8').trim();
+    }
+
     try {
-        if (global.waSocket) {
-            try {
-                await global.waSocket.logout();
-            } catch (_e) {
-                console.log('Socket já estava desconectado');
-            }
-            global.waSocket = null;
-        }
-
-        saveSession({ status: 'DISCONNECTED', qrCode: null, connectedAt: null });
-
-        // Deletar pasta de autenticação para forçar novo QR
-        const authDir = path.join(process.cwd(), 'auth_info');
-        if (fs.existsSync(authDir)) {
-            fs.rmSync(authDir, { recursive: true, force: true });
-        }
-
-        console.log('🔌 WhatsApp desconectado e sessão limpa');
-
-        return NextResponse.json({
-            success: true,
-            message: 'WhatsApp desconectado e sessão limpa',
+        const response = await fetch(`http://localhost:${bridgePort}/disconnect`, {
+            method: 'POST',
+            signal: AbortSignal.timeout(10000)
         });
-    } catch (error) {
-        console.error('Erro ao desconectar WhatsApp:', error);
+
+        if (response.ok) {
+            return NextResponse.json(await response.json());
+        }
+
+        return NextResponse.json({ success: false, error: 'Bridge error' }, { status: 500 });
+    } catch {
         return NextResponse.json(
-            { success: false, error: 'Erro ao desconectar' },
+            { success: false, error: 'Bridge não está rodando' },
             { status: 500 }
         );
     }
