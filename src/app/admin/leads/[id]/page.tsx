@@ -460,72 +460,110 @@ export default function LeadDetailPage() {
             </Card>
 
             {/* ====================================
-                HISTÓRICO DE AVALIAÇÕES
+                HISTÓRICO DE AVALIAÇÕES COMPLETO
             ==================================== */}
             {lead.avaliacoes && lead.avaliacoes.length > 0 && (
                 <Card>
                     <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                         <ClipboardList className="w-5 h-5 text-purple-600" />
-                        Histórico de Avaliações ({lead.avaliacoes.length})
+                        Histórico de Avaliações Completo ({lead.avaliacoes.length})
                     </h3>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {lead.avaliacoes.map((av, idx) => {
                             let dados: Record<string, unknown> | null = null;
                             try {
                                 if (av.dadosDetalhados) dados = JSON.parse(av.dadosDetalhados);
                             } catch { /* ignore */ }
 
+                            // Função para renderizar dados recursivamente
+                            const renderData = (obj: Record<string, unknown>, prefix = ''): React.ReactNode[] => {
+                                const items: React.ReactNode[] = [];
+                                Object.entries(obj).forEach(([key, value]) => {
+                                    const label = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+                                    if (value === null || value === undefined || value === '') return;
+
+                                    if (typeof value === 'object' && !Array.isArray(value)) {
+                                        items.push(
+                                            <div key={`${prefix}${key}`} className="col-span-2 mt-2">
+                                                <p className="font-semibold text-gray-700 capitalize border-b pb-1 mb-2">{label}</p>
+                                                <div className="grid grid-cols-2 gap-2 pl-2">
+                                                    {renderData(value as Record<string, unknown>, `${prefix}${key}.`)}
+                                                </div>
+                                            </div>
+                                        );
+                                    } else if (Array.isArray(value)) {
+                                        items.push(
+                                            <div key={`${prefix}${key}`} className="col-span-2">
+                                                <span className="text-xs text-gray-500 capitalize">{label}:</span>
+                                                <p className="text-sm">{value.join(', ')}</p>
+                                            </div>
+                                        );
+                                    } else {
+                                        items.push(
+                                            <div key={`${prefix}${key}`} className="p-2 bg-gray-50 rounded">
+                                                <span className="text-xs text-gray-500 capitalize block">{label}:</span>
+                                                <p className="text-sm font-medium">{String(value)}</p>
+                                            </div>
+                                        );
+                                    }
+                                });
+                                return items;
+                            };
+
                             return (
-                                <div key={av.id} className="border rounded-lg p-4">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="font-medium">Avaliação #{lead.avaliacoes!.length - idx}</span>
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant={av.status === 'ENVIADA' ? 'success' : 'info'}>{av.status}</Badge>
+                                <div key={av.id} className="border-2 rounded-xl p-5 bg-white shadow-sm">
+                                    {/* Header da Avaliação */}
+                                    <div className="flex justify-between items-center mb-4 pb-3 border-b">
+                                        <div>
+                                            <span className="font-bold text-lg">Avaliação #{lead.avaliacoes!.length - idx}</span>
+                                            <p className="text-xs text-gray-500">ID: {av.id}</p>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <Badge variant={av.status === 'ENVIADA' ? 'success' : av.status === 'PENDENTE' ? 'warning' : 'info'}>
+                                                {av.status}
+                                            </Badge>
                                             <span className="text-xs text-gray-500">
                                                 {new Date(av.createdAt).toLocaleString('pt-BR')}
                                             </span>
                                         </div>
                                     </div>
 
+                                    {/* Valor Proposto */}
                                     {av.valorProposto && (
-                                        <div className="p-3 bg-yellow-50 rounded mb-3">
-                                            <p className="text-sm text-yellow-700">Valor Proposto: <strong>R$ {av.valorProposto}</strong></p>
+                                        <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg mb-4 border-l-4 border-yellow-500">
+                                            <p className="text-sm text-yellow-800">💰 Valor Proposto</p>
+                                            <p className="text-2xl font-bold text-yellow-900">R$ {av.valorProposto}</p>
                                         </div>
                                     )}
 
+                                    {/* Status de Envio WhatsApp */}
                                     {av.whatsappEnviado && (
-                                        <div className="p-2 bg-green-50 rounded text-xs text-green-700 mb-3">
-                                            ✅ Proposta enviada via WhatsApp em {av.whatsappEnviadoEm ? new Date(av.whatsappEnviadoEm).toLocaleString('pt-BR') : 'N/A'}
+                                        <div className="p-3 bg-green-50 rounded-lg text-sm text-green-700 mb-4 flex items-center gap-2">
+                                            <MessageCircle className="w-4 h-4" />
+                                            Proposta enviada via WhatsApp em {av.whatsappEnviadoEm ? new Date(av.whatsappEnviadoEm).toLocaleString('pt-BR') : 'data não registrada'}
                                         </div>
                                     )}
 
+                                    {/* TODOS OS DADOS COLETADOS */}
                                     {dados && (
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            {(dados as Record<string, Record<string, string>>).discovery?.gatilho && (
-                                                <div className="p-2 bg-blue-50 rounded">
-                                                    <span className="text-xs text-blue-600">Gatilho:</span>
-                                                    <p>{(dados as Record<string, Record<string, string>>).discovery.gatilho}</p>
-                                                </div>
-                                            )}
-                                            {(dados as Record<string, Record<string, string>>).patient?.idade && (
-                                                <div className="p-2 bg-purple-50 rounded">
-                                                    <span className="text-xs text-purple-600">Idade:</span>
-                                                    <p>{(dados as Record<string, Record<string, string>>).patient.idade} anos</p>
-                                                </div>
-                                            )}
-                                            {(dados as Record<string, Record<string, string>>).orcamento?.complexidade && (
-                                                <div className="p-2 bg-orange-50 rounded">
-                                                    <span className="text-xs text-orange-600">Complexidade:</span>
-                                                    <p>{(dados as Record<string, Record<string, string>>).orcamento.complexidade}</p>
-                                                </div>
-                                            )}
-                                            {(dados as Record<string, Record<string, Record<string, string>>>).clinical?.medicamentos?.total && (
-                                                <div className="p-2 bg-red-50 rounded">
-                                                    <span className="text-xs text-red-600">Medicamentos:</span>
-                                                    <p>{(dados as Record<string, Record<string, Record<string, string>>>).clinical.medicamentos.total}</p>
-                                                </div>
-                                            )}
+                                        <div className="space-y-4">
+                                            <p className="font-semibold text-gray-900 text-sm uppercase tracking-wide">📋 Dados Completos da Avaliação:</p>
+                                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                                {renderData(dados as Record<string, unknown>)}
+                                            </div>
                                         </div>
+                                    )}
+
+                                    {/* JSON Raw para debug se necessário */}
+                                    {dados && (
+                                        <details className="mt-4">
+                                            <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                                Ver dados brutos (JSON)
+                                            </summary>
+                                            <pre className="mt-2 p-3 bg-gray-900 text-green-400 rounded text-xs overflow-auto max-h-48">
+                                                {JSON.stringify(dados, null, 2)}
+                                            </pre>
+                                        </details>
                                     )}
                                 </div>
                             );
