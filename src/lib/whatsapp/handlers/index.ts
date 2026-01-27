@@ -145,14 +145,14 @@ export async function handleIncomingMessage(msg: any) {
     try {
         let state = await getUserState(phone);
 
-        // Comandos globais
+        // Comandos globais - usar fullJid para enviar mensagens
         if (message.body.toUpperCase() === 'MENU') {
-            await sendMainMenu(phone);
+            await sendMainMenu(phone, fullJid);
             return;
         }
 
         if (message.body.toUpperCase() === 'AJUDA') {
-            await sendHelpMessage(phone);
+            await sendHelpMessage(fullJid);
             return;
         }
 
@@ -270,13 +270,13 @@ Digite *MENU* para voltar.
     await sendMessage(from, 'Opção inválida. Digite 1, 2, 3 ou 4.');
 }
 
-async function sendMainMenu(phone: string) {
+async function sendMainMenu(phone: string, replyJid: string) {
     await setUserState(phone, {
         currentFlow: 'MAIN_MENU',
         currentStep: 'SELECT_OPTION'
     });
 
-    await sendMessage(phone, `
+    await sendMessage(replyJid, `
 📋 *MENU PRINCIPAL*
 
 1️⃣ Meus Plantões
@@ -288,8 +288,8 @@ Digite o número da opção:
     `.trim());
 }
 
-async function sendHelpMessage(phone: string) {
-    await sendMessage(phone, `
+async function sendHelpMessage(replyJid: string) {
+    await sendMessage(replyJid, `
 📞 *Central de Atendimento*
 
 Telefone: 0800-XXX-XXXX
@@ -301,7 +301,8 @@ Horário: Seg-Sex, 8h-18h
 Um atendente entrará em contato em breve!
   `.trim());
 
-    await notifyAdminHelp(phone);
+    console.log(`📞 [AJUDA] Usuário ${replyJid} solicitou falar com atendente`);
+    await notifyAdminHelp(replyJid);
 }
 
 // Handlers pendentes (placeholder)

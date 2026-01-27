@@ -8,8 +8,10 @@ export async function handleOnboarding(
     state: UserState
 ) {
     const { body, from } = message;
+    // Extrair número para armazenamento de estado (remover @lid ou @s.whatsapp.net)
+    const phone = from.replace('@s.whatsapp.net', '').replace('@lid', '');
 
-    console.log(`🚀 HandleOnboarding: Step atual = ${state.currentStep}, De = ${from}`);
+    console.log(`🚀 HandleOnboarding: Step atual = ${state.currentStep}, De = ${from} (phone: ${phone})`);
 
     // Step 1: Welcome
     if (state.currentStep === 'WELCOME') {
@@ -24,7 +26,7 @@ Você é:
 Digite o número da opção:
     `.trim());
 
-        await setUserState(from, {
+        await setUserState(phone, {
             currentStep: 'AWAITING_TYPE',
         });
         return;
@@ -48,7 +50,7 @@ Para melhor te atender, preciso saber:
 Digite o número:
       `.trim());
 
-            await setUserState(from, {
+            await setUserState(phone, {
                 currentFlow: 'CADASTRO_PACIENTE',
                 currentStep: 'AWAITING_URGENCY_TYPE',
                 data: { tipo: 'PACIENTE' },
@@ -72,7 +74,7 @@ Qual sua área de atuação?
 Digite o número:
       `.trim());
 
-            await setUserState(from, {
+            await setUserState(phone, {
                 currentFlow: 'CADASTRO_CUIDADOR',
                 currentStep: 'AWAITING_AREA',
                 data: { tipo: 'PROFISSIONAL' },
@@ -106,7 +108,7 @@ Nossa equipe administrativa foi notificada do seu contato e tentará falar com v
             await notifyEmergencyTeam(from);
 
             // Resetar ou pausar estado
-            await setUserState(from, {
+            await setUserState(phone, {
                 currentFlow: 'EMERGENCIA_ACIONADA',
                 currentStep: 'WAITING_ADMIN',
             });
@@ -126,7 +128,7 @@ Como prefere fornecer os dados do paciente?
 Digite o número:
             `.trim());
 
-            await setUserState(from, {
+            await setUserState(phone, {
                 currentStep: 'AWAITING_METHOD'
             });
             return;
@@ -156,7 +158,7 @@ Certo, vamos fazer por aqui.
 Qual o *Nome Completo do Paciente*?
             `.trim());
 
-            await setUserState(from, {
+            await setUserState(phone, {
                 currentStep: 'AWAITING_PATIENT_NAME'
             });
             return;
@@ -176,7 +178,7 @@ Qual o *Nome Completo do Paciente*?
 Obrigado. Em qual *Cidade e Bairro* o paciente está?
         `.trim());
 
-        await setUserState(from, {
+        await setUserState(phone, {
             currentStep: 'AWAITING_LOCATION',
             data: {
                 ...state.data,
@@ -205,7 +207,7 @@ Qual o *tipo de cuidado* necessário?
 Digite o número:
         `.trim());
 
-        await setUserState(from, {
+        await setUserState(phone, {
             currentStep: 'AWAITING_CARE_TYPE',
             data: {
                 ...state.data,
@@ -236,7 +238,7 @@ Qual a *condição principal* do paciente?
 Digite o número:
             `.trim());
 
-            await setUserState(from, {
+            await setUserState(phone, {
                 currentStep: 'AWAITING_CONDITION',
                 data: {
                     ...state.data,
@@ -278,7 +280,7 @@ Quantas *horas por dia* de cuidado são necessárias?
 Digite o número:
         `.trim());
 
-        await setUserState(from, {
+        await setUserState(phone, {
             currentStep: 'AWAITING_HOURS',
             data: {
                 ...state.data,
@@ -318,7 +320,7 @@ Nossa equipe de avaliação entrará em contato em breve para agendar uma visita
 Obrigado por escolher a Mãos Amigas! 🤝
         `.trim());
 
-        await setUserState(from, {
+        await setUserState(phone, {
             currentFlow: 'AGUARDANDO_AVALIACAO',
             currentStep: 'CADASTRO_COMPLETO',
             data: {
