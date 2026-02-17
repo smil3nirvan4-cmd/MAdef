@@ -621,9 +621,15 @@ app.post('/send', async (req, res) => {
         const jid = resolveTargetJid(target);
 
         const sent = await sock.sendMessage(jid, { text: String(message) });
+        const providerMessageId = sent?.key?.id || null;
         lastOutgoingMessageAt = new Date().toISOString();
         saveSession();
-        return res.json({ success: true, id: sent?.key?.id || null });
+        return res.json({
+            success: true,
+            id: providerMessageId,
+            messageId: providerMessageId,
+            providerMessageId,
+        });
     } catch (error) {
         registerBridgeError(error);
         return res.status(500).json({ error: error.message || 'Failed to send message.' });
@@ -651,10 +657,16 @@ app.post('/send-document', async (req, res) => {
             caption: caption ? String(caption) : '',
             mimetype: mimetype ? String(mimetype) : 'application/pdf',
         });
+        const providerMessageId = sent?.key?.id || null;
 
         lastOutgoingMessageAt = new Date().toISOString();
         saveSession();
-        return res.json({ success: true, id: sent?.key?.id || null });
+        return res.json({
+            success: true,
+            id: providerMessageId,
+            messageId: providerMessageId,
+            providerMessageId,
+        });
     } catch (error) {
         registerBridgeError(error);
         return res.status(500).json({ error: error.message || 'Failed to send document.' });

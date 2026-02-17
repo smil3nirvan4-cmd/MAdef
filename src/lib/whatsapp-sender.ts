@@ -5,6 +5,7 @@
 import { normalizeOutboundPhoneBR } from './phone-validator';
 import logger from './logger';
 import { resolveBridgeConfig } from './whatsapp/bridge-config';
+import { extractProviderMessageId } from './whatsapp/provider-message-id';
 
 type DeliveryStatus = 'SENT_CONFIRMED' | 'UNCONFIRMED' | 'FAILED';
 
@@ -41,18 +42,6 @@ Em caso de duvidas, responda esta mensagem.
 
 _Equipe Maos Amigas_
     `.trim();
-}
-
-function extractMessageId(payload: any): string | undefined {
-    const candidates = [payload?.messageId, payload?.id];
-
-    for (const value of candidates) {
-        if (typeof value === 'string' && value.trim()) {
-            return value.trim();
-        }
-    }
-
-    return undefined;
 }
 
 class WhatsAppSenderService {
@@ -145,11 +134,12 @@ class WhatsAppSenderService {
             });
 
             const payload: any = await response.json().catch(() => ({}));
-            const messageId = extractMessageId(payload);
+            const messageId = extractProviderMessageId(payload);
 
             if (response.ok && payload?.success && messageId) {
                 await logger.whatsapp('whatsapp_sent', `Mensagem enviada para ${phoneResult.formatted}`, {
-                    messageId,
+                    providerMessageId: messageId,
+                    resolvedMessageId: messageId,
                     telefone: phoneResult.e164,
                     jid: phoneResult.jid,
                 });
@@ -170,6 +160,8 @@ class WhatsAppSenderService {
                 await logger.warning('whatsapp_unconfirmed', error, {
                     telefone: phoneResult.e164,
                     jid: phoneResult.jid,
+                    providerMessageId: null,
+                    resolvedMessageId: null,
                     bridgePayload: payload,
                 });
 

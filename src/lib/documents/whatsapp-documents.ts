@@ -1,6 +1,7 @@
 ﻿import logger from '@/lib/logger';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import { extractProviderMessageId } from '@/lib/whatsapp/provider-message-id';
 
 type DeliveryStatus = 'SENT_CONFIRMED' | 'UNCONFIRMED' | 'FAILED';
 
@@ -13,18 +14,6 @@ interface DocumentSendResult {
     recommendedCommand: string;
     e164?: string;
     jid?: string;
-}
-
-function extractMessageId(payload: any): string | undefined {
-    const candidates = [payload?.messageId, payload?.id];
-
-    for (const value of candidates) {
-        if (typeof value === 'string' && value.trim()) {
-            return value.trim();
-        }
-    }
-
-    return undefined;
 }
 
 export async function sendDocumentViaBridge(params: {
@@ -71,7 +60,7 @@ export async function sendDocumentViaBridge(params: {
         });
 
         const payload: any = await response.json().catch(() => ({}));
-        const messageId = extractMessageId(payload);
+        const messageId = extractProviderMessageId(payload);
 
         if (!response.ok || payload?.success === false) {
             return {
@@ -93,6 +82,7 @@ export async function sendDocumentViaBridge(params: {
                 e164: normalized.e164,
                 jid: normalized.jid,
                 fileName: params.fileName,
+                providerMessageId: null,
                 bridgePayload: payload,
             });
 
