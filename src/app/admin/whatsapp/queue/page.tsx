@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { RefreshCw, Play, RotateCcw, Ban, Trash2 } from 'lucide-react';
+import { RefreshCw, Play, RotateCcw, Ban, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -13,13 +14,17 @@ interface QueueItem {
     id: string;
     phone: string;
     status: string;
+    intent?: string;
     retries: number;
     error?: string | null;
     preview: string;
     scheduledAt?: string | null;
     sentAt?: string | null;
+    lastAttemptAt?: string | null;
     internalMessageId?: string | null;
+    idempotencyKey?: string | null;
     providerMessageId?: string | null;
+    resolvedMessageId?: string | null;
 }
 
 interface QueueResponse {
@@ -42,7 +47,20 @@ export default function WhatsAppQueuePage() {
     const [stats, setStats] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterIntent, setFilterIntent] = useState('all');
+    const [filterPhone, setFilterPhone] = useState('');
+    const [filterIdempotencyKey, setFilterIdempotencyKey] = useState('');
+    const [filterRetriesMin, setFilterRetriesMin] = useState('');
+    const [filterRetriesMax, setFilterRetriesMax] = useState('');
+    const [filterCreatedFrom, setFilterCreatedFrom] = useState('');
+    const [filterCreatedTo, setFilterCreatedTo] = useState('');
+    const [filterScheduledFrom, setFilterScheduledFrom] = useState('');
+    const [filterScheduledTo, setFilterScheduledTo] = useState('');
+    const [filterLastAttemptFrom, setFilterLastAttemptFrom] = useState('');
+    const [filterLastAttemptTo, setFilterLastAttemptTo] = useState('');
+
     const statusCards: Array<{ label: string; value: number }> = [
         { label: 'pending', value: stats.pending || 0 },
         { label: 'sending', value: stats.sending || 0 },
@@ -55,7 +73,23 @@ export default function WhatsAppQueuePage() {
     const fetchQueue = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/admin/whatsapp/queue?status=${filterStatus}`);
+            const params = new URLSearchParams({
+                status: filterStatus,
+                intent: filterIntent,
+                phone: filterPhone,
+                idempotencyKey: filterIdempotencyKey,
+            });
+
+            if (filterRetriesMin) params.set('retriesMin', filterRetriesMin);
+            if (filterRetriesMax) params.set('retriesMax', filterRetriesMax);
+            if (filterCreatedFrom) params.set('createdFrom', filterCreatedFrom);
+            if (filterCreatedTo) params.set('createdTo', filterCreatedTo);
+            if (filterScheduledFrom) params.set('scheduledFrom', filterScheduledFrom);
+            if (filterScheduledTo) params.set('scheduledTo', filterScheduledTo);
+            if (filterLastAttemptFrom) params.set('lastAttemptFrom', filterLastAttemptFrom);
+            if (filterLastAttemptTo) params.set('lastAttemptTo', filterLastAttemptTo);
+
+            const response = await fetch(`/api/admin/whatsapp/queue?${params.toString()}`);
             const payload: QueueResponse = await response.json();
             if (payload?.success) {
                 setItems(payload.queue || []);
@@ -64,7 +98,20 @@ export default function WhatsAppQueuePage() {
         } finally {
             setLoading(false);
         }
-    }, [filterStatus]);
+    }, [
+        filterStatus,
+        filterIntent,
+        filterPhone,
+        filterIdempotencyKey,
+        filterRetriesMin,
+        filterRetriesMax,
+        filterCreatedFrom,
+        filterCreatedTo,
+        filterScheduledFrom,
+        filterScheduledTo,
+        filterLastAttemptFrom,
+        filterLastAttemptTo,
+    ]);
 
     useEffect(() => {
         fetchQueue();
@@ -105,6 +152,20 @@ export default function WhatsAppQueuePage() {
             ),
         },
         {
+            accessorKey: 'id',
+            header: 'Queue Item',
+            cell: ({ row }) => (
+                <Link href={`/admin/whatsapp/queue/${row.original.id}`} className="font-mono text-xs text-blue-600 hover:underline">
+                    {row.original.id}
+                </Link>
+            ),
+        },
+        {
+            accessorKey: 'intent',
+            header: 'Intent',
+            cell: ({ row }) => <span className="font-mono text-xs">{row.original.intent || '-'}</span>,
+        },
+        {
             accessorKey: 'phone',
             header: 'Telefone',
             cell: ({ row }) => <span className="font-mono text-xs">{row.original.phone}</span>,
@@ -128,6 +189,16 @@ export default function WhatsAppQueuePage() {
             header: 'Retries',
         },
         {
+            accessorKey: 'idempotencyKey',
+            header: 'Idempotency',
+            cell: ({ row }) => <span className="font-mono text-[11px]">{row.original.idempotencyKey || '-'}</span>,
+        },
+        {
+            accessorKey: 'resolvedMessageId',
+            header: 'Resolved Message ID',
+            cell: ({ row }) => <span className="font-mono text-[11px]">{row.original.resolvedMessageId || '-'}</span>,
+        },
+        {
             accessorKey: 'error',
             header: 'Erro',
             cell: ({ row }) => (
@@ -137,14 +208,15 @@ export default function WhatsAppQueuePage() {
             ),
         },
         {
-            accessorKey: 'internalMessageId',
-            header: 'Internal ID',
-            cell: ({ row }) => <span className="font-mono text-[11px]">{row.original.internalMessageId || '-'}</span>,
-        },
-        {
-            accessorKey: 'providerMessageId',
-            header: 'Provider ID',
-            cell: ({ row }) => <span className="font-mono text-[11px]">{row.original.providerMessageId || '-'}</span>,
+            id: 'details',
+            header: 'Detalhe',
+            cell: ({ row }) => (
+                <Link href={`/admin/whatsapp/queue/${row.original.id}`}>
+                    <Button size="sm" variant="outline">
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                </Link>
+            ),
         },
     ], [items, selectedIds]);
 
@@ -152,7 +224,7 @@ export default function WhatsAppQueuePage() {
         <div className="p-6 lg:p-8">
             <PageHeader
                 title="WhatsApp Queue"
-                description="Outbox com retries, reprocessamento e DLQ."
+                description="Outbox com retries, reprocessamento, filtros e drilldown."
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
                     { label: 'WhatsApp', href: '/admin/whatsapp' },
@@ -168,6 +240,96 @@ export default function WhatsAppQueuePage() {
                     </Card>
                 ))}
             </div>
+
+            <Card className="mb-4">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <input
+                        value={filterPhone}
+                        onChange={(event) => setFilterPhone(event.target.value)}
+                        placeholder="Filtro telefone"
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        value={filterIdempotencyKey}
+                        onChange={(event) => setFilterIdempotencyKey(event.target.value)}
+                        placeholder="Filtro idempotencyKey"
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <select
+                        value={filterIntent}
+                        onChange={(event) => setFilterIntent(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    >
+                        <option value="all">Todos intents</option>
+                        <option value="SEND_TEXT">SEND_TEXT</option>
+                        <option value="SEND_TEMPLATE">SEND_TEMPLATE</option>
+                        <option value="SEND_DOCUMENT">SEND_DOCUMENT</option>
+                        <option value="SEND_PROPOSTA">SEND_PROPOSTA</option>
+                        <option value="SEND_CONTRATO">SEND_CONTRATO</option>
+                    </select>
+                    <select
+                        value={filterStatus}
+                        onChange={(event) => setFilterStatus(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    >
+                        <option value="all">Todos status</option>
+                        <option value="pending">pending</option>
+                        <option value="sending">sending</option>
+                        <option value="retrying">retrying</option>
+                        <option value="sent">sent</option>
+                        <option value="dead">dead</option>
+                        <option value="canceled">canceled</option>
+                    </select>
+                    <input
+                        value={filterRetriesMin}
+                        onChange={(event) => setFilterRetriesMin(event.target.value)}
+                        placeholder="Retries min"
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        value={filterRetriesMax}
+                        onChange={(event) => setFilterRetriesMax(event.target.value)}
+                        placeholder="Retries max"
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        type="datetime-local"
+                        value={filterCreatedFrom}
+                        onChange={(event) => setFilterCreatedFrom(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        type="datetime-local"
+                        value={filterCreatedTo}
+                        onChange={(event) => setFilterCreatedTo(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        type="datetime-local"
+                        value={filterScheduledFrom}
+                        onChange={(event) => setFilterScheduledFrom(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        type="datetime-local"
+                        value={filterScheduledTo}
+                        onChange={(event) => setFilterScheduledTo(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        type="datetime-local"
+                        value={filterLastAttemptFrom}
+                        onChange={(event) => setFilterLastAttemptFrom(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <input
+                        type="datetime-local"
+                        value={filterLastAttemptTo}
+                        onChange={(event) => setFilterLastAttemptTo(event.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                </div>
+            </Card>
 
             <Card>
                 <TanStackDataTable

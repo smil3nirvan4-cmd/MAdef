@@ -3,8 +3,12 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { OUTBOX_INTENTS } from '@/lib/whatsapp/outbox/types';
 
 const allowedStatuses = ['pending', 'sending', 'sent', 'retrying', 'dead', 'canceled'] as const;
+const sortableFields = ['createdAt', 'scheduledAt', 'retries', 'lastAttemptAt'] as const;
+const sortableDirection = ['asc', 'desc'] as const;
+const allowedIntents = [...OUTBOX_INTENTS, 'all'] as const;
 
 const actionSchema = z.object({
     action: z.enum(['retry', 'cancel', 'clear_dead', 'clear_failed', 'reprocess', 'process']).optional(),
@@ -14,9 +18,22 @@ const actionSchema = z.object({
     limit: z.number().int().positive().max(100).optional(),
 });
 
+function parsePayload(payload: string): any {
+    try {
+        return JSON.parse(payload);
+    } catch {
+        return null;
+    }
+}
+
+function parseIntent(payload: string): string {
+    const parsed = parsePayload(payload);
+    return String(parsed?.intent || 'UNKNOWN');
+}
+
 function parsePreview(payload: string): string {
     try {
-        const parsed = JSON.parse(payload);
+        const parsed = parsePayload(payload);
         if (typeof parsed?.text === 'string' && parsed.text.trim()) return parsed.text.trim();
         if (typeof parsed?.caption === 'string' && parsed.caption.trim()) return parsed.caption.trim();
         if (parsed?.intent === 'SEND_PROPOSTA') return '[Proposta PDF]';
@@ -28,32 +45,97 @@ function parsePreview(payload: string): string {
     }
 }
 
+function parseDate(value: string | null): Date | null {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizeStatusFilter(rawStatus: string | null) {
+    if (rawStatus === 'pending') return { in: ['pending', 'retrying', 'sending'] };
+    if (rawStatus === 'failed') return 'dead';
+    if (rawStatus === 'sent') return 'sent';
+    if (rawStatus && rawStatus !== 'all' && allowedStatuses.includes(rawStatus as any)) return rawStatus;
+    return undefined;
+}
+
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const rawStatus = searchParams.get('status');
         const phone = searchParams.get('phone') || '';
+        const intent = searchParams.get('intent') || 'all';
+        const idempotencyKey = searchParams.get('idempotencyKey') || '';
+        const retriesMin = Number(searchParams.get('retriesMin') || '');
+        const retriesMax = Number(searchParams.get('retriesMax') || '');
+        const createdFrom = parseDate(searchParams.get('createdFrom'));
+        const createdTo = parseDate(searchParams.get('createdTo'));
+        const scheduledFrom = parseDate(searchParams.get('scheduledFrom'));
+        const scheduledTo = parseDate(searchParams.get('scheduledTo'));
+        const lastAttemptFrom = parseDate(searchParams.get('lastAttemptFrom'));
+        const lastAttemptTo = parseDate(searchParams.get('lastAttemptTo'));
+        const sortByRaw = searchParams.get('sortBy') || 'createdAt';
+        const sortDirRaw = searchParams.get('sortDir') || 'desc';
         const page = Number(searchParams.get('page') || '1');
         const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || '50')));
+        const sortBy = sortableFields.includes(sortByRaw as any) ? sortByRaw : 'createdAt';
+        const sortDir = sortableDirection.includes(sortDirRaw as any) ? sortDirRaw : 'desc';
 
-        const where: any = {};
-        if (rawStatus === 'pending') {
-            where.status = { in: ['pending', 'retrying', 'sending'] };
-        } else if (rawStatus === 'failed') {
-            where.status = 'dead';
-        } else if (rawStatus === 'sent') {
-            where.status = 'sent';
-        } else if (rawStatus && rawStatus !== 'all' && allowedStatuses.includes(rawStatus as any)) {
-            where.status = rawStatus;
+        const where: any = { AND: [] as any[] };
+        const statusFilter = normalizeStatusFilter(rawStatus);
+        if (statusFilter) {
+            where.AND.push({ status: statusFilter });
         }
         if (phone) {
-            where.phone = { contains: phone.replace(/\D/g, '') };
+            where.AND.push({ phone: { contains: phone.replace(/\D/g, '') } });
+        }
+        if (idempotencyKey) {
+            where.AND.push({ idempotencyKey: { contains: idempotencyKey } });
+        }
+        if (intent && allowedIntents.includes(intent as any) && intent !== 'all') {
+            where.AND.push({ payload: { contains: `"intent":"${intent}"` } });
+        }
+
+        if (!Number.isNaN(retriesMin)) {
+            where.AND.push({ retries: { gte: retriesMin } });
+        }
+        if (!Number.isNaN(retriesMax)) {
+            where.AND.push({ retries: { lte: retriesMax } });
+        }
+
+        if (createdFrom || createdTo) {
+            where.AND.push({
+                createdAt: {
+                    ...(createdFrom ? { gte: createdFrom } : {}),
+                    ...(createdTo ? { lte: createdTo } : {}),
+                },
+            });
+        }
+        if (scheduledFrom || scheduledTo) {
+            where.AND.push({
+                scheduledAt: {
+                    ...(scheduledFrom ? { gte: scheduledFrom } : {}),
+                    ...(scheduledTo ? { lte: scheduledTo } : {}),
+                },
+            });
+        }
+        if (lastAttemptFrom || lastAttemptTo) {
+            where.AND.push({
+                lastAttemptAt: {
+                    ...(lastAttemptFrom ? { gte: lastAttemptFrom } : {}),
+                    ...(lastAttemptTo ? { lte: lastAttemptTo } : {}),
+                },
+            });
+        }
+
+        if (!where.AND.length) {
+            delete where.AND;
         }
 
         const [items, total, grouped] = await Promise.all([
             prisma.whatsAppQueueItem.findMany({
                 where,
-                orderBy: [{ createdAt: 'desc' }],
+                orderBy: [{ [sortBy]: sortDir }, { createdAt: 'desc' }],
                 skip: (page - 1) * limit,
                 take: limit,
             }),
@@ -92,14 +174,16 @@ export async function GET(request: NextRequest) {
                 error: item.error,
                 scheduledAt: item.scheduledAt,
                 sentAt: item.sentAt,
+                lastAttemptAt: item.lastAttemptAt,
                 createdAt: item.createdAt,
                 updatedAt: item.updatedAt,
                 payload: item.payload,
+                intent: parseIntent(item.payload),
                 preview: parsePreview(item.payload),
                 internalMessageId: item.internalMessageId,
                 idempotencyKey: item.idempotencyKey,
                 providerMessageId: item.providerMessageId,
-                // backward compatibility fields for old UI tabs
+                resolvedMessageId: item.providerMessageId || item.internalMessageId || null,
                 direcao: item.status === 'sent' ? 'OUT' : item.status === 'dead' ? 'OUT_FAILED' : 'OUT_PENDING',
                 conteudo: parsePreview(item.payload),
                 timestamp: item.createdAt,
@@ -110,6 +194,22 @@ export async function GET(request: NextRequest) {
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
+            },
+            filters: {
+                status: rawStatus || 'all',
+                intent,
+                idempotencyKey,
+                phone,
+                retriesMin: Number.isNaN(retriesMin) ? null : retriesMin,
+                retriesMax: Number.isNaN(retriesMax) ? null : retriesMax,
+                createdFrom: createdFrom?.toISOString() || null,
+                createdTo: createdTo?.toISOString() || null,
+                scheduledFrom: scheduledFrom?.toISOString() || null,
+                scheduledTo: scheduledTo?.toISOString() || null,
+                lastAttemptFrom: lastAttemptFrom?.toISOString() || null,
+                lastAttemptTo: lastAttemptTo?.toISOString() || null,
+                sortBy,
+                sortDir,
             },
         });
     } catch (error) {
@@ -125,7 +225,6 @@ export async function POST(request: NextRequest) {
         const action = parsed.action;
         const ids = parsed.ids || [];
 
-        // Backward-compatible enqueue for manual messages
         if (!action && parsed.phone && parsed.message) {
             const enqueue = await enqueueWhatsAppTextJob({
                 phone: parsed.phone,
@@ -174,7 +273,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: true, deleted: result.count });
         }
 
-        return NextResponse.json({ success: false, error: 'Ação inválida' }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'Acao invalida' }, { status: 400 });
     } catch (error) {
         console.error('[API] queue POST erro:', error);
         return NextResponse.json({ success: false, error: 'Erro ao processar fila' }, { status: 500 });
@@ -188,7 +287,7 @@ export async function PATCH(request: NextRequest) {
         const status = String(body?.status || '');
 
         if (!id || !allowedStatuses.includes(status as any)) {
-            return NextResponse.json({ success: false, error: 'id e status válidos são obrigatórios' }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'id e status validos sao obrigatorios' }, { status: 400 });
         }
 
         const item = await prisma.whatsAppQueueItem.update({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -20,6 +20,7 @@ type TabType = 'connection' | 'chats' | 'contacts' | 'flows' | 'templates' | 'qu
 
 export default function WhatsAppAdminPage() {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<TabType>('connection');
 
@@ -43,18 +44,20 @@ export default function WhatsAppAdminPage() {
     ];
 
     useEffect(() => {
-        const tabFromUrl = searchParams.get('tab');
+        const tabFromQuery = searchParams.get('tab');
+        const pathSegment = pathname?.startsWith('/admin/whatsapp/')
+            ? pathname.replace('/admin/whatsapp/', '').split('/')[0]
+            : '';
+        const tabFromUrl = tabFromQuery || pathSegment;
         if (!tabFromUrl) return;
         const normalized = tabFromUrl === 'settings' ? 'automation' : tabFromUrl;
         const exists = tabs.some((tab) => tab.id === normalized);
         if (exists) setActiveTab(normalized as TabType);
-    }, [searchParams]);
+    }, [pathname, searchParams]);
 
     const handleTabChange = (nextTab: TabType) => {
         setActiveTab(nextTab);
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('tab', nextTab);
-        router.replace(`/admin/whatsapp?${params.toString()}`);
+        router.replace(`/admin/whatsapp/${nextTab}`);
     };
 
     return (
