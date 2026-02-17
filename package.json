@@ -6,11 +6,16 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev-with-whatsapp.cjs",
+    "dev:web": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:web": "next start",
+    "start:all": "node scripts/dev-with-whatsapp.cjs --prod",
     "lint": "eslint",
-    "whatsapp": "tsx src/lib/whatsapp/server.ts",
+    "whatsapp": "node whatsapp-bridge/server.js",
+    "whatsapp:legacy": "tsx src/lib/whatsapp/server.ts",
+    "whatsapp:install": "npm --prefix whatsapp-bridge install --no-fund --no-audit",
     "diagnose:whatsapp": "tsx scripts/diagnose-whatsapp.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

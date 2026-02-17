@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+whatsapp-bridge/node_modules/
+whatsapp-bridge/package-lock.json
 /.pnp
 .pnp.*
 .yarn/*
@@ -29,6 +31,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+localhost-dev.log
+localhost-bridge.log
+localhost-*.log
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -39,3 +44,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+prisma/dev.db

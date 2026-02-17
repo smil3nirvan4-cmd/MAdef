@@ -89,6 +89,8 @@ function ConnectionTab() {
     };
 
     const isConnected = waStatus?.status === 'CONNECTED';
+    const isBridgeOffline = waStatus?.bridgeRunning === false;
+    const recommendedCommand = waStatus?.recommendedCommand || 'npm run dev';
 
     return (
         <div className="grid lg:grid-cols-2 gap-6">
@@ -110,7 +112,8 @@ function ConnectionTab() {
                     <div className="flex flex-col items-center py-6 border-t"><p className="text-gray-600 mb-4">Escaneie o QR Code:</p><img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" /></div>
                 )}
                 {isConnected && <div className="p-4 bg-green-50 rounded-lg">✅ WhatsApp conectado e operacional!</div>}
-                {waStatus?.status === 'DISCONNECTED' && <div className="p-4 bg-yellow-50 rounded-lg"><p className="font-semibold text-yellow-800 mb-2">⚠️ Execute: <code className="bg-gray-900 text-green-400 px-2 py-1 rounded">npm run whatsapp</code></p></div>}
+                {waStatus?.status === 'DISCONNECTED' && !isBridgeOffline && <div className="p-4 bg-blue-50 rounded-lg"><p className="font-semibold text-blue-800 mb-2">ℹ️ Bridge online. Clique em <strong>Conectar</strong> para gerar QR.</p></div>}
+                {isBridgeOffline && <div className="p-4 bg-yellow-50 rounded-lg"><p className="font-semibold text-yellow-800 mb-2">⚠️ Execute: <code className="bg-gray-900 text-green-400 px-2 py-1 rounded">{recommendedCommand}</code></p></div>}
             </Card>
             <Card>
                 <h3 className="font-semibold mb-4">Informações do Sistema</h3>
@@ -544,3 +547,4 @@ function AutomationTab() {
         </div>
     );
 }
+

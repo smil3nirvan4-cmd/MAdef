@@ -1,36 +1,46 @@
 import { NextResponse } from 'next/server';
-import { readFileSync, existsSync } from 'fs';
-import path from 'path';
+import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 
 export async function POST() {
-    const portFile = path.join(process.cwd(), '.wa-bridge-port');
-    let bridgePort = '4000';
-
-    if (existsSync(portFile)) {
-        bridgePort = readFileSync(portFile, 'utf-8').trim();
-    }
+    const bridgeConfig = resolveBridgeConfig();
 
     try {
-        const response = await fetch(`http://localhost:${bridgePort}/connect`, {
+        const response = await fetch(`${bridgeConfig.bridgeUrl}/connect`, {
             method: 'POST',
             signal: AbortSignal.timeout(10000)
         });
 
         if (response.ok) {
             const data = await response.json();
-            return NextResponse.json(data);
+            return NextResponse.json({
+                ...data,
+                bridgeRunning: true,
+                recommendedCommand: bridgeConfig.recommendedCommand,
+                bridgeUrlResolved: bridgeConfig.bridgeUrl,
+                bridgePortResolved: bridgeConfig.port,
+            });
         }
 
         return NextResponse.json(
-            { success: false, error: 'Bridge não respondeu' },
+            {
+                success: false,
+                bridgeRunning: true,
+                recommendedCommand: bridgeConfig.recommendedCommand,
+                bridgeUrlResolved: bridgeConfig.bridgeUrl,
+                bridgePortResolved: bridgeConfig.port,
+                error: 'Bridge did not respond properly.'
+            },
             { status: 500 }
         );
     } catch {
         return NextResponse.json(
             {
                 success: false,
-                error: 'Bridge WhatsApp não está rodando. Execute: pm2 start ecosystem.config.js',
-                bridgeRunning: false
+                bridgeRunning: false,
+                recommendedCommand: bridgeConfig.recommendedCommand,
+                bridgeUrlResolved: bridgeConfig.bridgeUrl,
+                bridgePortResolved: bridgeConfig.port,
+                error: 'Bridge is not running.'
             },
             { status: 500 }
         );

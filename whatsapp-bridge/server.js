@@ -134,8 +134,7 @@ async function connectWhatsApp() {
 
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut &&
                     statusCode !== 403 &&
-                    statusCode !== 405 &&
-                    retryCount < 10; // Aumentado retry
+                    retryCount < 10; // Permitir retry também para 405
 
                 connectionStatus = 'DISCONNECTED';
                 qrCode = null;

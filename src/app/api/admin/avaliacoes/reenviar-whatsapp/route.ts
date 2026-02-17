@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
             success: resultado.success,
             messageId: resultado.messageId,
             error: resultado.error,
+            recommendedCommand: resultado.recommendedCommand,
         });
     } catch (error) {
         console.error('Erro ao reenviar WhatsApp:', error);

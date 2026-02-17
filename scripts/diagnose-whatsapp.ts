@@ -12,7 +12,7 @@ async function diagnose() {
         console.log(`   ✅ Arquivo encontrado. Porta: ${savedPort}`);
     } else {
         console.log('   ❌ Arquivo .wa-bridge-port NÃO encontrado');
-        console.log('   → Execute: npm run whatsapp');
+        console.log('   → Execute: npm run dev');
     }
 
     // 2. Testar conexão com a bridge
@@ -42,7 +42,7 @@ async function diagnose() {
 
     if (!foundPort) {
         console.log('\n   ❌ NENHUMA BRIDGE ENCONTRADA!');
-        console.log('   → Solução: Execute "npm run whatsapp" em outro terminal');
+        console.log('   → Solução: Execute "npm run dev"');
     }
 
     // 3. Verificar sessão salva
@@ -70,7 +70,7 @@ async function diagnose() {
         console.log('❌ BRIDGE OFFLINE');
         console.log('\n📋 Para corrigir:');
         console.log('1. Abra outro terminal');
-        console.log('2. Execute: npm run whatsapp');
+        console.log('2. Execute: npm run dev');
         console.log('3. Escaneie o QR Code com o celular');
     }
     console.log('\n');

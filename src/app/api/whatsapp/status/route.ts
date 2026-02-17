@@ -1,47 +1,81 @@
 import { NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
+import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 
-const SESSION_FILE = path.join(process.cwd(), '.wa-session.json');
+const SESSION_FILE = path.resolve(
+    process.cwd(),
+    process.env.WA_SESSION_FILE || '.wa-session.json'
+);
 
 async function getBridgeStatus() {
-    const portFile = path.join(process.cwd(), '.wa-bridge-port');
-    let bridgePort = '4000';
-
-    if (existsSync(portFile)) {
-        bridgePort = readFileSync(portFile, 'utf-8').trim();
-    }
+    const bridgeConfig = resolveBridgeConfig();
 
     try {
-        const response = await fetch(`http://localhost:${bridgePort}/status`, {
+        const response = await fetch(`${bridgeConfig.bridgeUrl}/status`, {
             signal: AbortSignal.timeout(3000)
         });
-        if (response.ok) {
-            return await response.json();
+
+        const payload: any = await response.json().catch(() => null);
+
+        if (response.ok && payload && typeof payload === 'object') {
+            return {
+                ...payload,
+                connected: Boolean(payload.connected ?? payload.status === 'CONNECTED'),
+                bridgeRunning: true,
+                recommendedCommand: bridgeConfig.recommendedCommand,
+                bridgeUrlResolved: bridgeConfig.bridgeUrl,
+                bridgePortResolved: bridgeConfig.port,
+            };
         }
+
+        return {
+            status: payload?.status || 'DISCONNECTED',
+            connected: Boolean(payload?.connected),
+            qrCode: payload?.qrCode || null,
+            connectedAt: payload?.connectedAt || null,
+            phone: payload?.phone || null,
+            bridgeRunning: true,
+            recommendedCommand: bridgeConfig.recommendedCommand,
+            bridgeUrlResolved: bridgeConfig.bridgeUrl,
+            bridgePortResolved: bridgeConfig.port,
+            error: `Bridge returned HTTP ${response.status}.`
+        };
     } catch {
-        // Bridge not running, fall back to session file
+        // Bridge not reachable, fall back to local session state.
     }
 
     try {
         if (existsSync(SESSION_FILE)) {
-            const session = JSON.parse(readFileSync(SESSION_FILE, 'utf-8'));
+            const session: any = JSON.parse(readFileSync(SESSION_FILE, 'utf-8'));
             return {
-                ...session,
+                status: session.status || 'DISCONNECTED',
+                connected: Boolean(session.connected ?? session.status === 'CONNECTED'),
+                qrCode: session.qrCode || null,
+                connectedAt: session.connectedAt || null,
+                phone: session.phone || null,
                 bridgeRunning: false,
-                error: 'Bridge WhatsApp não está rodando. Execute: pm2 start ecosystem.config.js'
+                recommendedCommand: bridgeConfig.recommendedCommand,
+                bridgeUrlResolved: bridgeConfig.bridgeUrl,
+                bridgePortResolved: bridgeConfig.port,
+                error: 'Bridge is not running.'
             };
         }
-    } catch (_e) {
-        console.error('Error reading session:', _e);
+    } catch (error) {
+        console.error('Error reading WhatsApp session:', error);
     }
 
     return {
         status: 'DISCONNECTED',
+        connected: false,
         qrCode: null,
         connectedAt: null,
+        phone: null,
         bridgeRunning: false,
-        error: 'Bridge WhatsApp não está rodando'
+        recommendedCommand: bridgeConfig.recommendedCommand,
+        bridgeUrlResolved: bridgeConfig.bridgeUrl,
+        bridgePortResolved: bridgeConfig.port,
+        error: 'Bridge is not running.'
     };
 }
 
