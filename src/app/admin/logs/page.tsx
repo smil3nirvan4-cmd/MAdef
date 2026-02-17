@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -34,7 +34,10 @@ export default function LogsPage() {
     const [logs, setLogs] = useState<SystemLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedType, setSelectedType] = useState<string>('ALL');
+    const [searchAction, setSearchAction] = useState('');
     const [searchPhone, setSearchPhone] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
@@ -48,7 +51,10 @@ export default function LogsPage() {
                 page: page.toString(),
                 limit: '50',
                 ...(selectedType !== 'ALL' && { type: selectedType }),
+                ...(searchAction && { action: searchAction }),
                 ...(searchPhone && { phone: searchPhone }),
+                ...(startDate && { startDate }),
+                ...(endDate && { endDate }),
             });
 
             const res = await fetch(`/api/admin/logs?${params}`);
@@ -61,7 +67,7 @@ export default function LogsPage() {
         } finally {
             setLoading(false);
         }
-    }, [page, selectedType, searchPhone]);
+    }, [page, selectedType, searchAction, searchPhone, startDate, endDate]);
 
     useEffect(() => {
         fetchLogs();
@@ -122,10 +128,38 @@ export default function LogsPage() {
 
                     <div className="w-48">
                         <Input
+                            placeholder="Filtrar por action..."
+                            value={searchAction}
+                            onChange={(e) => { setSearchAction(e.target.value); setPage(1); }}
+                        />
+                    </div>
+
+                    <div className="w-48">
+                        <Input
                             placeholder="Filtrar por telefone..."
                             icon={Search}
                             value={searchPhone}
                             onChange={(e) => { setSearchPhone(e.target.value); setPage(1); }}
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600">De</label>
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                            className="rounded-lg border border-gray-300 px-2 py-2 text-sm"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600">Ate</label>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                            className="rounded-lg border border-gray-300 px-2 py-2 text-sm"
                         />
                     </div>
 
