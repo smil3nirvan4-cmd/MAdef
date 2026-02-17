@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import type { AdminRole } from '@/lib/auth/roles';
 
 export interface AdminCapability {
     key: string;
@@ -13,6 +14,7 @@ export interface AdminCapability {
 
 export interface CapabilitiesResponse {
     generatedAt: string;
+    role: AdminRole;
     modules: AdminCapability[];
     whatsappHealth: {
         bridgeRunning: boolean;
@@ -20,7 +22,12 @@ export interface CapabilitiesResponse {
         status: string;
         retryCount: number;
         lastStatusCode: number | null;
+        credentialsValid: boolean;
     };
+}
+
+interface BuildCapabilitiesOptions {
+    role?: AdminRole;
 }
 
 function appPathExists(...parts: string[]): boolean {
@@ -50,6 +57,7 @@ export async function readWhatsAppHealth(): Promise<CapabilitiesResponse['whatsa
                 status: `http_${response.status}`,
                 retryCount: 0,
                 lastStatusCode: null,
+                credentialsValid: response.status !== 401,
             };
         }
 
@@ -60,6 +68,7 @@ export async function readWhatsAppHealth(): Promise<CapabilitiesResponse['whatsa
             status: String(payload?.status || (payload?.connected ? 'CONNECTED' : 'DISCONNECTED')),
             retryCount: Number(payload?.retryCount || 0),
             lastStatusCode: payload?.lastStatusCode ?? null,
+            credentialsValid: Number(payload?.lastStatusCode || 0) !== 401,
         };
     } catch {
         return {
@@ -68,11 +77,13 @@ export async function readWhatsAppHealth(): Promise<CapabilitiesResponse['whatsa
             status: 'OFFLINE',
             retryCount: 0,
             lastStatusCode: null,
+            credentialsValid: false,
         };
     }
 }
 
-export async function buildAdminCapabilities(): Promise<CapabilitiesResponse> {
+export async function buildAdminCapabilities(options: BuildCapabilitiesOptions = {}): Promise<CapabilitiesResponse> {
+    const role = options.role || 'LEITURA';
     const modules: AdminCapability[] = [
         { key: 'dashboard', label: 'Dashboard', route: '/admin/dashboard', api: '/api/admin/dashboard/stats', category: 'core', enabled: false },
         { key: 'pacientes', label: 'Pacientes', route: '/admin/pacientes', api: '/api/admin/pacientes', category: 'core', enabled: false },
@@ -105,11 +116,21 @@ export async function buildAdminCapabilities(): Promise<CapabilitiesResponse> {
         const routeEnabled = appPathExists(...module.route.replace(/^\//, '').split('/'), 'page.tsx')
             || appPathExists(...module.route.replace(/^\//, '').split('/'), 'loading.tsx')
             || module.route.startsWith('/admin/whatsapp/');
-        module.enabled = routeEnabled && isApiRouteEnabled(module.api);
+
+        const blockedForOperador = role === 'OPERADOR'
+            && (module.key === 'usuarios' || module.key === 'whatsapp_settings');
+        const blockedForLeitura = role === 'LEITURA'
+            && module.key === 'usuarios';
+
+        module.enabled = routeEnabled
+            && isApiRouteEnabled(module.api)
+            && !blockedForOperador
+            && !blockedForLeitura;
     }
 
     return {
         generatedAt: new Date().toISOString(),
+        role,
         modules,
         whatsappHealth: await readWhatsAppHealth(),
     };

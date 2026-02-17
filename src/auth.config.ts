@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
+import { canAccessAdminApi, canAccessAdminPage, resolveUserRole } from '@/lib/auth/roles';
 
 export const authConfig = {
     pages: {
@@ -6,18 +7,27 @@ export const authConfig = {
     },
     providers: [],
     callbacks: {
-        authorized({ auth, request: { nextUrl } }) {
+        authorized({ auth, request }) {
             const isLoggedIn = !!auth?.user;
-            const isOnAdmin = nextUrl.pathname.startsWith('/admin');
+            const pathname = request.nextUrl.pathname;
+            const isOnAdminPage = pathname.startsWith('/admin');
+            const isOnAdminApi = pathname.startsWith('/api/admin');
 
-            if (isOnAdmin) {
-                if (isLoggedIn) return true;
+            if (isOnAdminPage || isOnAdminApi) {
+                if (!isLoggedIn) {
+                    return false;
+                }
+
+                const role = resolveUserRole(auth?.user?.email);
+                if (isOnAdminApi) {
+                    return canAccessAdminApi(role, request.method, pathname);
+                }
+
+                if (isOnAdminPage) {
+                    return canAccessAdminPage(role, pathname);
+                }
+
                 return false; // Redirect unauthenticated users to login page
-            } else if (isLoggedIn) {
-                // Redirect logged-in users away from login page
-                // if (nextUrl.pathname.startsWith('/login')) {
-                //     return Response.redirect(new URL('/admin/dashboard', nextUrl));
-                // }
             }
             return true;
         },
