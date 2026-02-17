@@ -10,7 +10,12 @@ export interface BridgeConfig {
 }
 
 function getRecommendedCommand(): string {
-    return process.env.WA_STANDALONE === 'true' ? 'npm run whatsapp' : 'npm run dev';
+    if (process.env.WA_STANDALONE === 'true') {
+        const standaloneScript = 'whatsapp';
+        return `npm run ${standaloneScript}`;
+    }
+
+    return 'npm run dev';
 }
 
 export function resolveBridgeConfig(): BridgeConfig {
