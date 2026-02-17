@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -37,11 +37,11 @@ interface Avaliacao {
 
 const STATUS_FLOW = [
     { key: 'PENDENTE', label: 'Pendente', icon: Clock },
-    { key: 'EM_ANALISE', label: 'Em Análise', icon: FileText },
+    { key: 'EM_ANALISE', label: 'Em Analise', icon: FileText },
     { key: 'PROPOSTA_ENVIADA', label: 'Proposta', icon: Send },
     { key: 'CONTRATO_ENVIADO', label: 'Contrato', icon: FileText },
     { key: 'APROVADA', label: 'Aprovada', icon: CheckCircle },
-    { key: 'CONCLUIDA', label: 'Concluída', icon: CheckCircle },
+    { key: 'CONCLUIDA', label: 'Concluida', icon: CheckCircle },
 ];
 
 const STATUS_VARIANTS: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info' | 'purple'> = {
@@ -79,8 +79,16 @@ export default function AvaliacaoDetailPage() {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ avaliacaoId: params.id }),
                 });
+            } else if (action === 'enviar_proposta') {
+                await fetch(`/api/admin/avaliacoes/${params.id}/send-proposta`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                });
+            } else if (action === 'enviar_contrato') {
+                await fetch(`/api/admin/avaliacoes/${params.id}/send-contrato`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                });
             } else if (action === 'delete') {
-                if (confirm('Excluir avaliação?')) {
+                if (confirm('Excluir avaliacao?')) {
                     await fetch(`/api/admin/avaliacoes/${params.id}`, { method: 'DELETE' });
                     router.push('/admin/avaliacoes');
                     return;
@@ -100,16 +108,16 @@ export default function AvaliacaoDetailPage() {
     const currentStepIndex = STATUS_FLOW.findIndex(s => s.key === avaliacao?.status);
 
     if (loading) return <div className="p-8 text-center">Carregando...</div>;
-    if (!avaliacao) return <div className="p-8 text-center text-red-500">Avaliação não encontrada</div>;
+    if (!avaliacao) return <div className="p-8 text-center text-red-500">Avaliacao nao encontrada</div>;
 
     return (
         <div className="p-6 lg:p-8">
             <PageHeader
-                title={`Avaliação - ${avaliacao.paciente.nome}`}
+                title={`Avaliacao - ${avaliacao.paciente.nome}`}
                 description={`ID: ${avaliacao.id}`}
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
-                    { label: 'Avaliações', href: '/admin/avaliacoes' },
+                    { label: 'Avaliacoes', href: '/admin/avaliacoes' },
                     { label: 'Detalhes' }
                 ]}
                 actions={<Link href="/admin/avaliacoes"><Button variant="outline"><ArrowLeft className="w-4 h-4" />Voltar</Button></Link>}
@@ -149,7 +157,7 @@ export default function AvaliacaoDetailPage() {
                     </div>
                     <hr className="my-4" />
                     <div className="space-y-2">
-                        <div className="flex justify-between"><span className="text-gray-500">Nível:</span><Badge>{avaliacao.nivelSugerido || 'N/A'}</Badge></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Nivel:</span><Badge>{avaliacao.nivelSugerido || 'N/A'}</Badge></div>
                         <div className="flex justify-between"><span className="text-gray-500">Carga:</span><span>{avaliacao.cargaSugerida || 'N/A'}</span></div>
                         <div className="flex justify-between"><span className="text-gray-500">Valor:</span><span className="font-semibold text-green-600">{avaliacao.valorProposto ? `R$ ${avaliacao.valorProposto}` : 'N/A'}</span></div>
                     </div>
@@ -157,7 +165,7 @@ export default function AvaliacaoDetailPage() {
 
                 {/* Actions */}
                 <Card>
-                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Send className="w-4 h-4" />Ações</h3>
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Send className="w-4 h-4" />Acoes</h3>
                     <div className="space-y-3">
                         <Button className="w-full justify-start bg-green-600 hover:bg-green-700" onClick={() => handleAction('whatsapp')} isLoading={actionLoading === 'whatsapp'}>
                             <MessageCircle className="w-4 h-4" />Enviar Mensagem WhatsApp
@@ -178,7 +186,7 @@ export default function AvaliacaoDetailPage() {
                             </Button>
                         </div>
                         <Button className="w-full justify-start" variant="outline" onClick={() => handleAction('delete')} isLoading={actionLoading === 'delete'}>
-                            <Trash2 className="w-4 h-4 text-red-500" /><span className="text-red-500">Excluir Avaliação</span>
+                            <Trash2 className="w-4 h-4 text-red-500" /><span className="text-red-500">Excluir Avaliacao</span>
                         </Button>
                     </div>
                 </Card>
@@ -199,7 +207,7 @@ export default function AvaliacaoDetailPage() {
 
             {/* Chat History */}
             <Card className="mt-6">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><MessageCircle className="w-4 h-4" />Histórico de Mensagens ({avaliacao.paciente.mensagens?.length || 0})</h3>
+                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><MessageCircle className="w-4 h-4" />Historico de Mensagens ({avaliacao.paciente.mensagens?.length || 0})</h3>
                 <div className="max-h-80 overflow-y-auto space-y-2 bg-gray-50 p-4 rounded-lg">
                     {avaliacao.paciente.mensagens?.length === 0 ? <p className="text-gray-500 text-center py-4">Nenhuma mensagem</p> :
                         avaliacao.paciente.mensagens?.map((msg) => (
@@ -215,3 +223,4 @@ export default function AvaliacaoDetailPage() {
         </div>
     );
 }
+

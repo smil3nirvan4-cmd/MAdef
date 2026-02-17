@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
     LayoutGrid,
@@ -18,109 +19,301 @@ import {
     DollarSign,
     Heart,
     UserCog,
-    UserPlus
+    UserPlus,
+    Search,
+    Activity,
+    ListOrdered,
+    Tag,
+    Ban,
+    Webhook,
+    BarChart3,
+    Settings,
+    ListTodo,
 } from 'lucide-react';
-import { useState } from 'react';
 
-const navItems = [
-    { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutGrid },
-    { label: 'Candidatos', href: '/admin/candidatos', icon: UserCheck },
-    { label: 'Cuidadores', href: '/admin/cuidadores', icon: UserCog },
-    { label: 'Leads', href: '/admin/leads', icon: UserPlus },
-    { label: 'Pacientes', href: '/admin/pacientes', icon: Heart },
-    { label: 'Avaliações', href: '/admin/avaliacoes', icon: ClipboardList },
-    { label: 'Orçamentos', href: '/admin/orcamentos', icon: DollarSign },
-    { label: 'Escalas', href: '/admin/alocacao', icon: Calendar },
-    { label: 'Usuários', href: '/admin/usuarios', icon: Users },
-    { label: 'Triagens', href: '/admin/triagens', icon: FileText },
-    { label: 'WhatsApp', href: '/admin/whatsapp', icon: Phone },
-    { label: 'Logs', href: '/admin/logs', icon: MessageSquare },
+interface CapabilityModule {
+    key: string;
+    label: string;
+    route: string;
+    api: string;
+    category: 'core' | 'whatsapp' | 'operations';
+    enabled: boolean;
+}
+
+interface CapabilitiesResponse {
+    success: boolean;
+    modules: CapabilityModule[];
+    whatsappHealth?: {
+        bridgeRunning: boolean;
+        connected: boolean;
+        status: string;
+    };
+}
+
+const ICON_BY_KEY: Record<string, any> = {
+    dashboard: LayoutGrid,
+    pacientes: Heart,
+    avaliacoes: ClipboardList,
+    orcamentos: DollarSign,
+    alocacoes: Calendar,
+    candidatos: UserCheck,
+    cuidadores: UserCog,
+    usuarios: Users,
+    logs: MessageSquare,
+    leads: UserPlus,
+    triagens: ListTodo,
+    whatsapp: Phone,
+    whatsapp_queue: ListOrdered,
+    whatsapp_labels: Tag,
+    whatsapp_blacklist: Ban,
+    whatsapp_webhooks: Webhook,
+    whatsapp_analytics: BarChart3,
+    whatsapp_settings: Settings,
+};
+
+const FALLBACK_MODULES: CapabilityModule[] = [
+    { key: 'dashboard', label: 'Dashboard', route: '/admin/dashboard', api: '/api/admin/dashboard/stats', category: 'core', enabled: true },
+    { key: 'candidatos', label: 'Candidatos', route: '/admin/candidatos', api: '/api/admin/candidatos', category: 'operations', enabled: true },
+    { key: 'cuidadores', label: 'Cuidadores', route: '/admin/cuidadores', api: '/api/admin/candidatos', category: 'operations', enabled: true },
+    { key: 'pacientes', label: 'Pacientes', route: '/admin/pacientes', api: '/api/admin/pacientes', category: 'core', enabled: true },
+    { key: 'avaliacoes', label: 'Avaliacoes', route: '/admin/avaliacoes', api: '/api/admin/avaliacoes', category: 'core', enabled: true },
+    { key: 'orcamentos', label: 'Orcamentos', route: '/admin/orcamentos', api: '/api/admin/orcamentos', category: 'core', enabled: true },
+    { key: 'leads', label: 'Leads', route: '/admin/leads', api: '/api/admin/leads', category: 'operations', enabled: true },
+    { key: 'triagens', label: 'Triagens', route: '/admin/triagens', api: '/api/admin/whatsapp/flows', category: 'operations', enabled: true },
+    { key: 'alocacoes', label: 'Alocacao', route: '/admin/alocacao', api: '/api/admin/alocacoes', category: 'operations', enabled: true },
+    { key: 'usuarios', label: 'Usuarios', route: '/admin/usuarios', api: '/api/admin/usuarios', category: 'operations', enabled: true },
+    { key: 'whatsapp', label: 'WhatsApp', route: '/admin/whatsapp', api: '/api/admin/whatsapp/contacts', category: 'whatsapp', enabled: true },
+    { key: 'logs', label: 'Logs', route: '/admin/logs', api: '/api/admin/logs', category: 'operations', enabled: true },
+];
+
+const TOP_LEVEL_KEYS = new Set([
+    'dashboard',
+    'pacientes',
+    'avaliacoes',
+    'orcamentos',
+    'leads',
+    'triagens',
+    'alocacoes',
+    'candidatos',
+    'cuidadores',
+    'usuarios',
+    'whatsapp',
+    'logs',
+]);
+
+const WHATSAPP_QUICK_LINKS = [
+    { key: 'whatsapp_contacts', label: 'Contatos', route: '/admin/whatsapp/contacts' },
+    { key: 'whatsapp_chat', label: 'Inbox', route: '/admin/whatsapp/chats' },
+    { key: 'whatsapp_templates', label: 'Templates', route: '/admin/whatsapp/templates' },
+    { key: 'whatsapp_quick_replies', label: 'Quick Replies', route: '/admin/whatsapp/quickreplies' },
+    { key: 'whatsapp_autoreplies', label: 'Auto Replies', route: '/admin/whatsapp/autoreplies' },
+    { key: 'whatsapp_scheduled', label: 'Scheduled', route: '/admin/whatsapp/scheduled' },
+    { key: 'whatsapp_queue', label: 'Queue', route: '/admin/whatsapp/queue' },
+    { key: 'whatsapp_labels', label: 'Labels', route: '/admin/whatsapp/labels' },
+    { key: 'whatsapp_blacklist', label: 'Blacklist', route: '/admin/whatsapp/blacklist' },
+    { key: 'whatsapp_webhooks', label: 'Webhooks', route: '/admin/whatsapp/webhooks' },
+    { key: 'whatsapp_analytics', label: 'Analytics', route: '/admin/whatsapp/analytics' },
+    { key: 'whatsapp_settings', label: 'Settings', route: '/admin/whatsapp/settings' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [capabilities, setCapabilities] = useState<CapabilitiesResponse | null>(null);
+    const [globalSearch, setGlobalSearch] = useState('');
+
+    useEffect(() => {
+        let active = true;
+
+        async function fetchCapabilities() {
+            try {
+                const response = await fetch('/api/admin/capabilities', { cache: 'no-store' });
+                if (!response.ok) return;
+                const payload = await response.json();
+                if (active && payload?.success) {
+                    setCapabilities(payload);
+                }
+            } catch {
+                // best effort
+            }
+        }
+
+        fetchCapabilities();
+    }, []);
+
+    const modules = capabilities?.modules?.length
+        ? capabilities.modules
+        : FALLBACK_MODULES;
+
+    const topLevelNav = useMemo(() => {
+        return modules
+            .filter((item) => item.enabled && TOP_LEVEL_KEYS.has(item.key))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [modules]);
+
+    const whatsappModules = useMemo(() => {
+        const enabledKeys = new Set(modules.filter((item) => item.enabled).map((item) => item.key));
+        return WHATSAPP_QUICK_LINKS.filter((item) => enabledKeys.has(item.key));
+    }, [modules]);
+
+    const filteredTopLevel = useMemo(() => {
+        const q = globalSearch.trim().toLowerCase();
+        if (!q) return topLevelNav;
+        return topLevelNav.filter((item) => item.label.toLowerCase().includes(q) || item.route.toLowerCase().includes(q));
+    }, [topLevelNav, globalSearch]);
+
+    const currentPageTitle = useMemo(() => {
+        const current = modules.find((item) => pathname === item.route || pathname.startsWith(`${item.route}/`));
+        if (current) return current.label;
+        return 'Admin';
+    }, [modules, pathname]);
+
+    const waHealth = capabilities?.whatsappHealth;
+    const waHealthText = waHealth
+        ? waHealth.connected
+            ? 'WhatsApp conectado'
+            : waHealth.bridgeRunning
+                ? `WhatsApp ${waHealth.status.toLowerCase()}`
+                : 'Bridge offline'
+        : 'Sem telemetria';
+
+    const handleSearchNavigate = (value: string) => {
+        const q = value.trim().toLowerCase();
+        if (!q) return;
+
+        const target = topLevelNav.find((item) => item.label.toLowerCase().includes(q) || item.route.toLowerCase().includes(q));
+        if (target) {
+            router.push(target.route);
+            setSidebarOpen(false);
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Mobile Header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 px-4 h-14 flex items-center justify-between">
-                <button
-                    onClick={() => setSidebarOpen(true)}
-                    className="p-2 rounded-lg hover:bg-gray-100"
-                >
-                    <Menu className="w-5 h-5" />
-                </button>
-                <span className="font-semibold text-gray-900">Mãos Amigas</span>
-                <div className="w-9" />
+        <div className="min-h-screen bg-slate-50 text-slate-900">
+            <header className="fixed inset-x-0 top-0 z-30 h-14 border-b border-slate-200 bg-white/95 backdrop-blur">
+                <div className="flex h-full items-center justify-between px-4 lg:px-6">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+                        >
+                            <Menu className="h-5 w-5" />
+                        </button>
+                        <span className="hidden text-sm font-semibold text-slate-500 lg:inline">Maos Amigas Admin</span>
+                        <span className="text-sm font-semibold">{currentPageTitle}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="hidden w-64 lg:block">
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                                <input
+                                    value={globalSearch}
+                                    onChange={(event) => setGlobalSearch(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            handleSearchNavigate(globalSearch);
+                                        }
+                                    }}
+                                    placeholder="Buscar modulo..."
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 pl-8 pr-3 text-sm outline-none focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+                        <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 lg:flex">
+                            <Activity className="h-3.5 w-3.5" />
+                            {waHealthText}
+                        </div>
+                    </div>
+                </div>
             </header>
 
-            {/* Mobile Overlay */}
             {sidebarOpen && (
                 <div
-                    className="lg:hidden fixed inset-0 bg-black/50 z-40"
+                    className="fixed inset-0 z-40 bg-black/40 lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
 
-            {/* Sidebar */}
-            <aside className={cn(
-                "fixed top-0 left-0 z-50 h-full w-64 bg-white border-r border-gray-200 transition-transform duration-200 ease-in-out",
-                "lg:translate-x-0",
-                sidebarOpen ? "translate-x-0" : "-translate-x-full"
-            )}>
-                <div className="h-14 flex items-center justify-between px-4 border-b border-gray-100">
-                    <Link href="/admin/dashboard" className="flex items-center gap-2">
-                        <span className="text-xl">🤝</span>
-                        <span className="font-bold text-gray-900">Mãos Amigas</span>
-                    </Link>
+            <aside
+                className={cn(
+                    'fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white transition-transform lg:translate-x-0',
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                )}
+            >
+                <div className="flex h-14 items-center justify-between border-b border-slate-100 px-4">
+                    <Link href="/admin/dashboard" className="font-semibold">Maos Amigas</Link>
                     <button
                         onClick={() => setSidebarOpen(false)}
-                        className="lg:hidden p-1 rounded hover:bg-gray-100"
+                        className="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="h-5 w-5" />
                     </button>
                 </div>
 
-                <nav className="p-3 space-y-1">
-                    {navItems.map((item) => {
-                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                onClick={() => setSidebarOpen(false)}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                                    isActive
-                                        ? "bg-blue-50 text-blue-700"
-                                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                                )}
-                            >
-                                <item.icon className={cn("w-5 h-5", isActive ? "text-blue-600" : "text-gray-400")} />
-                                {item.label}
-                            </Link>
-                        );
-                    })}
-                </nav>
+                <div className="h-[calc(100%-56px)] overflow-y-auto p-3">
+                    <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Navegacao</div>
+                    <nav className="space-y-1">
+                        {filteredTopLevel.map((item) => {
+                            const Icon = ICON_BY_KEY[item.key] || FileText;
+                            const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100">
-                    <Link
-                        href="/"
-                        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-                    >
-                        <ChevronLeft className="w-4 h-4" />
-                        Voltar ao Site
-                    </Link>
+                            return (
+                                <Link
+                                    key={item.key}
+                                    href={item.route}
+                                    onClick={() => setSidebarOpen(false)}
+                                    className={cn(
+                                        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                                        isActive
+                                            ? 'bg-blue-50 text-blue-700'
+                                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                    )}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    <span>{item.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    <div className="mt-6 mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">WhatsApp</div>
+                    <nav className="space-y-1">
+                        {whatsappModules.map((item) => {
+                            const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
+                            return (
+                                <Link
+                                    key={item.key}
+                                    href={item.route}
+                                    onClick={() => setSidebarOpen(false)}
+                                    className={cn(
+                                        'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                                        isActive
+                                            ? 'bg-emerald-50 text-emerald-700'
+                                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                    )}
+                                >
+                                    <Phone className="h-4 w-4" />
+                                    <span>{item.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    <div className="mt-8 border-t border-slate-100 pt-4">
+                        <Link
+                            href="/"
+                            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Voltar ao site
+                        </Link>
+                    </div>
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <main className={cn(
-                "min-h-screen transition-all duration-200",
-                "lg:ml-64",
-                "pt-14 lg:pt-0"
-            )}>
+            <main className="pt-14 lg:pl-72">
                 {children}
             </main>
         </div>

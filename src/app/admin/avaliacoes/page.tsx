@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -26,12 +26,12 @@ interface Avaliacao {
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'purple' }> = {
     PENDENTE: { label: 'Pendente', variant: 'warning' },
     ENVIADA: { label: 'Enviada', variant: 'info' },
-    EM_ANALISE: { label: 'Em Análise', variant: 'info' },
+    EM_ANALISE: { label: 'Em Analise', variant: 'info' },
     PROPOSTA_ENVIADA: { label: 'Proposta Enviada', variant: 'purple' },
     CONTRATO_ENVIADO: { label: 'Contrato Enviado', variant: 'purple' },
     APROVADA: { label: 'Aprovada', variant: 'success' },
     REJEITADA: { label: 'Rejeitada', variant: 'error' },
-    CONCLUIDA: { label: 'Concluída', variant: 'success' },
+    CONCLUIDA: { label: 'Concluida', variant: 'success' },
 };
 
 export default function AvaliacoesPage() {
@@ -67,8 +67,18 @@ export default function AvaliacoesPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ avaliacaoId: id }),
                 });
+            } else if (action === 'enviar_proposta') {
+                await fetch(`/api/admin/avaliacoes/${id}/send-proposta`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            } else if (action === 'enviar_contrato') {
+                await fetch(`/api/admin/avaliacoes/${id}/send-contrato`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
             } else if (action === 'delete') {
-                if (confirm('Tem certeza que deseja excluir esta avaliação?')) {
+                if (confirm('Tem certeza que deseja excluir esta avaliacao?')) {
                     await fetch(`/api/admin/avaliacoes/${id}`, { method: 'DELETE' });
                 }
             } else {
@@ -93,9 +103,9 @@ export default function AvaliacoesPage() {
     return (
         <div className="p-6 lg:p-8">
             <PageHeader
-                title="Avaliações de Pacientes"
-                description="Gerencie avaliações, propostas e contratos."
-                breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'Avaliações' }]}
+                title="Avaliacoes de Pacientes"
+                description="Gerencie avaliacoes, propostas e contratos."
+                breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'Avaliacoes' }]}
                 actions={
                     <div className="flex gap-2">
                         <Button variant="outline" onClick={fetchAvaliacoes} isLoading={loading}><RefreshCw className="w-4 h-4" /></Button>
@@ -108,10 +118,10 @@ export default function AvaliacoesPage() {
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
                 {[
                     { label: 'Pendentes', value: avaliacoes.filter(a => a.status === 'PENDENTE').length, color: 'yellow' },
-                    { label: 'Em Análise', value: avaliacoes.filter(a => a.status === 'EM_ANALISE').length, color: 'blue' },
+                    { label: 'Em Analise', value: avaliacoes.filter(a => a.status === 'EM_ANALISE').length, color: 'blue' },
                     { label: 'Propostas', value: avaliacoes.filter(a => a.status === 'PROPOSTA_ENVIADA').length, color: 'purple' },
                     { label: 'Contratos', value: avaliacoes.filter(a => a.status === 'CONTRATO_ENVIADO').length, color: 'indigo' },
-                    { label: 'Concluídas', value: avaliacoes.filter(a => a.status === 'CONCLUIDA').length, color: 'green' },
+                    { label: 'Concluidas', value: avaliacoes.filter(a => a.status === 'CONCLUIDA').length, color: 'green' },
                 ].map((stat) => (
                     <Card key={stat.label} className="!p-4">
                         <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
@@ -133,7 +143,7 @@ export default function AvaliacoesPage() {
                             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
                     </div>
-                    <span className="ml-auto text-sm text-gray-500"><strong>{filteredAvaliacoes.length}</strong> avaliações</span>
+                    <span className="ml-auto text-sm text-gray-500"><strong>{filteredAvaliacoes.length}</strong> avaliacoes</span>
                 </div>
             </Card>
 
@@ -145,15 +155,15 @@ export default function AvaliacoesPage() {
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Paciente</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nível / Valor</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nivel / Valor</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">WhatsApp</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
-                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Acoes</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {loading ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Carregando...</td></tr> :
-                                filteredAvaliacoes.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Nenhuma avaliação</td></tr> :
+                                filteredAvaliacoes.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Nenhuma avaliacao</td></tr> :
                                     filteredAvaliacoes.map((av) => {
                                         const st = STATUS_CONFIG[av.status] || { label: av.status, variant: 'default' };
                                         return (
@@ -168,7 +178,7 @@ export default function AvaliacoesPage() {
                                                     <div className="text-sm text-gray-500">{av.valorProposto ? `R$ ${av.valorProposto}` : '-'}</div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {av.whatsappEnviado ? <Badge variant="success">✓ Enviado</Badge> : av.whatsappErro ? <Badge variant="error">Erro</Badge> : <Badge variant="warning">Pendente</Badge>}
+                                                    {av.whatsappEnviado ? <Badge variant="success">Enviado</Badge> : av.whatsappErro ? <Badge variant="error">Erro</Badge> : <Badge variant="warning">Pendente</Badge>}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-gray-500">{new Date(av.createdAt).toLocaleDateString('pt-BR')}</td>
                                                 <td className="px-4 py-3">
@@ -222,3 +232,4 @@ export default function AvaliacoesPage() {
         </div>
     );
 }
+

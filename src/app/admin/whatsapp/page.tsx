@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -15,9 +16,11 @@ import {
 import { LabelsTab, BlacklistTab, AutoRepliesTab, QueueTab, WebhooksTab, ExportImportTab } from './AdvancedTabs';
 import { FlowBuilderTab } from './FlowBuilder';
 
-type TabType = 'connection' | 'chats' | 'contacts' | 'flows' | 'templates' | 'quickreplies' | 'scheduled' | 'broadcast' | 'analytics' | 'automation' | 'labels' | 'blacklist' | 'autoreplies' | 'queue' | 'webhooks' | 'config';
+type TabType = 'connection' | 'chats' | 'contacts' | 'flows' | 'templates' | 'quickreplies' | 'scheduled' | 'broadcast' | 'analytics' | 'automation' | 'labels' | 'blacklist' | 'autoreplies' | 'queue' | 'webhooks' | 'config' | 'settings';
 
 export default function WhatsAppAdminPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<TabType>('connection');
 
     const tabs = [
@@ -39,13 +42,28 @@ export default function WhatsAppAdminPage() {
         { id: 'config', label: 'Backup', icon: Download },
     ];
 
+    useEffect(() => {
+        const tabFromUrl = searchParams.get('tab');
+        if (!tabFromUrl) return;
+        const normalized = tabFromUrl === 'settings' ? 'automation' : tabFromUrl;
+        const exists = tabs.some((tab) => tab.id === normalized);
+        if (exists) setActiveTab(normalized as TabType);
+    }, [searchParams]);
+
+    const handleTabChange = (nextTab: TabType) => {
+        setActiveTab(nextTab);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', nextTab);
+        router.replace(`/admin/whatsapp?${params.toString()}`);
+    };
+
     return (
         <div className="p-6 lg:p-8">
             <PageHeader title="Central WhatsApp Enterprise" description="Gestão completa de comunicação, automação e análises" breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'WhatsApp' }]} />
 
             <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg overflow-x-auto">
                 {tabs.map((tab) => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)}
+                    <button key={tab.id} onClick={() => handleTabChange(tab.id as TabType)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white shadow text-blue-600' : 'text-gray-600 hover:text-gray-900'}`}>
                         <tab.icon className="w-4 h-4" /><span className="hidden lg:inline">{tab.label}</span>
                     </button>
@@ -77,10 +95,20 @@ function ConnectionTab() {
     const [waStatus, setWaStatus] = useState<any>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
-    useEffect(() => {
-        const fetchStatus = async () => { try { const res = await fetch('/api/whatsapp/status'); setWaStatus(await res.json()); } catch (_e) { } };
-        fetchStatus(); const interval = setInterval(fetchStatus, 5000); return () => clearInterval(interval);
+    const fetchStatus = useCallback(async () => {
+        try {
+            const res = await fetch('/api/whatsapp/status');
+            setWaStatus(await res.json());
+        } catch (_e) {
+            // ignore polling errors
+        }
     }, []);
+
+    useEffect(() => {
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 5000);
+        return () => clearInterval(interval);
+    }, [fetchStatus]);
 
     const handleAction = async (action: string) => {
         if (actionLoading) return;
@@ -90,6 +118,21 @@ function ConnectionTab() {
             await fetch(`/api/whatsapp/${action}`, { method: 'POST' });
         } finally {
             setActionLoading(false);
+            await fetchStatus();
+        }
+    };
+
+    const handleResetSession = async () => {
+        if (actionLoading) return;
+        if (!confirm('Isso vai encerrar a sessão atual e gerar um novo QR. Deseja continuar?')) return;
+
+        setActionLoading(true);
+        try {
+            await fetch('/api/whatsapp/reset-auth', { method: 'POST' });
+            await fetch('/api/whatsapp/connect', { method: 'POST' });
+        } finally {
+            setActionLoading(false);
+            await fetchStatus();
         }
     };
 
@@ -107,12 +150,23 @@ function ConnectionTab() {
                             {isConnected ? <Wifi className="w-6 h-6 text-green-600" /> : <WifiOff className="w-6 h-6 text-red-600" />}
                         </div>
                         <div>
-                            <p className="font-semibold">{isConnected ? 'Conectado' : waStatus?.status === 'QR_PENDING' ? 'Aguardando QR' : 'Desconectado'}</p>
+                            <p className="font-semibold">
+                                {isConnected ? 'Conectado'
+                                    : waStatus?.status === 'CONNECTING' ? 'Conectando'
+                                        : waStatus?.status === 'QR_PENDING' ? 'Aguardando QR'
+                                            : waStatus?.status === 'PAIRING_CODE' ? 'Aguardando pareamento'
+                                                : 'Desconectado'}
+                            </p>
                             {waStatus?.connectedAt && isConnected && <p className="text-sm text-gray-500">Desde {new Date(waStatus.connectedAt).toLocaleString('pt-BR')}</p>}
                         </div>
                     </div>
-                    {!isConnected ? <Button onClick={() => handleAction('connect')} isLoading={actionLoading || isConnecting}><Power className="w-4 h-4" />{isConnecting ? 'Conectando...' : 'Conectar'}</Button>
-                        : <Button variant="danger" onClick={() => handleAction('disconnect')} isLoading={actionLoading}><Power className="w-4 h-4" />Desconectar</Button>}
+                    <div className="flex gap-2">
+                        {!isConnected ? <Button onClick={() => handleAction('connect')} isLoading={actionLoading || isConnecting}><Power className="w-4 h-4" />{isConnecting ? 'Conectando...' : 'Conectar'}</Button>
+                            : <Button variant="danger" onClick={() => handleAction('disconnect')} isLoading={actionLoading}><Power className="w-4 h-4" />Desconectar</Button>}
+                        <Button variant="outline" onClick={handleResetSession} isLoading={actionLoading} disabled={isConnecting}>
+                            <RotateCcw className="w-4 h-4" />Trocar conta
+                        </Button>
+                    </div>
                 </div>
                 {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
                     <div className="flex flex-col items-center py-6 border-t"><p className="text-gray-600 mb-4">Escaneie o QR Code:</p><img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" /></div>
@@ -126,7 +180,7 @@ function ConnectionTab() {
                 )}
                 {isConnected && <div className="p-4 bg-green-50 rounded-lg">✅ WhatsApp conectado e operacional!</div>}
                 {waStatus?.status === 'DISCONNECTED' && !isBridgeOffline && <div className="p-4 bg-blue-50 rounded-lg"><p className="font-semibold text-blue-800 mb-2">ℹ️ Bridge online. Clique em <strong>Conectar</strong> para gerar QR.</p></div>}
-                {isBridgeOffline && <div className="p-4 bg-yellow-50 rounded-lg"><p className="font-semibold text-yellow-800 mb-2">⚠️ Execute: <code className="bg-gray-900 text-green-400 px-2 py-1 rounded">{recommendedCommand}</code></p></div>}
+                {isBridgeOffline && <div className="p-4 bg-yellow-50 rounded-lg"><p className="font-semibold text-yellow-800 mb-2">⚠️ Comando recomendado: <code className="bg-gray-900 text-green-400 px-2 py-1 rounded">{recommendedCommand}</code></p></div>}
             </Card>
             <Card>
                 <h3 className="font-semibold mb-4">Informações do Sistema</h3>

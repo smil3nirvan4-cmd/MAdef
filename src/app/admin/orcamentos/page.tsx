@@ -40,6 +40,8 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'succe
     RASCUNHO: { label: 'Rascunho', variant: 'default' },
     APROVADO: { label: 'Aprovado', variant: 'info' },
     ENVIADO: { label: 'Enviado', variant: 'warning' },
+    PROPOSTA_ENVIADA: { label: 'Proposta Enviada', variant: 'purple' },
+    CONTRATO_ENVIADO: { label: 'Contrato Enviado', variant: 'warning' },
     ACEITO: { label: 'Aceito', variant: 'success' },
     RECUSADO: { label: 'Recusado', variant: 'error' },
     CANCELADO: { label: 'Cancelado', variant: 'error' },
@@ -144,7 +146,9 @@ export default function OrcamentosPage() {
                             <Send className="w-5 h-5 text-yellow-600" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold">{orcamentos.filter(o => o.status === 'ENVIADO').length}</p>
+                            <p className="text-2xl font-bold">
+                                {orcamentos.filter(o => ['ENVIADO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'].includes(o.status)).length}
+                            </p>
                             <p className="text-sm text-gray-500">Enviados</p>
                         </div>
                     </div>
@@ -256,7 +260,7 @@ export default function OrcamentosPage() {
                                                             <Send className="w-3 h-3" />
                                                         </Button>
                                                     )}
-                                                    {orc.status === 'ENVIADO' && (
+                                                    {['ENVIADO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'].includes(orc.status) && (
                                                         <>
                                                             <Button
                                                                 size="sm"
