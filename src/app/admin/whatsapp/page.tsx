@@ -83,12 +83,18 @@ function ConnectionTab() {
     }, []);
 
     const handleAction = async (action: string) => {
+        if (actionLoading) return;
+
         setActionLoading(true);
-        await fetch(`/api/whatsapp/${action}`, { method: 'POST' });
-        setActionLoading(false);
+        try {
+            await fetch(`/api/whatsapp/${action}`, { method: 'POST' });
+        } finally {
+            setActionLoading(false);
+        }
     };
 
     const isConnected = waStatus?.status === 'CONNECTED';
+    const isConnecting = waStatus?.status === 'CONNECTING' || waStatus?.isConnecting === true;
     const isBridgeOffline = waStatus?.bridgeRunning === false;
     const recommendedCommand = waStatus?.recommendedCommand || 'npm run dev';
 
@@ -105,7 +111,7 @@ function ConnectionTab() {
                             {waStatus?.connectedAt && isConnected && <p className="text-sm text-gray-500">Desde {new Date(waStatus.connectedAt).toLocaleString('pt-BR')}</p>}
                         </div>
                     </div>
-                    {!isConnected ? <Button onClick={() => handleAction('connect')} isLoading={actionLoading}><Power className="w-4 h-4" />Conectar</Button>
+                    {!isConnected ? <Button onClick={() => handleAction('connect')} isLoading={actionLoading || isConnecting}><Power className="w-4 h-4" />{isConnecting ? 'Conectando...' : 'Conectar'}</Button>
                         : <Button variant="danger" onClick={() => handleAction('disconnect')} isLoading={actionLoading}><Power className="w-4 h-4" />Desconectar</Button>}
                 </div>
                 {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
