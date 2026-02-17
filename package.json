@@ -17,6 +17,7 @@
     "whatsapp:legacy": "tsx src/lib/whatsapp/server.ts",
     "whatsapp:install": "npm --prefix whatsapp-bridge install --no-fund --no-audit",
     "diagnose:whatsapp": "tsx scripts/diagnose-whatsapp.ts",
+    "routes:print": "node scripts/print-routes.mjs",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
