@@ -42,11 +42,21 @@ export async function PATCH(
 
         switch (action) {
             case 'enviar_proposta':
-                updateData = { status: 'PROPOSTA_ENVIADA' };
-                break;
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Use POST /api/admin/avaliacoes/[id]/send-proposta para enfileirar envio.',
+                    },
+                    { status: 400 }
+                );
             case 'enviar_contrato':
-                updateData = { status: 'CONTRATO_ENVIADO' };
-                break;
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Use POST /api/admin/avaliacoes/[id]/send-contrato para enfileirar envio.',
+                    },
+                    { status: 400 }
+                );
             case 'aprovar':
                 updateData = { status: 'APROVADA', validadoEm: new Date() };
                 break;

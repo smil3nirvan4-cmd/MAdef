@@ -83,6 +83,11 @@ export async function PATCH(
         const { id } = await params;
         const body = await request.json();
 
+        const existing = await prisma.paciente.findUnique({ where: { id } });
+        if (!existing) {
+            return NextResponse.json({ success: false, error: 'Paciente não encontrado' }, { status: 404 });
+        }
+
         const paciente = await prisma.paciente.update({
             where: { id },
             data: {
@@ -97,7 +102,17 @@ export async function PATCH(
             }
         });
 
-        return NextResponse.json({ success: true, paciente });
+        const pacienteCompleto = await prisma.paciente.findUnique({
+            where: { id },
+            include: {
+                avaliacoes: { orderBy: { createdAt: 'desc' }, take: 20 },
+                orcamentos: { orderBy: { createdAt: 'desc' }, take: 20 },
+                alocacoes: { include: { cuidador: true }, orderBy: { createdAt: 'desc' }, take: 20 },
+                mensagens: { orderBy: { timestamp: 'desc' }, take: 100 },
+            },
+        });
+
+        return NextResponse.json({ success: true, paciente: pacienteCompleto || paciente });
     } catch (error) {
         console.error('Error updating paciente:', error);
         return NextResponse.json({ error: 'Erro ao atualizar paciente' }, { status: 500 });

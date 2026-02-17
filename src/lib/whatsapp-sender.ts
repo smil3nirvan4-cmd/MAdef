@@ -1,13 +1,17 @@
-// ============================================
-// SERVICO DE ENVIO WHATSAPP
+﻿// ============================================
+// WHATSAPP SENDER SERVICE
 // ============================================
 
-import { validateBrazilianPhone } from './phone-validator';
+import { normalizeOutboundPhoneBR } from './phone-validator';
 import logger from './logger';
 import { resolveBridgeConfig } from './whatsapp/bridge-config';
 
+type DeliveryStatus = 'SENT_CONFIRMED' | 'UNCONFIRMED' | 'FAILED';
+
 interface SendResult {
     success: boolean;
+    deliveryStatus: DeliveryStatus;
+    bridgeAccepted?: boolean;
     messageId?: string;
     error?: string;
     recommendedCommand?: string;
@@ -15,9 +19,45 @@ interface SendResult {
     phoneFormatted?: string;
 }
 
+export interface PropostaMessageInput {
+    pacienteNome: string;
+    avaliacaoId: string;
+    valorProposto?: string;
+}
+
+export function buildAvaliacaoPropostaMessage(input: PropostaMessageInput): string {
+    const codigoAvaliacao = input.avaliacaoId.slice(-8).toUpperCase();
+    return `
+*Maos Amigas - Home Care*
+
+Ola *${input.pacienteNome}*!
+
+Sua avaliacao foi concluida com sucesso!
+
+*Codigo:* ${codigoAvaliacao}
+${input.valorProposto ? `*Valor da Proposta:* ${input.valorProposto}` : ''}
+
+Em caso de duvidas, responda esta mensagem.
+
+_Equipe Maos Amigas_
+    `.trim();
+}
+
+function extractMessageId(payload: any): string | undefined {
+    const candidates = [payload?.messageId, payload?.id];
+
+    for (const value of candidates) {
+        if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+        }
+    }
+
+    return undefined;
+}
+
 class WhatsAppSenderService {
-    private bridgeUrl: string = '';
-    private recommendedCommand: string = 'npm run dev';
+    private bridgeUrl = '';
+    private recommendedCommand = 'npm run dev';
 
     constructor() {
         this.refreshBridgeConfig();
@@ -47,7 +87,14 @@ class WhatsAppSenderService {
             }
 
             const data = await response.json();
-            return { connected: data.connected || data.status === 'RUNNING' };
+            const connected = Boolean(
+                data?.connected === true ||
+                data?.bridge?.connected === true ||
+                data?.status === 'CONNECTED' ||
+                data?.status === 'RUNNING'
+            );
+
+            return { connected };
         } catch {
             return {
                 connected: false,
@@ -58,11 +105,12 @@ class WhatsAppSenderService {
     }
 
     async sendText(telefone: string, mensagem: string): Promise<SendResult> {
-        const phoneResult = validateBrazilianPhone(telefone);
+        const phoneResult = normalizeOutboundPhoneBR(telefone);
 
         if (!phoneResult.isValid) {
             return {
                 success: false,
+                deliveryStatus: 'FAILED',
                 error: phoneResult.error || 'Telefone invalido',
                 timestamp: new Date(),
             };
@@ -71,6 +119,7 @@ class WhatsAppSenderService {
         if (phoneResult.type !== 'celular') {
             return {
                 success: false,
+                deliveryStatus: 'FAILED',
                 error: 'WhatsApp requer numero de celular',
                 timestamp: new Date(),
                 phoneFormatted: phoneResult.formatted,
@@ -81,7 +130,8 @@ class WhatsAppSenderService {
             this.refreshBridgeConfig();
 
             await logger.whatsapp('whatsapp_sending', `Enviando para ${phoneResult.formatted}`, {
-                telefone: phoneResult.whatsapp,
+                telefone: phoneResult.e164,
+                jid: phoneResult.jid,
             });
 
             const response = await fetch(`${this.bridgeUrl}/send`, {
@@ -94,28 +144,58 @@ class WhatsAppSenderService {
                 signal: AbortSignal.timeout(30000),
             });
 
-            const result = await response.json().catch(() => ({}));
+            const payload: any = await response.json().catch(() => ({}));
+            const messageId = extractMessageId(payload);
 
-            if (response.ok && result.success) {
+            if (response.ok && payload?.success && messageId) {
                 await logger.whatsapp('whatsapp_sent', `Mensagem enviada para ${phoneResult.formatted}`, {
-                    messageId: result.messageId,
+                    messageId,
+                    telefone: phoneResult.e164,
+                    jid: phoneResult.jid,
                 });
 
                 return {
                     success: true,
-                    messageId: result.messageId,
+                    deliveryStatus: 'SENT_CONFIRMED',
+                    bridgeAccepted: true,
+                    messageId,
                     timestamp: new Date(),
                     phoneFormatted: phoneResult.formatted,
                 };
             }
 
-            await logger.error('whatsapp_failed', `Falha: ${result.error || 'erro desconhecido'}`, undefined, {
-                telefone: phoneResult.formatted,
+            if (response.ok && payload?.success && !messageId) {
+                const error = 'Envio sem confirmacao: bridge retornou sucesso sem messageId.';
+
+                await logger.warning('whatsapp_unconfirmed', error, {
+                    telefone: phoneResult.e164,
+                    jid: phoneResult.jid,
+                    bridgePayload: payload,
+                });
+
+                return {
+                    success: false,
+                    deliveryStatus: 'UNCONFIRMED',
+                    bridgeAccepted: true,
+                    error,
+                    recommendedCommand: this.recommendedCommand,
+                    timestamp: new Date(),
+                    phoneFormatted: phoneResult.formatted,
+                };
+            }
+
+            await logger.error('whatsapp_failed', `Falha: ${payload?.error || 'erro desconhecido'}`, undefined, {
+                telefone: phoneResult.e164,
+                jid: phoneResult.jid,
+                bridgePayload: payload,
+                httpStatus: response.status,
             });
 
             return {
                 success: false,
-                error: result.error || 'Falha no envio',
+                deliveryStatus: 'FAILED',
+                bridgeAccepted: false,
+                error: payload?.error || 'Falha no envio',
                 recommendedCommand: this.recommendedCommand,
                 timestamp: new Date(),
                 phoneFormatted: phoneResult.formatted,
@@ -126,6 +206,7 @@ class WhatsAppSenderService {
             if (errorMsg.includes('fetch failed') || errorMsg.includes('ECONNREFUSED')) {
                 return {
                     success: false,
+                    deliveryStatus: 'FAILED',
                     error: 'WhatsApp bridge is offline.',
                     recommendedCommand: this.recommendedCommand,
                     timestamp: new Date(),
@@ -135,6 +216,7 @@ class WhatsAppSenderService {
 
             return {
                 success: false,
+                deliveryStatus: 'FAILED',
                 error: errorMsg,
                 timestamp: new Date(),
                 phoneFormatted: phoneResult.formatted,
@@ -148,32 +230,22 @@ class WhatsAppSenderService {
         avaliacaoId: string;
         valorProposto?: string;
     }): Promise<SendResult> {
-        const phoneResult = validateBrazilianPhone(dados.pacienteTelefone);
+        const phoneResult = normalizeOutboundPhoneBR(dados.pacienteTelefone);
 
         if (!phoneResult.isValid) {
             return {
                 success: false,
+                deliveryStatus: 'FAILED',
                 error: `Telefone invalido: ${phoneResult.error}`,
                 timestamp: new Date(),
             };
         }
 
-        const codigoAvaliacao = dados.avaliacaoId.slice(-8).toUpperCase();
-
-        const mensagem = `
-*Maos Amigas - Home Care*
-
-Ola *${dados.pacienteNome}*!
-
-Sua avaliacao foi concluida com sucesso!
-
-*Codigo:* ${codigoAvaliacao}
-${dados.valorProposto ? `*Valor da Proposta:* ${dados.valorProposto}` : ''}
-
-Em caso de duvidas, responda esta mensagem.
-
-_Equipe Maos Amigas_
-    `.trim();
+        const mensagem = buildAvaliacaoPropostaMessage({
+            pacienteNome: dados.pacienteNome,
+            avaliacaoId: dados.avaliacaoId,
+            valorProposto: dados.valorProposto,
+        });
 
         return this.sendText(dados.pacienteTelefone, mensagem);
     }
@@ -181,3 +253,4 @@ _Equipe Maos Amigas_
 
 export const whatsappSender = new WhatsAppSenderService();
 export default whatsappSender;
+

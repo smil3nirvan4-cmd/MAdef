@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import whatsappSender from '@/lib/whatsapp-sender';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { buildAvaliacaoPropostaMessage } from '@/lib/whatsapp-sender';
+import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
+import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 
 export async function POST(request: NextRequest) {
     try {
@@ -9,7 +11,7 @@ export async function POST(request: NextRequest) {
 
         if (!avaliacaoId) {
             return NextResponse.json(
-                { success: false, error: 'avaliacaoId é obrigatório' },
+                { success: false, error: 'avaliacaoId e obrigatorio' },
                 { status: 400 }
             );
         }
@@ -21,48 +23,49 @@ export async function POST(request: NextRequest) {
 
         if (!avaliacao) {
             return NextResponse.json(
-                { success: false, error: 'Avaliação não encontrada' },
+                { success: false, error: 'Avaliacao nao encontrada' },
                 { status: 404 }
             );
         }
 
-        await logger.info('whatsapp_reenvio', `Reenviando proposta para ${avaliacao.paciente.nome}`, {
-            avaliacaoId,
-            pacienteTelefone: avaliacao.paciente.telefone,
-        });
-
-        const resultado = await whatsappSender.enviarProposta({
+        const mensagem = buildAvaliacaoPropostaMessage({
             pacienteNome: avaliacao.paciente.nome || 'Cliente',
-            pacienteTelefone: avaliacao.paciente.telefone,
             avaliacaoId: avaliacao.id,
             valorProposto: avaliacao.valorProposto || undefined,
         });
 
-        // Atualizar avaliação
-        await prisma.avaliacao.update({
-            where: { id: avaliacaoId },
-            data: {
-                whatsappEnviado: resultado.success,
-                whatsappEnviadoEm: resultado.success ? new Date() : undefined,
-                whatsappMessageId: resultado.messageId || undefined,
-                whatsappErro: resultado.error || null,
-                whatsappTentativas: { increment: 1 },
+        await logger.info('whatsapp_reenvio_queue', `Enfileirando proposta para ${avaliacao.paciente.nome}`, {
+            avaliacaoId,
+            pacienteTelefone: avaliacao.paciente.telefone,
+        });
+
+        const enqueue = await enqueueWhatsAppTextJob({
+            phone: avaliacao.paciente.telefone,
+            text: mensagem,
+            context: {
+                source: 'admin_reenviar_whatsapp',
+                avaliacaoId: avaliacao.id,
+                pacienteId: avaliacao.pacienteId,
+            },
+            metadata: {
+                tipo: 'PROPOSTA',
+                avaliacaoId: avaliacao.id,
             },
         });
 
-        await logger.whatsapp(
-            resultado.success ? 'reenvio_sucesso' : 'reenvio_falha',
-            resultado.success
-                ? `Proposta reenviada com sucesso para ${avaliacao.paciente.telefone}`
-                : `Falha no reenvio: ${resultado.error}`,
-            { avaliacaoId, resultado }
-        );
+        const worker = await processWhatsAppOutboxOnce({ limit: 10 });
+        const queueItem = await prisma.whatsAppQueueItem.findUnique({ where: { id: enqueue.queueItemId } });
 
         return NextResponse.json({
-            success: resultado.success,
-            messageId: resultado.messageId,
-            error: resultado.error,
-            recommendedCommand: resultado.recommendedCommand,
+            success: true,
+            queued: true,
+            queueItemId: enqueue.queueItemId,
+            idempotencyKey: enqueue.idempotencyKey,
+            internalMessageId: enqueue.internalMessageId,
+            status: queueItem?.status || 'pending',
+            providerMessageId: queueItem?.providerMessageId || null,
+            error: queueItem?.error || null,
+            worker,
         });
     } catch (error) {
         console.error('Erro ao reenviar WhatsApp:', error);

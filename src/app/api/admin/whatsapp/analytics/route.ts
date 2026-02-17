@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const period = searchParams.get('period') || '7d';
 
-        const days = period === '30d' ? 30 : period === '24h' ? 1 : 7;
+        const days = period === '90d' ? 90 : period === '30d' ? 30 : period === '24h' ? 1 : 7;
         const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
         // Messages stats
@@ -71,23 +71,37 @@ export async function GET(request: NextRequest) {
             LIMIT 5
         ` as any[];
 
+        const safeMessagesByDay = messagesByDay.map((row: any) => ({
+            date: row.date,
+            inbound: Number(row.inbound || 0),
+            outbound: Number(row.outbound || 0),
+        }));
+
+        const safePeakHours = peakHours.map((p: any) => ({
+            hour: p.hour,
+            count: Number(p.count || 0),
+        }));
+
+        const quickResponseCount = Number((quickResponses[0] as any)?.count || 0);
+
         return NextResponse.json({
+            success: true,
             summary: {
                 messagesIn,
                 messagesOut,
                 totalMessages: messagesIn + messagesOut,
                 uniqueContacts: uniqueContacts.length,
                 responseRate: messagesOut > 0 ? Math.round((messagesIn / messagesOut) * 100) : 0,
-                quickResponseCount: (quickResponses[0] as any)?.count || 0,
+                quickResponseCount,
             },
-            messagesByDay,
+            messagesByDay: safeMessagesByDay,
             messagesByFlow: messagesByFlow.map(f => ({ flow: f.flow || 'N/A', count: f._count })),
             flowStats,
-            peakHours: peakHours.map((p: any) => ({ hour: p.hour, count: p.count })),
+            peakHours: safePeakHours,
             period,
         });
     } catch (error) {
         console.error('Analytics error:', error);
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        return NextResponse.json({ success: false, error: 'Erro ao gerar analytics' }, { status: 500 });
     }
 }

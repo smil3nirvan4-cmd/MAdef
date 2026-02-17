@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 
 interface HealthStatus {
     status: 'healthy' | 'degraded' | 'unhealthy';
@@ -10,7 +11,18 @@ interface HealthStatus {
     checks: {
         database: { status: string; latency?: number };
         fileSystem: { status: string; files?: string[] };
-        whatsapp: { status: string; connected?: boolean };
+        whatsapp: {
+            status: string;
+            connected?: boolean;
+            latency?: number;
+            reconnecting?: boolean;
+            retryCount?: number;
+            lastStatusCode?: number | null;
+            lastIncomingMessageAt?: string | null;
+            lastOutgoingMessageAt?: string | null;
+            errorCount24h?: number;
+            webhookLatencyAvgMs?: number;
+        };
         memory: { used: number; total: number; percentage: number };
     };
 }
@@ -24,63 +36,96 @@ export async function GET() {
         memory: { used: 0, total: 0, percentage: 0 },
     };
 
-    // 1. Database Check
     try {
         const dbStart = Date.now();
         const { prisma } = await import('@/lib/prisma');
         await prisma.$queryRaw`SELECT 1`;
         checks.database = {
             status: 'ok',
-            latency: Date.now() - dbStart
+            latency: Date.now() - dbStart,
         };
-    } catch (error) {
+    } catch {
         checks.database = { status: 'error' };
     }
 
-    // 2. File System Check
     try {
-        const requiredFiles = ['.env', 'prisma/dev.db'];
-        const existingFiles = requiredFiles.filter(f =>
-            fs.existsSync(path.join(process.cwd(), f))
-        );
+        const requiredFiles = ['.env.local', 'prisma/dev.db'];
+        const existingFiles = requiredFiles.filter((value) => fs.existsSync(path.join(process.cwd(), value)));
         checks.fileSystem = {
             status: existingFiles.length === requiredFiles.length ? 'ok' : 'warning',
-            files: existingFiles
+            files: existingFiles,
         };
     } catch {
         checks.fileSystem = { status: 'error' };
     }
 
-    // 3. WhatsApp Status Check
     try {
-        const sessionFile = path.join(process.cwd(), '.wa-session.json');
-        if (fs.existsSync(sessionFile)) {
-            const session = JSON.parse(fs.readFileSync(sessionFile, 'utf-8'));
+        const bridgeConfig = resolveBridgeConfig();
+        const waStart = Date.now();
+        const response = await fetch(`${bridgeConfig.bridgeUrl}/status`, { signal: AbortSignal.timeout(2500) });
+
+        if (response.ok) {
+            const payload = await response.json();
             checks.whatsapp = {
-                status: session.status === 'CONNECTED' ? 'ok' : 'disconnected',
-                connected: session.status === 'CONNECTED'
+                status: payload?.connected
+                    ? 'ok'
+                    : payload?.reconnecting
+                        ? 'reconnecting'
+                        : payload?.status === 'CONNECTING'
+                            ? 'connecting'
+                            : 'disconnected',
+                connected: Boolean(payload?.connected),
+                reconnecting: Boolean(payload?.reconnecting),
+                retryCount: Number(payload?.retryCount || 0),
+                lastStatusCode: payload?.lastStatusCode ?? null,
+                lastIncomingMessageAt: payload?.lastIncomingMessageAt || null,
+                lastOutgoingMessageAt: payload?.lastOutgoingMessageAt || null,
+                errorCount24h: Number(payload?.errorCount24h || 0),
+                webhookLatencyAvgMs: Number(payload?.webhookLatencyAvgMs || 0),
+                latency: Date.now() - waStart,
             };
         } else {
-            checks.whatsapp = { status: 'not_configured' };
+            checks.whatsapp = { status: `http_${response.status}` };
         }
     } catch {
-        checks.whatsapp = { status: 'error' };
+        try {
+            const sessionFile = path.join(process.cwd(), '.wa-session.json');
+            if (fs.existsSync(sessionFile)) {
+                const session = JSON.parse(fs.readFileSync(sessionFile, 'utf-8'));
+                checks.whatsapp = {
+                    status: session.status === 'CONNECTED' ? 'ok' : 'disconnected',
+                    connected: session.status === 'CONNECTED',
+                    reconnecting: Boolean(session.reconnecting),
+                    retryCount: Number(session.retryCount || 0),
+                    lastStatusCode: session.lastStatusCode ?? null,
+                    lastIncomingMessageAt: session.lastIncomingMessageAt || null,
+                    lastOutgoingMessageAt: session.lastOutgoingMessageAt || null,
+                    errorCount24h: Number(session.errorCount24h || 0),
+                    webhookLatencyAvgMs: Number(session.webhookLatencyAvgMs || 0),
+                };
+            } else {
+                checks.whatsapp = { status: 'not_configured' };
+            }
+        } catch {
+            checks.whatsapp = { status: 'error' };
+        }
     }
 
-    // 4. Memory Check
     const memUsage = process.memoryUsage();
     checks.memory = {
         used: Math.round(memUsage.heapUsed / 1024 / 1024),
         total: Math.round(memUsage.heapTotal / 1024 / 1024),
-        percentage: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
+        percentage: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100),
     };
 
-    // Determine overall status
     const hasErrors = Object.values(checks).some(
-        c => typeof c === 'object' && 'status' in c && c.status === 'error'
+        (entry) => typeof entry === 'object' && 'status' in entry && entry.status === 'error'
     );
     const hasWarnings = Object.values(checks).some(
-        c => typeof c === 'object' && 'status' in c && (c.status === 'warning' || c.status === 'disconnected')
+        (entry) =>
+            typeof entry === 'object' &&
+            'status' in entry &&
+            ['warning', 'disconnected', 'http_503', 'http_500'].includes(entry.status)
     );
 
     const health: HealthStatus = {
@@ -88,7 +133,7 @@ export async function GET() {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         version: process.env.npm_package_version || '0.1.0',
-        checks
+        checks,
     };
 
     const statusCode = health.status === 'unhealthy' ? 503 : 200;
@@ -97,7 +142,7 @@ export async function GET() {
         status: statusCode,
         headers: {
             'Cache-Control': 'no-store',
-            'X-Response-Time': `${Date.now() - startTime}ms`
-        }
+            'X-Response-Time': `${Date.now() - startTime}ms`,
+        },
     });
 }

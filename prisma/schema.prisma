@@ -132,6 +132,11 @@ model FormSubmission {
 
 model WhatsAppSession {
   id             String    @id @default(cuid())
+  phone          String?   @unique
+  contactId      String?   @unique
+  state          String    @default("MENU")
+  data           String?
+  expiresAt      DateTime?
   status         String    @default("DISCONNECTED")
   qrCode         String?
   connectedAt    DateTime?
@@ -139,6 +144,7 @@ model WhatsAppSession {
   lastActivity   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  contact        WhatsAppContact? @relation("ContactSession", fields: [contactId], references: [id])
 }
 
 model WhatsAppFlowState {
@@ -164,6 +170,159 @@ model WhatsAppCooldown {
   key       String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model WhatsAppContact {
+  id          String    @id @default(cuid())
+  phone       String    @unique
+  name        String?
+  jid         String?
+  profilePic  String?
+  isBlocked   Boolean   @default(false)
+  labels      String?
+  lastMessage DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    WhatsAppMessage[]
+  session     WhatsAppSession? @relation("ContactSession")
+}
+
+model WhatsAppMessage {
+  id        String   @id @default(cuid())
+  contactId String
+  direction String
+  type      String
+  content   String
+  mediaUrl  String?
+  status    String   @default("sent")
+  metadata  String?
+  createdAt DateTime @default(now())
+  contact   WhatsAppContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId, createdAt])
+}
+
+model WhatsAppTemplate {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  category  String
+  content   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppQuickReply {
+  id        String   @id @default(cuid())
+  shortcut  String   @unique
+  content   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppAutoReply {
+  id        String   @id @default(cuid())
+  trigger   String
+  condition String?
+  response  String
+  priority  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, priority])
+}
+
+model WhatsAppScheduled {
+  id          String   @id @default(cuid())
+  to          String
+  message     String
+  scheduledAt DateTime
+  status      String   @default("pending")
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WhatsAppQueueItem {
+  id         String   @id @default(cuid())
+  phone      String
+  payload    String
+  status     String   @default("pending")
+  retries    Int      @default(0)
+  error      String?
+  scheduledAt DateTime?
+  sentAt     DateTime?
+  lastAttemptAt DateTime?
+  idempotencyKey String? @unique
+  internalMessageId String? @unique
+  providerMessageId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([status, createdAt])
+}
+
+model WhatsAppLabel {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#3b82f6")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppBlacklist {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model WhatsAppWebhook {
+  id        String   @id @default(cuid())
+  name      String   @default("Webhook")
+  url       String
+  events    String
+  secret    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppFlowDefinition {
+  id          String   @id @default(cuid())
+  name        String
+  trigger     String   @default("")
+  category    String   @default("geral")
+  description String?
+  definition  String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, category])
+}
+
+model WhatsAppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppAnalytics {
+  id             String   @id @default(cuid())
+  date           DateTime @unique
+  messagesSent   Int      @default(0)
+  messagesRecv   Int      @default(0)
+  uniqueContacts Int      @default(0)
+  avgResponseMs  Int?
+  metadata       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // ==========================================

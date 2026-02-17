@@ -1,49 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/prisma';
 
-const BLACKLIST_FILE = path.join(process.cwd(), '.wa-blacklist.json');
-
-function loadBlacklist() {
-    try { if (fs.existsSync(BLACKLIST_FILE)) return JSON.parse(fs.readFileSync(BLACKLIST_FILE, 'utf-8')); } catch (_e) { }
-    return [];
+function normalizePhone(phone: string) {
+    return String(phone || '').replace(/\D/g, '');
 }
 
-function saveBlacklist(list: any[]) {
-    fs.writeFileSync(BLACKLIST_FILE, JSON.stringify(list, null, 2));
-}
-
-export async function GET() {
+export async function GET(_request: NextRequest) {
     try {
-        return NextResponse.json({ blacklist: loadBlacklist() });
+        const blacklist = await prisma.whatsAppBlacklist.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+        return NextResponse.json({ success: true, blacklist });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] blacklist GET erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao listar blacklist' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { phone, reason } = body;
-        const list = loadBlacklist();
-        if (!list.find((b: any) => b.phone === phone)) {
-            list.push({ id: Date.now().toString(), phone, reason: reason || '', createdAt: new Date().toISOString() });
-            saveBlacklist(list);
+        const phone = normalizePhone(body?.phone);
+        const reason = body?.reason ? String(body.reason) : null;
+
+        if (!phone) {
+            return NextResponse.json({ success: false, error: 'phone é obrigatório' }, { status: 400 });
         }
-        return NextResponse.json({ success: true });
+
+        const entry = await prisma.whatsAppBlacklist.upsert({
+            where: { phone },
+            update: { reason },
+            create: { phone, reason },
+        });
+
+        return NextResponse.json({ success: true, entry });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] blacklist POST erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao adicionar blacklist' }, { status: 500 });
     }
 }
 
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const phone = searchParams.get('phone');
-        const list = loadBlacklist().filter((b: any) => b.phone !== phone);
-        saveBlacklist(list);
+        const phone = normalizePhone(searchParams.get('phone') || '');
+        const id = searchParams.get('id');
+
+        if (!phone && !id) {
+            return NextResponse.json({ success: false, error: 'phone ou id é obrigatório' }, { status: 400 });
+        }
+
+        if (id) {
+            await prisma.whatsAppBlacklist.delete({ where: { id } });
+        } else {
+            await prisma.whatsAppBlacklist.delete({ where: { phone } });
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] blacklist DELETE erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao remover da blacklist' }, { status: 500 });
     }
 }

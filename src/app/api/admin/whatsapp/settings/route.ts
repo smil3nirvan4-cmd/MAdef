@@ -1,75 +1,105 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import fs from 'fs';
-import path from 'path';
 
-// Automation settings file path
-const SETTINGS_FILE = path.join(process.cwd(), '.wa-automation-settings.json');
-
-const DEFAULT_SETTINGS = {
-    autoReplyEnabled: true,
-    autoTriagemCuidador: true,
-    autoTriagemPaciente: true,
-    workingHoursOnly: false,
+const DEFAULT_SETTINGS: Record<string, string> = {
+    autoReplyEnabled: 'true',
+    autoTriagemCuidador: 'true',
+    autoTriagemPaciente: 'true',
+    workingHoursOnly: 'false',
     workingHoursStart: '08:00',
     workingHoursEnd: '18:00',
-    maxMessagesPerMinute: 20,
-    cooldownSeconds: 3,
-    welcomeMessage: 'Olá! Bem-vindo à Mãos Amigas. Como posso ajudar?',
-    awayMessage: 'Estamos fora do horário de atendimento. Retornaremos em breve!',
-    fallbackMessage: 'Desculpe, não entendi. Digite MENU para ver as opções.',
+    maxMessagesPerMinute: '20',
+    cooldownSeconds: '3',
+    welcomeMessage: 'Ola! Bem-vindo a Maos Amigas. Como posso ajudar?',
+    awayMessage: 'Estamos fora do horario de atendimento. Retornaremos em breve!',
+    fallbackMessage: 'Desculpe, nao entendi. Digite MENU para ver as opcoes.',
+    webhookSecret: process.env.WHATSAPP_WEBHOOK_SECRET || '',
 };
 
-function loadSettings() {
-    try {
-        if (fs.existsSync(SETTINGS_FILE)) {
-            return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
-        }
-    } catch (_e) { }
-    return DEFAULT_SETTINGS;
+function parseSettingValue(raw: string): any {
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    if (/^\d+$/.test(raw)) return Number(raw);
+    return raw;
 }
 
-function saveSettings(settings: any) {
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+async function ensureSeed() {
+    const total = await prisma.whatsAppSetting.count();
+    if (total > 0) return;
+
+    await prisma.whatsAppSetting.createMany({
+        data: Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({ key, value })),
+    });
 }
 
-export async function GET() {
-    try {
-        const settings = loadSettings();
+async function loadSettingsObject() {
+    const rows = await prisma.whatsAppSetting.findMany();
+    const settings: Record<string, any> = {};
 
-        // Get automation stats
+    for (const row of rows) {
+        settings[row.key] = parseSettingValue(row.value);
+    }
+
+    return settings;
+}
+
+export async function GET(_request: NextRequest) {
+    try {
+        await ensureSeed();
+        const settings = await loadSettingsObject();
+
         const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const stats = {
-            messagesIn24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h } } }),
+            messagesIn24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'IN' } }),
             messagesOut24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'OUT' } }),
             activeFlows: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
             cooldowns: await prisma.whatsAppCooldown.count(),
         };
 
-        return NextResponse.json({ settings, stats });
+        return NextResponse.json({ success: true, settings, stats });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] settings GET erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao carregar configuracoes' }, { status: 500 });
     }
 }
 
 export async function PATCH(request: NextRequest) {
     try {
         const body = await request.json();
-        const currentSettings = loadSettings();
-        const newSettings = { ...currentSettings, ...body };
-        saveSettings(newSettings);
+        const entries = Object.entries(body || {});
+
+        if (entries.length === 0) {
+            return NextResponse.json({ success: false, error: 'Nenhuma configuracao recebida' }, { status: 400 });
+        }
+
+        await prisma.$transaction(
+            entries.map(([key, value]) =>
+                prisma.whatsAppSetting.upsert({
+                    where: { key },
+                    update: { value: String(value) },
+                    create: { key, value: String(value) },
+                })
+            )
+        );
+
+        const settings = await loadSettingsObject();
 
         await prisma.systemLog.create({
             data: {
                 type: 'INFO',
                 action: 'automation_settings_updated',
-                message: 'Configurações de automação atualizadas',
+                message: 'Configuracoes de automacao atualizadas',
                 metadata: JSON.stringify(body),
-            }
+            },
         });
 
-        return NextResponse.json({ success: true, settings: newSettings });
+        return NextResponse.json({ success: true, settings });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro ao salvar' }, { status: 500 });
+        console.error('[API] settings PATCH erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao salvar configuracoes' }, { status: 500 });
     }
+}
+
+export async function PUT(request: NextRequest) {
+    return PATCH(request);
 }

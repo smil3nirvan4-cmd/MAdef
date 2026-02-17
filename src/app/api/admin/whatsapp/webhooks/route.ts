@@ -1,67 +1,133 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/prisma';
 
-const WEBHOOKS_FILE = path.join(process.cwd(), '.wa-webhooks.json');
-
-const DEFAULT_WEBHOOKS = [
-    { id: '1', name: 'CRM Callback', url: '', events: ['message_received', 'message_sent'], active: false, secret: '' },
-    { id: '2', name: 'Analytics', url: '', events: ['message_received'], active: false, secret: '' },
+const EVENTS = [
+    'message_received',
+    'message_sent',
+    'flow_started',
+    'flow_completed',
+    'contact_created',
+    'status_changed',
 ];
 
-function loadWebhooks() {
-    try { if (fs.existsSync(WEBHOOKS_FILE)) return JSON.parse(fs.readFileSync(WEBHOOKS_FILE, 'utf-8')); } catch (_e) { }
-    return DEFAULT_WEBHOOKS;
+const DEFAULT_WEBHOOKS = [
+    { name: 'CRM Callback', url: '', events: ['message_received', 'message_sent'], secret: '', isActive: false },
+];
+
+function serializeEvents(events: unknown): string {
+    if (!Array.isArray(events)) return '[]';
+    return JSON.stringify(events.map((e) => String(e)));
 }
 
-function saveWebhooks(webhooks: any[]) {
-    fs.writeFileSync(WEBHOOKS_FILE, JSON.stringify(webhooks, null, 2));
-}
-
-export async function GET() {
+function parseEvents(raw: string | null) {
+    if (!raw) return [] as string[];
     try {
-        const webhooks = loadWebhooks();
-        const events = ['message_received', 'message_sent', 'flow_started', 'flow_completed', 'contact_created', 'status_changed'];
-        return NextResponse.json({ webhooks, events });
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.map((e) => String(e)) : [];
+    } catch {
+        return [];
+    }
+}
+
+async function ensureSeed() {
+    const total = await prisma.whatsAppWebhook.count();
+    if (total > 0) return;
+
+    await prisma.whatsAppWebhook.createMany({
+        data: DEFAULT_WEBHOOKS.map((w) => ({
+            ...w,
+            events: serializeEvents(w.events),
+        })),
+    });
+}
+
+function toClientWebhook(webhook: any) {
+    return {
+        ...webhook,
+        events: parseEvents(webhook.events),
+        active: webhook.isActive,
+    };
+}
+
+export async function GET(_request: NextRequest) {
+    try {
+        await ensureSeed();
+        const webhooks = await prisma.whatsAppWebhook.findMany({ orderBy: { createdAt: 'desc' } });
+        return NextResponse.json({ success: true, webhooks: webhooks.map(toClientWebhook), events: EVENTS });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] webhooks GET erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao listar webhooks' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, url, events, secret } = body;
-        const webhooks = loadWebhooks();
-        webhooks.push({ id: Date.now().toString(), name, url, events: events || [], active: true, secret: secret || '', createdAt: new Date().toISOString() });
-        saveWebhooks(webhooks);
-        return NextResponse.json({ success: true });
+        const { name, url, events, secret, active } = body || {};
+
+        if (!url) {
+            return NextResponse.json({ success: false, error: 'url é obrigatória' }, { status: 400 });
+        }
+
+        const webhook = await prisma.whatsAppWebhook.create({
+            data: {
+                name: String(name || 'Webhook'),
+                url: String(url),
+                events: serializeEvents(events || []),
+                secret: secret ? String(secret) : null,
+                isActive: active !== false,
+            },
+        });
+
+        return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] webhooks POST erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao criar webhook' }, { status: 500 });
+    }
+}
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { id, ...updates } = body || {};
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
+        }
+
+        const webhook = await prisma.whatsAppWebhook.update({
+            where: { id: String(id) },
+            data: {
+                ...(updates.name !== undefined && { name: String(updates.name || 'Webhook') }),
+                ...(updates.url !== undefined && { url: String(updates.url) }),
+                ...(updates.events !== undefined && { events: serializeEvents(updates.events) }),
+                ...(updates.secret !== undefined && { secret: updates.secret ? String(updates.secret) : null }),
+                ...(updates.active !== undefined && { isActive: Boolean(updates.active) }),
+            },
+        });
+
+        return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
+    } catch (error) {
+        console.error('[API] webhooks PUT erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao atualizar webhook' }, { status: 500 });
     }
 }
 
 export async function PATCH(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { id, ...updates } = body;
-        const webhooks = loadWebhooks();
-        const idx = webhooks.findIndex((w: any) => w.id === id);
-        if (idx >= 0) { webhooks[idx] = { ...webhooks[idx], ...updates }; saveWebhooks(webhooks); }
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
-    }
+    return PUT(request);
 }
 
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-        const webhooks = loadWebhooks().filter((w: any) => w.id !== id);
-        saveWebhooks(webhooks);
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
+        }
+
+        await prisma.whatsAppWebhook.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] webhooks DELETE erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao excluir webhook' }, { status: 500 });
     }
 }

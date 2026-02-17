@@ -7,7 +7,21 @@ export async function GET(request: NextRequest) {
         const search = searchParams.get('search');
         const type = searchParams.get('type'); // cuidador, paciente, all
 
-        // Get unique contacts from messages using Prisma's proper aggregation
+        // Manual contacts cadastrados explicitamente
+        const manualContacts = await prisma.whatsAppContact.findMany({
+            where: search
+                ? {
+                    OR: [
+                        { phone: { contains: search } },
+                        { name: { contains: search } },
+                    ],
+                }
+                : undefined,
+            orderBy: { updatedAt: 'desc' },
+            take: 100,
+        });
+
+        // Contatos inferidos pelo histórico de mensagens
         const rawContacts = await prisma.mensagem.groupBy({
             by: ['telefone'],
             _count: { id: true },
@@ -17,9 +31,15 @@ export async function GET(request: NextRequest) {
             where: search ? { telefone: { contains: search } } : undefined,
         });
 
+        const manualByPhone = new Map(
+            manualContacts.map((c) => [c.phone.replace(/\D/g, ''), c])
+        );
+
         // Get message direction counts separately
         const contacts = await Promise.all(rawContacts.map(async (c) => {
             const phone = c.telefone?.replace('@s.whatsapp.net', '').replace('@lid', '');
+            const phoneDigits = (phone || '').replace(/\D/g, '');
+            const manual = manualByPhone.get(phoneDigits);
 
             // Count IN/OUT messages
             const inCount = await prisma.mensagem.count({ where: { telefone: c.telefone, direcao: 'IN' } });
@@ -39,24 +59,80 @@ export async function GET(request: NextRequest) {
             return {
                 telefone: c.telefone,
                 phone,
-                name: cuidador?.nome || paciente?.nome || phone,
-                type: cuidador ? 'cuidador' : paciente ? 'paciente' : 'unknown',
+                name: manual?.name || cuidador?.nome || paciente?.nome || phone,
+                type: manual ? 'manual' : cuidador ? 'cuidador' : paciente ? 'paciente' : 'unknown',
                 entityId: cuidador?.id || paciente?.id,
                 entityStatus: cuidador?.status || paciente?.status,
                 totalMessages: c._count.id,
                 messagesIn: inCount,
                 messagesOut: outCount,
                 lastMessage: c._max.timestamp,
+                jid: manual?.jid || c.telefone,
             };
         }));
 
-        const filtered = type && type !== 'all'
-            ? contacts.filter((c) => c.type === type)
-            : contacts;
+        // Inclui contatos manuais sem mensagens
+        const phonesWithMessages = new Set(contacts.map((c) => (c.phone || '').replace(/\D/g, '')));
+        const manualWithoutMessages = manualContacts
+            .filter((c) => !phonesWithMessages.has(c.phone.replace(/\D/g, '')))
+            .map((c) => ({
+                telefone: c.jid || `${c.phone}@s.whatsapp.net`,
+                phone: c.phone,
+                name: c.name || c.phone,
+                type: 'manual',
+                entityId: null,
+                entityStatus: null,
+                totalMessages: 0,
+                messagesIn: 0,
+                messagesOut: 0,
+                lastMessage: c.lastMessage || c.updatedAt,
+                jid: c.jid || `${c.phone}@s.whatsapp.net`,
+            }));
 
-        return NextResponse.json({ contacts: filtered });
+        const filtered = type && type !== 'all'
+            ? [...contacts, ...manualWithoutMessages].filter((c) => c.type === type)
+            : [...contacts, ...manualWithoutMessages];
+
+        return NextResponse.json({ success: true, contacts: filtered });
     } catch (error) {
         console.error('Contacts API Error:', error);
-        return NextResponse.json({ contacts: [], error: String(error) }, { status: 200 });
+        return NextResponse.json({ success: false, contacts: [], error: 'Erro ao carregar contatos' }, { status: 500 });
+    }
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const rawPhone = String(body?.phone || body?.telefone || '').trim();
+        const name = body?.name ? String(body.name).trim() : null;
+
+        const phone = rawPhone.replace(/\D/g, '');
+        if (!phone || phone.length < 10) {
+            return NextResponse.json({ success: false, error: 'Telefone inválido' }, { status: 400 });
+        }
+
+        const jid = body?.jid
+            ? String(body.jid)
+            : `${phone}@s.whatsapp.net`;
+
+        const contact = await prisma.whatsAppContact.upsert({
+            where: { phone },
+            update: {
+                name,
+                jid,
+                lastMessage: new Date(),
+            },
+            create: {
+                phone,
+                name,
+                jid,
+                lastMessage: new Date(),
+            },
+        });
+
+        return NextResponse.json({ success: true, contact });
+    } catch (error) {
+        console.error('Contacts API POST Error:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao criar contato' }, { status: 500 });
     }
 }

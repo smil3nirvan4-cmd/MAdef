@@ -1,45 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const LABELS_FILE = path.join(process.cwd(), '.wa-labels.json');
+import { prisma } from '@/lib/prisma';
 
 const DEFAULT_LABELS = [
-    { id: '1', name: 'VIP', color: '#FFD700', description: 'Clientes prioritários' },
-    { id: '2', name: 'Novo', color: '#4CAF50', description: 'Novos contatos' },
-    { id: '3', name: 'Aguardando', color: '#FF9800', description: 'Aguardando resposta' },
-    { id: '4', name: 'Problema', color: '#F44336', description: 'Com problemas' },
-    { id: '5', name: 'Urgente', color: '#9C27B0', description: 'Atendimento urgente' },
-    { id: '6', name: 'Fechado', color: '#607D8B', description: 'Atendimento concluído' },
+    { name: 'VIP', color: '#FFD700' },
+    { name: 'Novo', color: '#4CAF50' },
+    { name: 'Aguardando', color: '#FF9800' },
 ];
 
-function loadLabels() {
-    try { if (fs.existsSync(LABELS_FILE)) return JSON.parse(fs.readFileSync(LABELS_FILE, 'utf-8')); } catch (_e) { }
-    return DEFAULT_LABELS;
+async function ensureSeed() {
+    const total = await prisma.whatsAppLabel.count();
+    if (total > 0) return;
+    await prisma.whatsAppLabel.createMany({
+        data: DEFAULT_LABELS,
+    });
 }
 
-function saveLabels(labels: any[]) {
-    fs.writeFileSync(LABELS_FILE, JSON.stringify(labels, null, 2));
+function withDescription(label: any) {
+    return {
+        ...label,
+        description: '',
+    };
 }
 
-export async function GET() {
+export async function GET(_request: NextRequest) {
     try {
-        return NextResponse.json({ labels: loadLabels() });
+        await ensureSeed();
+        const labels = await prisma.whatsAppLabel.findMany({ orderBy: { name: 'asc' } });
+        return NextResponse.json({ success: true, labels: labels.map(withDescription) });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] labels GET erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao listar labels' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, color, description } = body;
-        const labels = loadLabels();
-        labels.push({ id: Date.now().toString(), name, color: color || '#3B82F6', description: description || '' });
-        saveLabels(labels);
-        return NextResponse.json({ success: true });
+        const { name, color } = body || {};
+
+        if (!name) {
+            return NextResponse.json({ success: false, error: 'name é obrigatório' }, { status: 400 });
+        }
+
+        const label = await prisma.whatsAppLabel.create({
+            data: {
+                name: String(name).trim(),
+                color: String(color || '#3B82F6'),
+            },
+        });
+
+        return NextResponse.json({ success: true, label: withDescription(label) });
+    } catch (error: any) {
+        console.error('[API] labels POST erro:', error);
+        const message = String(error?.message || '');
+        if (message.includes('Unique constraint')) {
+            return NextResponse.json({ success: false, error: 'Etiqueta já existe' }, { status: 409 });
+        }
+        return NextResponse.json({ success: false, error: 'Erro ao criar etiqueta' }, { status: 500 });
+    }
+}
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { id, ...updates } = body || {};
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
+        }
+
+        const label = await prisma.whatsAppLabel.update({
+            where: { id: String(id) },
+            data: {
+                ...(updates.name !== undefined && { name: String(updates.name).trim() }),
+                ...(updates.color !== undefined && { color: String(updates.color) }),
+            },
+        });
+
+        return NextResponse.json({ success: true, label: withDescription(label) });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] labels PUT erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao atualizar etiqueta' }, { status: 500 });
     }
 }
 
@@ -47,10 +87,14 @@ export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-        const labels = loadLabels().filter((l: any) => l.id !== id);
-        saveLabels(labels);
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
+        }
+
+        await prisma.whatsAppLabel.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] labels DELETE erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao excluir etiqueta' }, { status: 500 });
     }
 }

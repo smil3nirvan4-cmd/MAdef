@@ -1,63 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import fs from 'fs';
-import path from 'path';
-
-const TEMPLATES_FILE = path.join(process.cwd(), '.wa-templates.json');
 
 const DEFAULT_TEMPLATES = [
-    { id: '1', name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas. Estamos felizes em tê-lo conosco. Para continuar seu cadastro, responda CONTINUAR.' },
-    { id: '2', name: 'Confirmação Plantão', category: 'escala', content: 'Olá {{nome}}! Você tem um plantão agendado para {{data}} às {{hora}} no {{local}}. Confirme sua presença respondendo OK.' },
-    { id: '3', name: 'Lembrete T-24h', category: 'escala', content: 'Lembrete: Seu plantão é amanhã, {{data}} às {{hora}}. Por favor, confirme respondendo SIM.' },
-    { id: '4', name: 'Lembrete T-2h', category: 'escala', content: 'Atenção: Seu plantão começa em 2 horas. Confirme que está a caminho respondendo OK.' },
-    { id: '5', name: 'Proposta Comercial', category: 'comercial', content: 'Olá {{nome}}! Preparamos uma proposta especial para você. Valor: R$ {{valor}}/mês. Para mais detalhes, responda PROPOSTA.' },
-    { id: '6', name: 'Contrato', category: 'comercial', content: 'Olá {{nome}}! Seu contrato está pronto para assinatura. Acesse o link: {{link}}' },
-    { id: '7', name: 'Avaliação', category: 'feedback', content: 'Olá {{nome}}! Como foi sua experiência conosco? Responda de 1 a 5, sendo 5 excelente.' },
-    { id: '8', name: 'Cobrança', category: 'financeiro', content: 'Olá {{nome}}! Identificamos uma pendência de R$ {{valor}}. Para regularizar, responda PAGAR ou entre em contato.' },
+    { name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas.' },
+    { name: 'Confirmação Plantão', category: 'escala', content: 'Olá {{nome}}! Você tem plantão em {{data}} às {{hora}}.' },
+    { name: 'Lembrete T-24h', category: 'escala', content: 'Lembrete: seu plantão é amanhã, {{data}} às {{hora}}.' },
+    { name: 'Proposta Comercial', category: 'comercial', content: 'Olá {{nome}}! Sua proposta está pronta. Valor: {{valor}}.' },
 ];
 
-function loadTemplates() {
-    try {
-        if (fs.existsSync(TEMPLATES_FILE)) {
-            return JSON.parse(fs.readFileSync(TEMPLATES_FILE, 'utf-8'));
-        }
-    } catch (_e) { }
-    return DEFAULT_TEMPLATES;
+async function ensureSeed() {
+    const total = await prisma.whatsAppTemplate.count();
+    if (total > 0) return;
+    await prisma.whatsAppTemplate.createMany({
+        data: DEFAULT_TEMPLATES.map((t) => ({ ...t, isActive: true })),
+    });
 }
 
-function saveTemplates(templates: any[]) {
-    fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(templates, null, 2));
-}
-
-export async function GET() {
+export async function GET(_request: NextRequest) {
     try {
-        const templates = loadTemplates();
-        const categories = [...new Set(templates.map((t: any) => t.category))];
-        return NextResponse.json({ templates, categories });
+        await ensureSeed();
+
+        const templates = await prisma.whatsAppTemplate.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+        const categories = [...new Set(templates.map((t) => t.category))];
+
+        return NextResponse.json({ success: true, templates, categories });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] templates GET erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao listar templates' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, category, content } = body;
+        const { name, category, content, isActive } = body || {};
 
-        const templates = loadTemplates();
-        const newTemplate = {
-            id: Date.now().toString(),
-            name,
-            category,
-            content,
-            createdAt: new Date().toISOString(),
-        };
-        templates.push(newTemplate);
-        saveTemplates(templates);
+        if (!name || !category || !content) {
+            return NextResponse.json({ success: false, error: 'name, category e content são obrigatórios' }, { status: 400 });
+        }
 
-        return NextResponse.json({ success: true, template: newTemplate });
+        const template = await prisma.whatsAppTemplate.create({
+            data: {
+                name: String(name).trim(),
+                category: String(category).trim(),
+                content: String(content),
+                isActive: isActive !== false,
+            },
+        });
+
+        return NextResponse.json({ success: true, template });
+    } catch (error: any) {
+        console.error('[API] templates POST erro:', error);
+        const message = String(error?.message || '');
+        if (message.includes('Unique constraint')) {
+            return NextResponse.json({ success: false, error: 'Já existe template com este nome' }, { status: 409 });
+        }
+        return NextResponse.json({ success: false, error: 'Erro ao criar template' }, { status: 500 });
+    }
+}
+
+export async function PUT(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { id, ...updates } = body || {};
+
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
+        }
+
+        const template = await prisma.whatsAppTemplate.update({
+            where: { id: String(id) },
+            data: {
+                ...(updates.name !== undefined && { name: String(updates.name).trim() }),
+                ...(updates.category !== undefined && { category: String(updates.category).trim() }),
+                ...(updates.content !== undefined && { content: String(updates.content) }),
+                ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
+            },
+        });
+
+        return NextResponse.json({ success: true, template });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] templates PUT erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao atualizar template' }, { status: 500 });
     }
 }
 
@@ -66,12 +92,14 @@ export async function DELETE(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
-        const templates = loadTemplates();
-        const filtered = templates.filter((t: any) => t.id !== id);
-        saveTemplates(filtered);
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
+        }
 
+        await prisma.whatsAppTemplate.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] templates DELETE erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao excluir template' }, { status: 500 });
     }
 }

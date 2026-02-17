@@ -9,6 +9,36 @@ const pino = require('pino');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('node:crypto');
+
+function loadLocalEnvFile() {
+    const envPath = path.resolve(process.cwd(), '.env.local');
+    if (!fs.existsSync(envPath)) return;
+
+    const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        const separatorIndex = trimmed.indexOf('=');
+        if (separatorIndex <= 0) continue;
+
+        const key = trimmed.slice(0, separatorIndex).trim();
+        if (!key || process.env[key] !== undefined) continue;
+
+        let value = trimmed.slice(separatorIndex + 1).trim();
+        if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith('\'') && value.endsWith('\''))
+        ) {
+            value = value.slice(1, -1);
+        }
+
+        process.env[key] = value;
+    }
+}
+
+loadLocalEnvFile();
 
 const app = express();
 app.use(express.json());
@@ -16,10 +46,12 @@ app.use(express.json());
 const PORT = Number(process.env.WA_BRIDGE_PORT || 4000);
 const AUTH_DIR = path.resolve(__dirname, 'auth_info');
 const SESSION_FILE = path.resolve(process.cwd(), process.env.WA_SESSION_FILE || '.wa-session.json');
+const STATE_FILE = path.resolve(process.cwd(), process.env.WA_STATE_FILE || '.wa-state.json');
 const WEBHOOK_URL = process.env.WA_WEBHOOK_URL || 'http://127.0.0.1:3000/api/whatsapp/webhook';
-const RECONNECT_MAX_ATTEMPTS = Number(process.env.WA_RECONNECT_MAX_ATTEMPTS || 6);
+const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET || process.env.WA_WEBHOOK_SECRET || '';
+const RECONNECT_MAX_ATTEMPTS = Number(process.env.WA_RECONNECT_MAX_ATTEMPTS || 10);
 const RECONNECT_BASE_DELAY_MS = Number(process.env.WA_RECONNECT_BASE_DELAY_MS || 5000);
-const RECONNECT_MAX_DELAY_MS = Number(process.env.WA_RECONNECT_MAX_DELAY_MS || 20000);
+const RECONNECT_MAX_DELAY_MS = Number(process.env.WA_RECONNECT_MAX_DELAY_MS || 160000);
 const RETRY_405_LIMIT = Number(process.env.WA_RETRY_405_LIMIT || 2);
 
 let sock = null;
@@ -34,6 +66,12 @@ let lastError = null;
 let lastStatusCode = null;
 let pairingCode = null;
 let pairingCodeIssuedAt = null;
+let manualDisconnectRequested = false;
+let lastIncomingMessageAt = null;
+let lastOutgoingMessageAt = null;
+let webhookLatencyAvgMs = 0;
+let webhookLatencySamples = 0;
+let bridgeErrorTimestamps = [];
 
 function ensureAuthDir() {
     try {
@@ -41,6 +79,50 @@ function ensureAuthDir() {
     } catch {
         // best effort
     }
+}
+
+function ensureJsonFileIntegrity(filePath, fallback = {}) {
+    if (!fs.existsSync(filePath)) return;
+
+    try {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        if (!raw.trim()) {
+            fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2));
+            return;
+        }
+
+        JSON.parse(raw);
+    } catch (error) {
+        try {
+            const backupPath = `${filePath}.corrupt-${Date.now()}`;
+            fs.renameSync(filePath, backupPath);
+            fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2));
+            console.warn(`[bridge] recovered corrupted file: ${path.basename(filePath)}`);
+        } catch (repairError) {
+            console.error('[bridge] failed to repair file:', repairError.message);
+        }
+    }
+}
+
+function pruneErrorWindow() {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    bridgeErrorTimestamps = bridgeErrorTimestamps.filter((value) => value >= cutoff);
+    return bridgeErrorTimestamps.length;
+}
+
+function registerBridgeError(error) {
+    bridgeErrorTimestamps.push(Date.now());
+    pruneErrorWindow();
+    if (error) {
+        lastError = typeof error === 'string' ? error : String(error.message || error);
+    }
+}
+
+function registerWebhookLatency(ms) {
+    webhookLatencySamples += 1;
+    webhookLatencyAvgMs = Math.round(
+        ((webhookLatencyAvgMs * (webhookLatencySamples - 1)) + ms) / webhookLatencySamples
+    );
 }
 
 function resolveBrowser() {
@@ -53,9 +135,11 @@ function resolveBrowser() {
 }
 
 function saveSession() {
+    const errorCount24h = pruneErrorWindow();
     const data = {
         status: connectionStatus,
         connected: connectionStatus === 'CONNECTED',
+        reconnecting: Boolean(reconnectTimer) || (retryCount > 0 && connectionStatus !== 'CONNECTED'),
         qrCode,
         connectedAt: connectionStatus === 'CONNECTED' ? new Date().toISOString() : null,
         phone: connectedPhone,
@@ -64,13 +148,39 @@ function saveSession() {
         lastError,
         pairingCode,
         pairingCodeIssuedAt,
+        isConnecting,
+        lastIncomingMessageAt,
+        lastOutgoingMessageAt,
+        errorCount24h,
+        webhookLatencyAvgMs,
     };
 
     try {
+        ensureJsonFileIntegrity(SESSION_FILE, {});
         fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2));
     } catch (error) {
         console.error('[bridge] failed to save session:', error.message);
     }
+}
+
+function getStatusSnapshot() {
+    return {
+        status: connectionStatus,
+        connected: connectionStatus === 'CONNECTED',
+        reconnecting: Boolean(reconnectTimer) || (retryCount > 0 && connectionStatus !== 'CONNECTED'),
+        qrCode,
+        phone: connectedPhone,
+        isConnecting,
+        retryCount,
+        lastStatusCode,
+        lastError,
+        pairingCode,
+        pairingCodeIssuedAt,
+        lastIncomingMessageAt,
+        lastOutgoingMessageAt,
+        errorCount24h: pruneErrorWindow(),
+        webhookLatencyAvgMs,
+    };
 }
 
 function clearReconnectTimer() {
@@ -104,13 +214,31 @@ function scheduleReconnect() {
 
 async function sendToWebhook(data) {
     try {
-        await fetch(WEBHOOK_URL, {
+        const body = JSON.stringify(data);
+        const headers = { 'Content-Type': 'application/json' };
+
+        if (WEBHOOK_SECRET) {
+            headers['x-webhook-signature'] = crypto
+                .createHmac('sha256', WEBHOOK_SECRET)
+                .update(body)
+                .digest('hex');
+        }
+
+        const startedAt = Date.now();
+        const response = await fetch(WEBHOOK_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            headers,
+            body,
             signal: AbortSignal.timeout(8000),
         });
+
+        registerWebhookLatency(Date.now() - startedAt);
+        if (!response.ok) {
+            registerBridgeError(`Webhook HTTP ${response.status}`);
+            console.error(`[bridge] webhook delivery failed: HTTP ${response.status}`);
+        }
     } catch (error) {
+        registerBridgeError(error);
         console.error('[bridge] webhook delivery failed:', error.message);
     }
 }
@@ -132,6 +260,7 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
         retryCount = 0;
         consecutive405 = 0;
     }
+    manualDisconnectRequested = false;
 
     isConnecting = true;
     lastError = null;
@@ -144,6 +273,8 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
 
     try {
         ensureAuthDir();
+        ensureJsonFileIntegrity(STATE_FILE, {});
+        ensureJsonFileIntegrity(SESSION_FILE, {});
         const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
         sock = makeWASocket({
@@ -162,17 +293,28 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
             if (event.type !== 'notify') return;
 
             for (const msg of event.messages) {
-                if (msg.key?.fromMe) continue;
+                try {
+                    if (msg.key?.fromMe) continue;
 
-                let replyJid = msg.key?.remoteJid;
-                if (replyJid && replyJid.includes('@lid') && msg.key?.participant && !msg.key.participant.includes('@lid')) {
-                    replyJid = msg.key.participant;
+                    let replyJid = msg.key?.remoteJid;
+                    if (replyJid && replyJid.includes('@lid') && msg.key?.participant && !msg.key.participant.includes('@lid')) {
+                        replyJid = msg.key.participant;
+                    }
+
+                    lastIncomingMessageAt = new Date().toISOString();
+                    saveSession();
+
+                    await sendToWebhook({
+                        ...msg,
+                        _replyJid: replyJid,
+                    });
+                } catch (error) {
+                    registerBridgeError(error);
+                    const message = String(error?.message || error || '');
+                    if (message.toLowerCase().includes('pkmsg')) {
+                        console.warn('[bridge] decrypt failure (pkmsg). A new pairing may be required.');
+                    }
                 }
-
-                await sendToWebhook({
-                    ...msg,
-                    _replyJid: replyJid,
-                });
             }
         });
 
@@ -194,6 +336,7 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
 
             if (connection === 'open') {
                 isConnecting = false;
+                manualDisconnectRequested = false;
                 retryCount = 0;
                 consecutive405 = 0;
                 lastError = null;
@@ -217,9 +360,26 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
             lastError = lastStatusCode
                 ? `Connection closed (${lastStatusCode}).`
                 : 'Connection closed.';
+            registerBridgeError(lastError);
+
+            if (manualDisconnectRequested) {
+                manualDisconnectRequested = false;
+                retryCount = 0;
+                consecutive405 = 0;
+                lastStatusCode = null;
+                lastError = null;
+                saveSession();
+                console.log('[bridge] disconnected by request');
+                return;
+            }
 
             if (lastStatusCode === 405) consecutive405 += 1;
             else consecutive405 = 0;
+
+            if (lastStatusCode === 515) {
+                ensureJsonFileIntegrity(STATE_FILE, {});
+                ensureJsonFileIntegrity(SESSION_FILE, {});
+            }
 
             saveSession();
             console.warn(`[bridge] connection closed (code=${lastStatusCode ?? 'unknown'})`);
@@ -242,6 +402,7 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
         isConnecting = false;
         connectionStatus = 'DISCONNECTED';
         lastError = `Connection error: ${error.message}`;
+        registerBridgeError(error);
         saveSession();
         console.error('[bridge] connection setup failed:', error.message);
     }
@@ -249,16 +410,57 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
 
 async function disconnectWhatsApp() {
     clearReconnectTimer();
+    manualDisconnectRequested = true;
+
+    const currentSocket = sock;
+    sock = null;
 
     try {
-        if (sock) {
-            await sock.logout();
+        if (currentSocket) {
+            if (typeof currentSocket.ws?.close === 'function') {
+                currentSocket.ws.close();
+            }
+        }
+    } catch {
+        // ignore socket close failures
+    }
+
+    try {
+        if (currentSocket && typeof currentSocket.end === 'function') {
+            currentSocket.end(new Error('manual disconnect'));
+        }
+    } catch {
+        // ignore end failures
+    }
+
+    isConnecting = false;
+    retryCount = 0;
+    consecutive405 = 0;
+    qrCode = null;
+    connectedPhone = null;
+    connectionStatus = 'DISCONNECTED';
+    lastError = null;
+    lastStatusCode = null;
+    pairingCode = null;
+    pairingCodeIssuedAt = null;
+    saveSession();
+}
+
+async function logoutWhatsApp() {
+    clearReconnectTimer();
+    manualDisconnectRequested = true;
+
+    const currentSocket = sock;
+    sock = null;
+
+    try {
+        if (currentSocket && typeof currentSocket.logout === 'function') {
+            await currentSocket.logout();
         }
     } catch {
         // ignore logout failures
     }
 
-    sock = null;
     isConnecting = false;
     retryCount = 0;
     consecutive405 = 0;
@@ -274,6 +476,7 @@ async function disconnectWhatsApp() {
 
 function resetAuthState() {
     clearReconnectTimer();
+    manualDisconnectRequested = false;
 
     try {
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
@@ -297,38 +500,37 @@ function resetAuthState() {
 }
 
 app.get('/status', (_req, res) => {
-    res.json({
-        status: connectionStatus,
-        connected: connectionStatus === 'CONNECTED',
-        qrCode,
-        phone: connectedPhone,
-        isConnecting,
-        retryCount,
-        lastStatusCode,
-        lastError,
-        pairingCode,
-        pairingCodeIssuedAt,
+    res.json(getStatusSnapshot());
+});
+
+app.get('/health', (_req, res) => {
+    const status = getStatusSnapshot();
+    const ok = status.connected || status.isConnecting || status.reconnecting || status.status === 'DISCONNECTED';
+    res.status(ok ? 200 : 503).json({
+        ok,
+        bridge: status,
+        timestamp: new Date().toISOString(),
     });
 });
 
 app.post('/connect', async (_req, res) => {
     if (connectionStatus === 'CONNECTED') {
-        return res.json({ success: true, status: connectionStatus });
+        return res.json({ success: true, ...getStatusSnapshot() });
     }
 
     await connectWhatsApp({ resetRetry: true, source: 'manual' });
-    return res.json({ success: true, status: connectionStatus });
+    return res.json({ success: true, ...getStatusSnapshot() });
 });
 
 app.post('/disconnect', async (_req, res) => {
     await disconnectWhatsApp();
-    return res.json({ success: true });
+    return res.json({ success: true, ...getStatusSnapshot() });
 });
 
 app.post('/reset-auth', async (_req, res) => {
-    await disconnectWhatsApp();
+    await logoutWhatsApp();
     resetAuthState();
-    return res.json({ success: true, status: connectionStatus });
+    return res.json({ success: true, ...getStatusSnapshot() });
 });
 
 app.post('/pair', async (req, res) => {
@@ -388,6 +590,21 @@ app.post('/pair', async (req, res) => {
     }
 });
 
+function resolveTargetJid(target) {
+    const raw = String(target || '').trim();
+    if (!raw) return '';
+
+    if (raw.includes('@lid') || raw.includes('@s.whatsapp.net')) {
+        return raw;
+    }
+
+    let cleanNumber = raw.replace(/@.+$/, '').replace(/\D/g, '');
+    if (cleanNumber.length === 10 || cleanNumber.length === 11) {
+        cleanNumber = `55${cleanNumber}`;
+    }
+    return `${cleanNumber}@s.whatsapp.net`;
+}
+
 app.post('/send', async (req, res) => {
     if (!sock || connectionStatus !== 'CONNECTED') {
         return res.status(503).json({ error: 'WhatsApp is not connected.' });
@@ -401,27 +618,57 @@ app.post('/send', async (req, res) => {
     }
 
     try {
-        let jid;
-
-        if (String(target).includes('@lid') || String(target).includes('@s.whatsapp.net')) {
-            jid = String(target);
-        } else {
-            let cleanNumber = String(target).replace(/@.+$/, '').replace(/\D/g, '');
-            if (cleanNumber.length === 10 || cleanNumber.length === 11) {
-                cleanNumber = `55${cleanNumber}`;
-            }
-            jid = `${cleanNumber}@s.whatsapp.net`;
-        }
+        const jid = resolveTargetJid(target);
 
         const sent = await sock.sendMessage(jid, { text: String(message) });
+        lastOutgoingMessageAt = new Date().toISOString();
+        saveSession();
         return res.json({ success: true, id: sent?.key?.id || null });
     } catch (error) {
+        registerBridgeError(error);
         return res.status(500).json({ error: error.message || 'Failed to send message.' });
+    }
+});
+
+app.post('/send-document', async (req, res) => {
+    if (!sock || connectionStatus !== 'CONNECTED') {
+        return res.status(503).json({ error: 'WhatsApp is not connected.' });
+    }
+
+    const { to, phone, document, fileName, caption, mimetype } = req.body || {};
+    const target = to || phone;
+    if (!target || !document || !fileName) {
+        return res.status(400).json({ error: 'Invalid payload.' });
+    }
+
+    try {
+        const jid = resolveTargetJid(target);
+        const mediaBuffer = Buffer.from(String(document), 'base64');
+
+        const sent = await sock.sendMessage(jid, {
+            document: mediaBuffer,
+            fileName: String(fileName),
+            caption: caption ? String(caption) : '',
+            mimetype: mimetype ? String(mimetype) : 'application/pdf',
+        });
+
+        lastOutgoingMessageAt = new Date().toISOString();
+        saveSession();
+        return res.json({ success: true, id: sent?.key?.id || null });
+    } catch (error) {
+        registerBridgeError(error);
+        return res.status(500).json({ error: error.message || 'Failed to send document.' });
     }
 });
 
 app.listen(PORT, () => {
     console.log(`Bridge running on ${PORT}`);
+    ensureJsonFileIntegrity(SESSION_FILE, {});
+    ensureJsonFileIntegrity(STATE_FILE, {});
+
+    if (!WEBHOOK_SECRET) {
+        console.warn('[bridge] WHATSAPP_WEBHOOK_SECRET not configured. Webhook signature is disabled.');
+    }
 
     if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
         console.log('[bridge] existing credentials found, attempting reconnect...');

@@ -1,55 +1,78 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 
-// Scheduled Messages Table (create if not exists via Prisma)
-// For now, use SystemLog as storage
+function normalizePhone(raw: string) {
+    return String(raw || '').replace(/\D/g, '');
+}
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const scheduled = await prisma.systemLog.findMany({
-            where: { type: 'SCHEDULED_MESSAGE', action: 'pending' },
-            orderBy: { createdAt: 'asc' },
-            take: 100
+        const { searchParams } = new URL(request.url);
+        const status = searchParams.get('status') || 'pending';
+
+        const scheduled = await prisma.whatsAppScheduled.findMany({
+            where: status ? { status } : undefined,
+            orderBy: { scheduledAt: 'asc' },
+            take: 200,
         });
 
-        const messages = scheduled.map(s => {
-            const meta = JSON.parse(s.metadata || '{}');
-            return {
-                id: s.id,
-                phone: meta.phone,
-                message: meta.message,
-                scheduledAt: meta.scheduledAt,
-                createdAt: s.createdAt,
-            };
+        return NextResponse.json({
+            success: true,
+            scheduled: scheduled.map((item) => ({
+                id: item.id,
+                phone: item.to,
+                message: item.message,
+                scheduledAt: item.scheduledAt,
+                status: item.status,
+                sentAt: item.sentAt,
+                createdAt: item.createdAt,
+            })),
         });
-
-        return NextResponse.json({ scheduled: messages });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] scheduled GET erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao listar agendamentos' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { phone, message, scheduledAt } = body;
+        const phone = normalizePhone(body?.phone);
+        const message = body?.message ? String(body.message) : '';
+        const scheduledAt = body?.scheduledAt ? new Date(body.scheduledAt) : null;
 
-        if (!phone || !message || !scheduledAt) {
-            return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+        if (!phone || !message || !scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+            return NextResponse.json({ success: false, error: 'phone, message e scheduledAt sao obrigatorios' }, { status: 400 });
         }
 
-        await prisma.systemLog.create({
+        const scheduled = await prisma.whatsAppScheduled.create({
             data: {
-                type: 'SCHEDULED_MESSAGE',
-                action: 'pending',
-                message: `Agendado para ${phone}`,
-                metadata: JSON.stringify({ phone, message, scheduledAt }),
-            }
+                to: phone,
+                message,
+                scheduledAt,
+                status: 'pending',
+            },
         });
 
-        return NextResponse.json({ success: true });
+        const queue = await enqueueWhatsAppTextJob({
+            phone,
+            text: message,
+            scheduledAt,
+            context: {
+                source: 'admin_scheduled',
+                scheduledId: scheduled.id,
+            },
+            metadata: {
+                type: 'SCHEDULED',
+                scheduledId: scheduled.id,
+            },
+        });
+
+        return NextResponse.json({ success: true, scheduled, queue });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] scheduled POST erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao agendar mensagem' }, { status: 500 });
     }
 }
 
@@ -57,13 +80,14 @@ export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
-
-        if (id) {
-            await prisma.systemLog.delete({ where: { id } });
+        if (!id) {
+            return NextResponse.json({ success: false, error: 'id e obrigatorio' }, { status: 400 });
         }
 
+        await prisma.whatsAppScheduled.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        console.error('[API] scheduled DELETE erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao cancelar agendamento' }, { status: 500 });
     }
 }

@@ -1,41 +1,63 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
+import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { phones, message, template } = body;
+        const phones = Array.isArray(body?.phones) ? body.phones.map((p: unknown) => String(p)) : [];
+        const message = body?.message ? String(body.message) : body?.template ? String(body.template) : '';
 
-        if (!phones || phones.length === 0) {
-            return NextResponse.json({ error: 'Nenhum destinatário' }, { status: 400 });
+        if (phones.length === 0) {
+            return NextResponse.json({ success: false, error: 'Nenhum destinatario' }, { status: 400 });
         }
 
-        // Store broadcast messages in queue (will be sent by WhatsApp service)
-        const broadcasts = phones.map((phone: string) => ({
-            telefone: phone,
-            direcao: 'OUT_PENDING',
-            conteudo: message || template,
-            flow: 'BROADCAST',
-            step: 'QUEUE',
-        }));
+        if (!message.trim()) {
+            return NextResponse.json({ success: false, error: 'Mensagem obrigatoria' }, { status: 400 });
+        }
 
-        // This is a placeholder - actual implementation would queue messages
-        // For now, log the broadcast request
-        await prisma.systemLog.create({
-            data: {
-                type: 'INFO',
-                action: 'broadcast_scheduled',
-                message: `Broadcast agendado para ${phones.length} destinatários`,
-                metadata: JSON.stringify({ phones, message: message?.substring(0, 100) }),
+        const campaignId = String(body?.campaignId || `broadcast_${Date.now()}`);
+        const enqueued: Array<{ queueItemId: string; phone: string; duplicated: boolean }> = [];
+        const failures: Array<{ phone: string; error: string }> = [];
+
+        for (const [index, phone] of phones.entries()) {
+            try {
+                const job = await enqueueWhatsAppTextJob({
+                    phone,
+                    text: message,
+                    idempotencyKey: `${campaignId}:${index}:${phone.replace(/\D/g, '')}`,
+                    context: {
+                        source: 'admin_broadcast',
+                    },
+                    metadata: {
+                        campaignId,
+                        type: 'BROADCAST',
+                    },
+                });
+
+                enqueued.push({ queueItemId: job.queueItemId, phone, duplicated: job.duplicated });
+            } catch (error) {
+                failures.push({
+                    phone,
+                    error: error instanceof Error ? error.message : 'Falha ao enfileirar',
+                });
             }
-        });
+        }
+
+        const worker = await processWhatsAppOutboxOnce({ limit: Math.min(50, enqueued.length || 1) });
 
         return NextResponse.json({
-            success: true,
-            count: phones.length,
-            message: `Broadcast agendado para ${phones.length} destinatários`
+            success: failures.length === 0,
+            campaignId,
+            enqueuedCount: enqueued.length,
+            failedCount: failures.length,
+            enqueued,
+            failures,
+            worker,
+            message: `Broadcast processado: ${enqueued.length} enfileiradas, ${failures.length} falhas`,
         });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro ao agendar broadcast' }, { status: 500 });
+        console.error('[API] broadcast POST erro:', error);
+        return NextResponse.json({ success: false, error: 'Erro ao processar broadcast' }, { status: 500 });
     }
 }
