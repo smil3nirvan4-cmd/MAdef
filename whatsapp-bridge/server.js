@@ -4,7 +4,8 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     Browsers,
-} = require('@whiskeysockets/baileys');
+} = require('baileys');
+const pino = require('pino');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
@@ -31,6 +32,8 @@ let consecutive405 = 0;
 let reconnectTimer = null;
 let lastError = null;
 let lastStatusCode = null;
+let pairingCode = null;
+let pairingCodeIssuedAt = null;
 
 function ensureAuthDir() {
     try {
@@ -59,6 +62,8 @@ function saveSession() {
         retryCount,
         lastStatusCode,
         lastError,
+        pairingCode,
+        pairingCodeIssuedAt,
     };
 
     try {
@@ -76,6 +81,7 @@ function clearReconnectTimer() {
 
 function shouldAutoReconnect(statusCode) {
     if (retryCount >= RECONNECT_MAX_ATTEMPTS) return false;
+    if (statusCode === 401) return false;
     if (statusCode === DisconnectReason.loggedOut || statusCode === 403) return false;
     if (statusCode === 405 && consecutive405 > RETRY_405_LIMIT) return false;
     return true;
@@ -130,6 +136,8 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
     isConnecting = true;
     lastError = null;
     lastStatusCode = null;
+    pairingCode = null;
+    pairingCodeIssuedAt = null;
     connectionStatus = 'CONNECTING';
     saveSession();
     console.log(`[bridge] starting WhatsApp connection (${source})...`);
@@ -142,6 +150,7 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
             auth: state,
             printQRInTerminal: false,
             browser: resolveBrowser(),
+            logger: pino({ level: process.env.WA_LOG_LEVEL || 'error' }),
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: 60000,
             syncFullHistory: false,
@@ -173,6 +182,8 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
             if (qr) {
                 try {
                     qrCode = await QRCode.toDataURL(qr);
+                    pairingCode = null;
+                    pairingCodeIssuedAt = null;
                     connectionStatus = 'QR_PENDING';
                     saveSession();
                     console.log('[bridge] QR generated');
@@ -188,6 +199,8 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
                 lastError = null;
                 lastStatusCode = null;
                 qrCode = null;
+                pairingCode = null;
+                pairingCodeIssuedAt = null;
                 connectionStatus = 'CONNECTED';
                 connectedPhone = sock?.user?.id ? sock.user.id.split(':')[0] : null;
                 saveSession();
@@ -218,6 +231,9 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
 
             clearReconnectTimer();
             console.warn('[bridge] auto-reconnect stopped');
+            if (lastStatusCode === 401) {
+                console.warn('[bridge] credentials invalid/expired. Use POST /reset-auth and pair again.');
+            }
             if (lastStatusCode === 405) {
                 console.warn('[bridge] repeated 405 detected. Use POST /reset-auth and pair again.');
             }
@@ -251,6 +267,8 @@ async function disconnectWhatsApp() {
     connectionStatus = 'DISCONNECTED';
     lastError = null;
     lastStatusCode = null;
+    pairingCode = null;
+    pairingCodeIssuedAt = null;
     saveSession();
 }
 
@@ -273,6 +291,8 @@ function resetAuthState() {
     connectionStatus = 'DISCONNECTED';
     lastError = null;
     lastStatusCode = null;
+    pairingCode = null;
+    pairingCodeIssuedAt = null;
     saveSession();
 }
 
@@ -286,6 +306,8 @@ app.get('/status', (_req, res) => {
         retryCount,
         lastStatusCode,
         lastError,
+        pairingCode,
+        pairingCodeIssuedAt,
     });
 });
 
@@ -307,6 +329,63 @@ app.post('/reset-auth', async (_req, res) => {
     await disconnectWhatsApp();
     resetAuthState();
     return res.json({ success: true, status: connectionStatus });
+});
+
+app.post('/pair', async (req, res) => {
+    const rawPhone = String(req.body?.phone || '').trim();
+    const sanitizedPhone = rawPhone.replace(/\D/g, '');
+
+    if (!sanitizedPhone || sanitizedPhone.length < 10) {
+        return res.status(400).json({ success: false, error: 'Invalid phone number.' });
+    }
+
+    await connectWhatsApp({ resetRetry: true, source: 'pairing' });
+
+    if (!sock) {
+        return res.status(500).json({ success: false, error: 'Bridge socket not ready.' });
+    }
+
+    if (sock.authState?.creds?.registered) {
+        return res.json({ success: true, status: connectionStatus, alreadyRegistered: true });
+    }
+
+    try {
+        let generatedCode = null;
+        let lastPairingError = null;
+
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+            try {
+                generatedCode = await sock.requestPairingCode(sanitizedPhone);
+                break;
+            } catch (error) {
+                lastPairingError = error;
+                const message = String(error?.message || '').toLowerCase();
+                if (!message.includes('connection closed') || attempt === 3) break;
+                await new Promise((resolve) => setTimeout(resolve, 1200));
+            }
+        }
+
+        if (!generatedCode) {
+            throw lastPairingError || new Error('Failed to generate pairing code.');
+        }
+
+        pairingCode = generatedCode;
+        pairingCodeIssuedAt = new Date().toISOString();
+        qrCode = null;
+        connectionStatus = 'PAIRING_CODE';
+        saveSession();
+
+        return res.json({
+            success: true,
+            status: connectionStatus,
+            pairingCode,
+            phone: sanitizedPhone,
+        });
+    } catch (error) {
+        lastError = error?.message || 'Failed to generate pairing code.';
+        saveSession();
+        return res.status(500).json({ success: false, error: lastError });
+    }
 });
 
 app.post('/send', async (req, res) => {

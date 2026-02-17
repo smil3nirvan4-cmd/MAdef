@@ -117,6 +117,13 @@ function ConnectionTab() {
                 {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
                     <div className="flex flex-col items-center py-6 border-t"><p className="text-gray-600 mb-4">Escaneie o QR Code:</p><img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" /></div>
                 )}
+                {waStatus?.status === 'PAIRING_CODE' && waStatus?.pairingCode && (
+                    <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <p className="font-semibold text-indigo-900 mb-1">Codigo de pareamento</p>
+                        <p className="text-indigo-700 text-sm mb-3">No WhatsApp: Dispositivos conectados, depois Conectar dispositivo com numero.</p>
+                        <code className="bg-gray-900 text-green-400 px-3 py-2 rounded text-lg tracking-widest">{waStatus.pairingCode}</code>
+                    </div>
+                )}
                 {isConnected && <div className="p-4 bg-green-50 rounded-lg">✅ WhatsApp conectado e operacional!</div>}
                 {waStatus?.status === 'DISCONNECTED' && !isBridgeOffline && <div className="p-4 bg-blue-50 rounded-lg"><p className="font-semibold text-blue-800 mb-2">ℹ️ Bridge online. Clique em <strong>Conectar</strong> para gerar QR.</p></div>}
                 {isBridgeOffline && <div className="p-4 bg-yellow-50 rounded-lg"><p className="font-semibold text-yellow-800 mb-2">⚠️ Execute: <code className="bg-gray-900 text-green-400 px-2 py-1 rounded">{recommendedCommand}</code></p></div>}

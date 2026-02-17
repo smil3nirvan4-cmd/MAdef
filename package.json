@@ -27,7 +27,7 @@
   "dependencies": {
     "@hapi/boom": "^10.0.1",
     "@prisma/client": "^6.0.0",
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "baileys": "^7.0.0-rc.9",
     "clsx": "^2.1.1",
     "jimp": "^1.6.0",
     "lucide-react": "^0.563.0",
