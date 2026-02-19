@@ -1,5 +1,11 @@
 import type { NextAuthConfig } from 'next-auth';
-import { canAccessAdminApi, canAccessAdminPage, resolveUserRole } from '@/lib/auth/roles';
+import {
+    canAccessAdminApi,
+    canAccessAdminPage,
+    canAccessWhatsAppApi,
+    isPublicWhatsAppRoute,
+    resolveUserRole,
+} from '@/lib/auth/roles';
 
 export const authConfig = {
     pages: {
@@ -12,13 +18,23 @@ export const authConfig = {
             const pathname = request.nextUrl.pathname;
             const isOnAdminPage = pathname.startsWith('/admin');
             const isOnAdminApi = pathname.startsWith('/api/admin');
+            const isOnWhatsAppApi = pathname.startsWith('/api/whatsapp');
 
-            if (isOnAdminPage || isOnAdminApi) {
+            if (isOnAdminPage || isOnAdminApi || isOnWhatsAppApi) {
+                if (isOnWhatsAppApi && isPublicWhatsAppRoute(pathname, request.method)) {
+                    return true;
+                }
+
                 if (!isLoggedIn) {
                     return false;
                 }
 
                 const role = resolveUserRole(auth?.user?.email);
+
+                if (isOnWhatsAppApi) {
+                    return canAccessWhatsAppApi(role, request.method, pathname);
+                }
+
                 if (isOnAdminApi) {
                     return canAccessAdminApi(role, request.method, pathname);
                 }

@@ -2,12 +2,18 @@
 import fs from 'fs';
 import path from 'path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
+import { resolveDatabaseTargetInfo } from '@/lib/db/database-target';
 
 interface HealthStatus {
     status: 'healthy' | 'degraded' | 'unhealthy';
     timestamp: string;
     uptime: number;
     version: string;
+    dbSchemaOk: boolean;
+    missingColumns: string[];
+    databaseProvider: string;
+    databaseTarget: string;
     checks: {
         database: { status: string; latency?: number };
         fileSystem: { status: string; files?: string[] };
@@ -29,17 +35,23 @@ interface HealthStatus {
 
 export async function GET() {
     const startTime = Date.now();
+    const dbInfo = resolveDatabaseTargetInfo(process.env.DATABASE_URL);
     const checks: HealthStatus['checks'] = {
         database: { status: 'unknown' },
         fileSystem: { status: 'unknown' },
         whatsapp: { status: 'unknown' },
         memory: { used: 0, total: 0, percentage: 0 },
     };
+    let dbSchemaOk = false;
+    let missingColumns: string[] = [];
 
     try {
         const dbStart = Date.now();
         const { prisma } = await import('@/lib/prisma');
         await prisma.$queryRaw`SELECT 1`;
+        const schema = await getDbSchemaCapabilities();
+        dbSchemaOk = schema.dbSchemaOk;
+        missingColumns = schema.missingColumns;
         checks.database = {
             status: 'ok',
             latency: Date.now() - dbStart,
@@ -133,6 +145,10 @@ export async function GET() {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         version: process.env.npm_package_version || '0.1.0',
+        dbSchemaOk,
+        missingColumns,
+        databaseProvider: dbInfo.provider,
+        databaseTarget: dbInfo.target,
         checks,
     };
 

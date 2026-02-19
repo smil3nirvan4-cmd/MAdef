@@ -1,6 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+interface AdminWhatsappContact {
+    telefone: string | null;
+    phone: string | null;
+    name: string | null;
+    type: string;
+    entityId: string | null;
+    entityStatus: string | null;
+    totalMessages: number;
+    messagesIn: number;
+    messagesOut: number;
+    lastMessage: Date | string | null;
+    jid: string | null;
+}
+
+function normalizePhone(value: string | null | undefined): string {
+    return String(value || '')
+        .replace('@s.whatsapp.net', '')
+        .replace('@lid', '')
+        .replace(/\D/g, '');
+}
+
+function toTimestamp(value: Date | string | null | undefined): number {
+    const time = new Date(String(value || '')).getTime();
+    return Number.isFinite(time) ? time : 0;
+}
+
+function mergeContact(current: AdminWhatsappContact, next: AdminWhatsappContact): AdminWhatsappContact {
+    const currentTs = toTimestamp(current.lastMessage);
+    const nextTs = toTimestamp(next.lastMessage);
+    const preferNextByTime = nextTs > currentTs;
+    const preferNextByType = current.type === 'unknown' && next.type !== 'unknown';
+    const preferred = (preferNextByTime || preferNextByType) ? next : current;
+
+    return {
+        ...current,
+        ...preferred,
+        phone: normalizePhone(preferred.phone || preferred.telefone),
+        totalMessages: Math.max(0, Number(current.totalMessages || 0)) + Math.max(0, Number(next.totalMessages || 0)),
+        messagesIn: Math.max(0, Number(current.messagesIn || 0)) + Math.max(0, Number(next.messagesIn || 0)),
+        messagesOut: Math.max(0, Number(current.messagesOut || 0)) + Math.max(0, Number(next.messagesOut || 0)),
+        lastMessage: preferNextByTime ? next.lastMessage : current.lastMessage,
+    };
+}
+
+function dedupeContacts(rows: AdminWhatsappContact[]): AdminWhatsappContact[] {
+    const map = new Map<string, AdminWhatsappContact>();
+    const fallbackOrder: AdminWhatsappContact[] = [];
+
+    for (const row of rows) {
+        const phone = normalizePhone(row.phone || row.telefone);
+        if (!phone) {
+            fallbackOrder.push(row);
+            continue;
+        }
+
+        const normalized: AdminWhatsappContact = {
+            ...row,
+            phone,
+        };
+
+        const existing = map.get(phone);
+        if (!existing) {
+            map.set(phone, normalized);
+            continue;
+        }
+
+        map.set(phone, mergeContact(existing, normalized));
+    }
+
+    const deduped = [...map.values(), ...fallbackOrder];
+    deduped.sort((a, b) => toTimestamp(b.lastMessage) - toTimestamp(a.lastMessage));
+    return deduped;
+}
+
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -61,8 +135,8 @@ export async function GET(request: NextRequest) {
                 phone,
                 name: manual?.name || cuidador?.nome || paciente?.nome || phone,
                 type: manual ? 'manual' : cuidador ? 'cuidador' : paciente ? 'paciente' : 'unknown',
-                entityId: cuidador?.id || paciente?.id,
-                entityStatus: cuidador?.status || paciente?.status,
+                entityId: cuidador?.id || paciente?.id || null,
+                entityStatus: cuidador?.status || paciente?.status || null,
                 totalMessages: c._count.id,
                 messagesIn: inCount,
                 messagesOut: outCount,
@@ -89,9 +163,10 @@ export async function GET(request: NextRequest) {
                 jid: c.jid || `${c.phone}@s.whatsapp.net`,
             }));
 
+        const mergedContacts = dedupeContacts([...contacts, ...manualWithoutMessages]);
         const filtered = type && type !== 'all'
-            ? [...contacts, ...manualWithoutMessages].filter((c) => c.type === type)
-            : [...contacts, ...manualWithoutMessages];
+            ? mergedContacts.filter((c) => c.type === type)
+            : mergedContacts;
 
         return NextResponse.json({ success: true, contacts: filtered });
     } catch (error) {

@@ -24,23 +24,24 @@ model Cuidador {
 }
 
 model Paciente {
-  id         String      @id @default(cuid())
-  telefone   String      @unique
+  id         String               @id @default(cuid())
+  telefone   String               @unique
   nome       String?
   cidade     String?
   bairro     String?
-  tipo       String      @default("HOME_CARE")
+  tipo       String               @default("HOME_CARE")
   hospital   String?
   quarto     String?
-  status     String      @default("LEAD")
-  prioridade String      @default("NORMAL")
+  status     String               @default("LEAD")
+  prioridade String               @default("NORMAL")
   gqpScore   Int?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
   alocacoes  Alocacao[]
   avaliacoes Avaliacao[]
   mensagens  Mensagem[]
   orcamentos Orcamento[]
+  simulacoes OrcamentoSimulacao[]
 }
 
 model Mensagem {
@@ -58,46 +59,75 @@ model Mensagem {
 }
 
 model Avaliacao {
-  id            String    @id @default(cuid())
-  pacienteId    String
-  abemidScore   Int?
-  katzScore     Int?
-  lawtonScore   Int?
-  gqp           Int?
-  nivelSugerido String?
-  cargaSugerida String?
-  nivelFinal    String?
-  cargaFinal    String?
-  avaliadorId   String?
-  validadoEm    DateTime?
-  status        String    @default("PENDENTE")
-  createdAt     DateTime  @default(now())
-  paciente      Paciente  @relation(fields: [pacienteId], references: [id])
+  id              String    @id @default(cuid())
+  pacienteId      String
+  abemidScore     Int?
+  katzScore       Int?
+  lawtonScore     Int?
+  gqp             Int?
+  nivelSugerido   String?
+  cargaSugerida   String?
+  nivelFinal      String?
+  cargaFinal      String?
+  avaliadorId     String?
+  validadoEm      DateTime?
+  status          String    @default("PENDENTE")
+  createdAt       DateTime  @default(now())
+  paciente        Paciente  @relation(fields: [pacienteId], references: [id])
   dadosDetalhados String? // JSON com discovery, patient, clinical, abemid, etc
-  
+
   // Campos de rastreamento WhatsApp
-  whatsappEnviado    Boolean   @default(false)
+  whatsappEnviado    Boolean              @default(false)
   whatsappEnviadoEm  DateTime?
   whatsappMessageId  String?
   whatsappErro       String?
-  whatsappTentativas Int       @default(0)
+  whatsappTentativas Int                  @default(0)
   valorProposto      String?
+  orcamentos         Orcamento[]
+  simulacoes         OrcamentoSimulacao[]
 }
 
 model Orcamento {
-  id                 String    @id @default(cuid())
-  pacienteId         String
-  cenarioEconomico   String?
-  cenarioRecomendado String?
-  cenarioPremium     String?
-  cenarioSelecionado String?
-  valorFinal         Float?
-  status             String    @default("RASCUNHO")
-  aprovadoPor        String?
-  enviadoEm          DateTime?
-  aceitoEm           DateTime?
-  createdAt          DateTime  @default(now())
-  paciente           Paciente  @relation(fields: [pacienteId], references: [id])
+  id                    String                     @id @default(cuid())
+  pacienteId            String
+  unidadeId             String?
+  configVersionId       String?
+  avaliacaoId           String?
+  cenarioEconomico      String?
+  cenarioRecomendado    String?
+  cenarioPremium        String?
+  cenarioSelecionado    String?
+  valorFinal            Float?
+  snapshotInput         String?
+  snapshotOutput        String?
+  planningInput         String?
+  normalizedSchedule    String?
+  pricingBreakdown      String?
+  calculationHash       String?
+  auditHash             String?
+  engineVersion         String?
+  createdBy             String?
+  descontoManualPercent Float?
+  minicustosDesativados String?
+  moeda                 String                     @default("BRL")
+  status                String                     @default("RASCUNHO")
+  aprovadoPor           String?
+  enviadoEm             DateTime?
+  aceitoEm              DateTime?
+  createdAt             DateTime                   @default(now())
+  paciente              Paciente                   @relation(fields: [pacienteId], references: [id])
+  unidade               Unidade?                   @relation(fields: [unidadeId], references: [id])
+  configVersion         UnidadeConfiguracaoVersao? @relation(fields: [configVersionId], references: [id])
+  avaliacao             Avaliacao?                 @relation(fields: [avaliacaoId], references: [id])
+  simulacoes            OrcamentoSimulacao[]
+  auditLogs             OrcamentoAuditLog[]
+
+  @@index([pacienteId, createdAt])
+  @@index([unidadeId, createdAt])
+  @@index([configVersionId])
+  @@index([avaliacaoId])
+  @@index([calculationHash])
+  @@index([auditHash])
 }
 
 model Alocacao {
@@ -131,19 +161,19 @@ model FormSubmission {
 }
 
 model WhatsAppSession {
-  id             String    @id @default(cuid())
-  phone          String?   @unique
-  contactId      String?   @unique
-  state          String    @default("MENU")
+  id             String           @id @default(cuid())
+  phone          String?          @unique
+  contactId      String?          @unique
+  state          String           @default("MENU")
   data           String?
   expiresAt      DateTime?
-  status         String    @default("DISCONNECTED")
+  status         String           @default("DISCONNECTED")
   qrCode         String?
   connectedAt    DateTime?
   disconnectedAt DateTime?
   lastActivity   DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   contact        WhatsAppContact? @relation("ContactSession", fields: [contactId], references: [id])
 }
 
@@ -173,30 +203,30 @@ model WhatsAppCooldown {
 }
 
 model WhatsAppContact {
-  id          String    @id @default(cuid())
-  phone       String    @unique
+  id          String            @id @default(cuid())
+  phone       String            @unique
   name        String?
   jid         String?
   profilePic  String?
-  isBlocked   Boolean   @default(false)
+  isBlocked   Boolean           @default(false)
   labels      String?
   lastMessage DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   messages    WhatsAppMessage[]
-  session     WhatsAppSession? @relation("ContactSession")
+  session     WhatsAppSession?  @relation("ContactSession")
 }
 
 model WhatsAppMessage {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   contactId String
   direction String
   type      String
   content   String
   mediaUrl  String?
-  status    String   @default("sent")
+  status    String          @default("sent")
   metadata  String?
-  createdAt DateTime @default(now())
+  createdAt DateTime        @default(now())
   contact   WhatsAppContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([contactId, createdAt])
@@ -235,31 +265,31 @@ model WhatsAppAutoReply {
 }
 
 model WhatsAppScheduled {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   to          String
   message     String
   scheduledAt DateTime
-  status      String   @default("pending")
+  status      String    @default("pending")
   sentAt      DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model WhatsAppQueueItem {
-  id         String   @id @default(cuid())
-  phone      String
-  payload    String
-  status     String   @default("pending")
-  retries    Int      @default(0)
-  error      String?
-  scheduledAt DateTime?
-  sentAt     DateTime?
-  lastAttemptAt DateTime?
-  idempotencyKey String? @unique
-  internalMessageId String? @unique
+  id                String    @id @default(cuid())
+  phone             String
+  payload           String
+  status            String    @default("pending")
+  retries           Int       @default(0)
+  error             String?
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  lastAttemptAt     DateTime?
+  idempotencyKey    String?   @unique
+  internalMessageId String?   @unique
   providerMessageId String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([status, scheduledAt])
   @@index([status, createdAt])
@@ -326,25 +356,330 @@ model WhatsAppAnalytics {
 }
 
 // ==========================================
+// PRECIFICACAO ENTERPRISE (MULTI-UNIDADE)
+// ==========================================
+
+model Unidade {
+  id              String   @id @default(cuid())
+  codigo          String   @unique
+  nome            String
+  cidade          String?
+  estado          String?
+  timezone        String   @default("America/Sao_Paulo")
+  moeda           String   @default("BRL")
+  ativa           Boolean  @default(true)
+  parentUnidadeId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  parentUnidade       Unidade?                    @relation("UnidadeHierarchy", fields: [parentUnidadeId], references: [id])
+  filiais             Unidade[]                   @relation("UnidadeHierarchy")
+  configuracoes       UnidadeConfiguracaoVersao[]
+  doencas             UnidadeDoencaRegra[]
+  regrasHoras         UnidadeRegraHora[]
+  taxasPagamento      UnidadeTaxaPagamento[]
+  minicustos          UnidadeMinicusto[]
+  percentuaisComissao UnidadePercentualComissao[]
+  descontos           UnidadeDescontoPreset[]
+  contratos           UnidadeContratoTemplate[]
+  simulacoes          OrcamentoSimulacao[]
+  orcamentos          Orcamento[]
+  audits              ConfigAuditLog[]
+  systemLogs          SystemLog[]
+
+  @@index([ativa])
+}
+
+model UnidadeConfiguracaoVersao {
+  id                              String   @id @default(cuid())
+  unidadeId                       String
+  version                         Int
+  isActive                        Boolean  @default(false)
+  effectiveAt                     DateTime @default(now())
+  effectiveFrom                   DateTime @default(now())
+  effectiveTo                     DateTime?
+  isDraft                         Boolean  @default(true)
+  nome                            String?
+  descricao                       String?
+  createdBy                       String?
+  baseCuidador12h                 Float
+  baseAuxiliarEnf12h              Float
+  baseTecnicoEnf12h               Float
+  baseEnfermeiro12h               Float?
+  margemPercent                   Float    @default(0)
+  lucroFixo                       Float    @default(0)
+  lucroFixoEscalaHoras            Boolean  @default(false)
+  adicionalSegundoPacientePercent Float    @default(0)
+  adicionalNoturnoPercent         Float    @default(0)
+  adicionalFimSemanaPercent       Float    @default(0)
+  adicionalFeriadoPercent         Float    @default(0)
+  adicionalAltoRiscoPercent       Float    @default(0)
+  adicionalAtPercent              Float    @default(0)
+  adicionalAaPercent              Float    @default(0)
+  adicionalAtEscalaHoras          Boolean  @default(true)
+  adicionalAaEscalaHoras          Boolean  @default(true)
+  impostoSobreComissaoPercent     Float    @default(0)
+  aplicarTaxaAntesDesconto        Boolean  @default(false)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  unidade             Unidade                     @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  doencas             UnidadeDoencaRegra[]
+  regrasHoras         UnidadeRegraHora[]
+  taxasPagamento      UnidadeTaxaPagamento[]
+  minicustos          UnidadeMinicusto[]
+  percentuaisComissao UnidadePercentualComissao[]
+  descontos           UnidadeDescontoPreset[]
+  simulacoes          OrcamentoSimulacao[]
+  orcamentos          Orcamento[]
+  audits              ConfigAuditLog[]
+  orcamentoAuditLogs  OrcamentoAuditLog[]
+
+  @@unique([unidadeId, version])
+  @@index([unidadeId, isActive])
+  @@index([unidadeId, isActive, effectiveFrom, effectiveTo])
+}
+
+model UnidadeDoencaRegra {
+  id                 String   @id @default(cuid())
+  unidadeId          String
+  configVersionId    String
+  codigo             String
+  nome               String
+  complexidade       String
+  profissionalMinimo String
+  adicionalPercent   Float    @default(0)
+  ativa              Boolean  @default(true)
+  observacao         String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([configVersionId, codigo])
+  @@index([unidadeId, ativa])
+}
+
+model UnidadeRegraHora {
+  id              String   @id @default(cuid())
+  unidadeId       String
+  configVersionId String
+  hora            Int
+  fatorPercent    Float
+  ativa           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([configVersionId, hora])
+  @@index([unidadeId, hora])
+}
+
+model UnidadeTaxaPagamento {
+  id              String   @id @default(cuid())
+  unidadeId       String
+  configVersionId String
+  metodo          String
+  periodo         String
+  taxaPercent     Float
+  ativa           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([configVersionId, metodo, periodo])
+  @@index([unidadeId, metodo, periodo])
+}
+
+model UnidadeMinicusto {
+  id                   String   @id @default(cuid())
+  unidadeId            String
+  configVersionId      String
+  tipo                 String
+  nome                 String
+  valor                Float
+  escalaHoras          Boolean  @default(false)
+  ativoPadrao          Boolean  @default(true)
+  opcionalNoFechamento Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([configVersionId, tipo])
+  @@index([unidadeId, tipo])
+}
+
+model UnidadePercentualComissao {
+  id              String   @id @default(cuid())
+  unidadeId       String
+  configVersionId String
+  tipo            String
+  nome            String
+  percentual      Float
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([configVersionId, tipo])
+  @@index([unidadeId, tipo])
+}
+
+model UnidadeDescontoPreset {
+  id              String   @id @default(cuid())
+  unidadeId       String
+  configVersionId String
+  nome            String
+  etiqueta        String?
+  percentual      Float
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([configVersionId, nome])
+  @@index([unidadeId, ativo])
+}
+
+model UnidadeContratoTemplate {
+  id           String    @id @default(cuid())
+  unidadeId    String
+  tipo         String
+  nome         String
+  versao       Int
+  formato      String    @default("MARKDOWN")
+  conteudo     String
+  placeholders String?
+  ativo        Boolean   @default(false)
+  publicadoEm  DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  unidade Unidade @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+
+  @@unique([unidadeId, tipo, versao])
+  @@index([unidadeId, tipo, ativo])
+}
+
+model OrcamentoSimulacao {
+  id                    String   @id @default(cuid())
+  unidadeId             String
+  configVersionId       String
+  orcamentoId           String?
+  pacienteId            String?
+  avaliacaoId           String?
+  source                String   @default("ADMIN")
+  status                String   @default("RASCUNHO")
+  inputSnapshot         String
+  outputSnapshot        String
+  subtotal              Float?
+  valorFinal            Float?
+  descontoManualPercent Float?
+  descontoPresetNome    String?
+  minicustosDesativados String?
+  inputHash             String?
+  engineVersion         String?
+  moeda                 String   @default("BRL")
+  createdBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  unidade       Unidade                   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao @relation(fields: [configVersionId], references: [id], onDelete: Cascade)
+  orcamento     Orcamento?                @relation(fields: [orcamentoId], references: [id], onDelete: SetNull)
+  paciente      Paciente?                 @relation(fields: [pacienteId], references: [id], onDelete: SetNull)
+  avaliacao     Avaliacao?                @relation(fields: [avaliacaoId], references: [id], onDelete: SetNull)
+
+  @@index([unidadeId, createdAt])
+  @@index([configVersionId, createdAt])
+  @@index([orcamentoId])
+  @@index([pacienteId])
+  @@index([avaliacaoId])
+}
+
+model ConfigAuditLog {
+  id              String   @id @default(cuid())
+  unidadeId       String
+  configVersionId String?
+  entidade        String
+  entidadeId      String?
+  acao            String
+  beforeSnapshot  String?
+  afterSnapshot   String?
+  actorId         String?
+  requestId       String?
+  createdAt       DateTime @default(now())
+
+  unidade       Unidade                    @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao? @relation(fields: [configVersionId], references: [id], onDelete: SetNull)
+
+  @@index([unidadeId, createdAt])
+  @@index([configVersionId, createdAt])
+  @@index([entidade, createdAt])
+  @@index([requestId])
+}
+
+model OrcamentoAuditLog {
+  id              String   @id @default(cuid())
+  orcamentoId     String
+  configVersionId String?
+  acao            String
+  status          String
+  beforeSnapshot  String?
+  afterSnapshot   String?
+  diffSnapshot    String?
+  inputHash       String?
+  requestId       String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+
+  orcamento     Orcamento                  @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+  configVersion UnidadeConfiguracaoVersao? @relation(fields: [configVersionId], references: [id], onDelete: SetNull)
+
+  @@index([orcamentoId, createdAt])
+  @@index([configVersionId, createdAt])
+  @@index([acao, createdAt])
+  @@index([status, createdAt])
+  @@index([requestId])
+}
+
+// ==========================================
 // SISTEMA DE LOGS
 // ==========================================
 
 model SystemLog {
   id        String   @id @default(cuid())
-  type      String   // ERROR | INFO | WARNING | WHATSAPP | DEBUG
-  action    String   // Identificador da ação (ex: "avaliacao_criada")
-  message   String   // Descrição legível
-  metadata  String?  // JSON stringificado com dados contextuais
-  stack     String?  // Stack trace para erros
-  userId    String?  // Referência opcional ao usuário
-  ipAddress String?  // IP da requisição
-  userAgent String?  // Browser/Device info
-  duration  Int?     // Duração em ms (para performance)
+  type      String // ERROR | INFO | WARNING | WHATSAPP | DEBUG
+  action    String // Identificador da ação (ex: "avaliacao_criada")
+  message   String // Descrição legível
+  metadata  String? // JSON stringificado com dados contextuais
+  stack     String? // Stack trace para erros
+  userId    String? // Referência opcional ao usuário
+  unidadeId String? // Unidade operacional associada ao evento
+  requestId String? // Correlation/request id
+  ipAddress String? // IP da requisição
+  userAgent String? // Browser/Device info
+  duration  Int? // Duração em ms (para performance)
   createdAt DateTime @default(now())
+
+  unidade Unidade? @relation(fields: [unidadeId], references: [id])
 
   @@index([type])
   @@index([action])
+  @@index([requestId])
   @@index([createdAt])
   @@index([type, createdAt])
+  @@index([unidadeId, createdAt])
 }
-

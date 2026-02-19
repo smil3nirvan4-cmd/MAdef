@@ -18,11 +18,52 @@ import { FlowBuilderTab } from './FlowBuilder';
 
 type TabType = 'connection' | 'chats' | 'contacts' | 'flows' | 'templates' | 'quickreplies' | 'scheduled' | 'broadcast' | 'analytics' | 'automation' | 'labels' | 'blacklist' | 'autoreplies' | 'queue' | 'webhooks' | 'config' | 'settings';
 
+interface DbSchemaStatusResponse {
+    success: boolean;
+    dbSchemaOk?: boolean;
+    missingColumns?: string[];
+}
+
+function normalizeContactPhone(value: unknown): string {
+    return String(value || '')
+        .replace('@s.whatsapp.net', '')
+        .replace('@lid', '')
+        .replace(/\D/g, '');
+}
+
+function dedupeContacts<T extends { phone?: string; telefone?: string }>(rows: T[]): T[] {
+    const map = new Map<string, T>();
+    const fallback: T[] = [];
+
+    for (const row of rows) {
+        const phone = normalizeContactPhone(row.phone || row.telefone);
+        if (!phone) {
+            fallback.push(row);
+            continue;
+        }
+        if (!map.has(phone)) {
+            map.set(phone, { ...row, phone } as T);
+            continue;
+        }
+
+        const existing = map.get(phone)!;
+        const existingTotal = Number((existing as any).totalMessages || 0);
+        const nextTotal = Number((row as any).totalMessages || 0);
+        map.set(phone, nextTotal >= existingTotal ? ({ ...row, phone } as T) : existing);
+    }
+
+    return [...map.values(), ...fallback];
+}
+
 export default function WhatsAppAdminPage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<TabType>('connection');
+    const [dbSchemaStatus, setDbSchemaStatus] = useState<{ ok: boolean; missingColumns: string[] }>({
+        ok: true,
+        missingColumns: [],
+    });
 
     const tabs = [
         { id: 'connection', label: 'Conexão', icon: Wifi },
@@ -55,6 +96,29 @@ export default function WhatsAppAdminPage() {
         if (exists) setActiveTab(normalized as TabType);
     }, [pathname, searchParams]);
 
+    useEffect(() => {
+        let active = true;
+
+        async function loadSchemaStatus() {
+            try {
+                const response = await fetch('/api/admin/capabilities', { cache: 'no-store' });
+                const payload: DbSchemaStatusResponse = await response.json().catch(() => ({ success: false }));
+                if (!active || !response.ok || !payload.success) return;
+                setDbSchemaStatus({
+                    ok: payload.dbSchemaOk !== false,
+                    missingColumns: Array.isArray(payload.missingColumns) ? payload.missingColumns : [],
+                });
+            } catch {
+                // keep previous state
+            }
+        }
+
+        loadSchemaStatus();
+        return () => {
+            active = false;
+        };
+    }, []);
+
     const handleTabChange = (nextTab: TabType) => {
         setActiveTab(nextTab);
         router.replace(`/admin/whatsapp/${nextTab}`);
@@ -64,6 +128,12 @@ export default function WhatsAppAdminPage() {
         <div className="p-6 lg:p-8">
             <PageHeader title="Central WhatsApp Enterprise" description="Gestão completa de comunicação, automação e análises" breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'WhatsApp' }]} />
 
+            {!dbSchemaStatus.ok && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <p className="font-medium">Database schema drift detectado.</p>
+                    <p className="mt-1">Missing columns: {dbSchemaStatus.missingColumns.join(', ') || 'nao informado'}.</p>
+                </div>
+            )}
             <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg overflow-x-auto">
                 {tabs.map((tab) => (
                     <button key={tab.id} onClick={() => handleTabChange(tab.id as TabType)}
@@ -209,7 +279,7 @@ function ChatsTab() {
 
     const fetchContacts = async () => {
         const res = await fetch(`/api/admin/whatsapp/contacts${search ? `?search=${search}` : ''}`);
-        if (res.ok) { const data = await res.json(); setContacts(data.contacts || []); }
+        if (res.ok) { const data = await res.json(); setContacts(dedupeContacts(data.contacts || [])); }
     };
 
     const fetchChat = async (phone: string) => {
@@ -237,8 +307,8 @@ function ChatsTab() {
             <Card className="!p-0 overflow-hidden">
                 <div className="p-3 border-b"><Input placeholder="Buscar..." icon={Search} value={search} onChange={(e) => { setSearch(e.target.value); fetchContacts(); }} /></div>
                 <div className="overflow-y-auto h-[calc(70vh-80px)]">
-                    {contacts.map((c) => (
-                        <button key={c.phone} onClick={() => fetchChat(c.phone)} className={`w-full p-3 text-left border-b hover:bg-gray-50 flex items-center gap-3 ${selectedChat?.phone === c.phone ? 'bg-blue-50' : ''}`}>
+                    {contacts.map((c, index) => (
+                        <button key={`${normalizeContactPhone(c.phone) || c.phone || c.telefone || 'contact'}-${index}`} onClick={() => fetchChat(c.phone)} className={`w-full p-3 text-left border-b hover:bg-gray-50 flex items-center gap-3 ${selectedChat?.phone === c.phone ? 'bg-blue-50' : ''}`}>
                             <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold">{c.name?.charAt(0) || '?'}</div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-medium truncate">{c.name}</p>
@@ -292,7 +362,7 @@ function ContactsTab() {
 
     const fetchContacts = async () => {
         const res = await fetch(`/api/admin/whatsapp/contacts?type=${filter}${search ? `&search=${search}` : ''}`);
-        if (res.ok) { const data = await res.json(); setContacts(data.contacts || []); }
+        if (res.ok) { const data = await res.json(); setContacts(dedupeContacts(data.contacts || [])); }
     };
     useEffect(() => { fetchContacts(); }, [filter]);
 
@@ -321,8 +391,8 @@ function ContactsTab() {
                         <th className="px-4 py-3 text-right">Ações</th>
                     </tr></thead>
                     <tbody className="divide-y">
-                        {contacts.map((c) => (
-                            <tr key={c.phone} className="hover:bg-gray-50">
+                        {contacts.map((c, index) => (
+                            <tr key={`${normalizeContactPhone(c.phone) || c.phone || c.telefone || 'contact'}-${index}`} className="hover:bg-gray-50">
                                 <td className="px-4 py-3"><p className="font-medium">{c.name}</p><p className="text-gray-500 font-mono text-xs">{c.phone}</p></td>
                                 <td className="px-4 py-3"><Badge variant={c.type === 'cuidador' ? 'info' : c.type === 'paciente' ? 'success' : 'default'}>{c.type}</Badge></td>
                                 <td className="px-4 py-3">{c.totalMessages} <span className="text-gray-400">({c.messagesIn}↓ {c.messagesOut}↑)</span></td>

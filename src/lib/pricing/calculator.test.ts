@@ -84,6 +84,26 @@ describe('Pricing Calculator', () => {
             expect(resultadoLongo.demandaEquipe).toBe(true);
         });
 
+        it('deve respeitar diasAtivos para planejamento intercalado', () => {
+            const input = createBaseInput({ duracaoDias: 14, diasAtivos: 4 });
+            const resultado = calcularOrcamento(input);
+
+            expect(resultado.diasAtivos).toBe(4);
+            expect(resultado.horasTotais).toBe(48);
+        });
+
+        it('deve aplicar adicional por paciente extra e adicional percentual', () => {
+            const base = calcularOrcamento(createBaseInput());
+            const ajustado = calcularOrcamento(createBaseInput({
+                quantidadePacientes: 2,
+                adicionalPercentual: 10,
+            }));
+
+            expect(ajustado.adicionalPacientes).toBeGreaterThan(0);
+            expect(ajustado.adicionalVariaveis).toBeGreaterThan(0);
+            expect(ajustado.total).toBeGreaterThan(base.total);
+        });
+
         it('deve calcular parcelamento com entrada de 30%', () => {
             const input = createBaseInput();
             const resultado = calcularOrcamento(input);

@@ -3,6 +3,7 @@ import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
 import { notifyEmergencyTeam } from '@/lib/notifications/emergency';
 import { prisma } from '@/lib/db';
+import { buildAppUrl } from '@/lib/config/public-url';
 
 // Salvar lead de paciente no banco de dados
 async function savePatientLead(phone: string, data: Record<string, unknown>) {
@@ -203,9 +204,21 @@ Digite o número:
         const option = body.trim();
 
         if (option === '1') {
+            let signupUrl = '';
+            try {
+                signupUrl = buildAppUrl(`/cadastro?ref=${encodeURIComponent(from)}`);
+            } catch (error) {
+                console.error('Erro ao montar URL pública de cadastro:', error);
+                await sendMessage(from, 'No momento, o link de cadastro está indisponível. Nossa equipe vai te atender por aqui.');
+                await setUserState(phone, {
+                    currentStep: 'AWAITING_PATIENT_NAME'
+                });
+                return;
+            }
+
             await sendMessage(from, `
 Ótimo! Acesse o link seguro para cadastro:
-👉 ${process.env.NEXT_PUBLIC_URL}/cadastro?ref=${from}
+👉 ${signupUrl}
 
 Assim que preencher, nossa equipe de avaliação receberá os dados.
             `.trim());

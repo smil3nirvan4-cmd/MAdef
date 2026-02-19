@@ -1,7 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
+
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok } from '@/lib/api/response';
 
 const actionSchema = z.object({
     action: z.enum(['reprocess', 'cancel', 'process']),
@@ -25,20 +30,30 @@ function parsePreview(payload: string): string {
     return `[${parsed?.intent || 'UNKNOWN'}]`;
 }
 
-export async function GET(
+const getHandler = async (
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
     try {
         const { id } = await params;
 
         const item = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
         if (!item) {
-            return NextResponse.json({ success: false, error: 'Queue item nao encontrado' }, { status: 404 });
+            return fail(E.NOT_FOUND, 'Queue item not found', { status: 404 });
         }
 
         const payload = parsePayload(item.payload);
-        const correlationTerms = [id, item.internalMessageId, item.idempotencyKey].filter(Boolean) as string[];
+        const resolvedMessageId = item.providerMessageId || item.internalMessageId || payload?.resolvedMessageId || null;
+        const correlationTerms = buildQueueCorrelationTerms({
+            queueItemId: id,
+            internalMessageId: item.internalMessageId || payload?.internalMessageId,
+            idempotencyKey: item.idempotencyKey || payload?.idempotencyKey,
+            providerMessageId: item.providerMessageId || payload?.providerMessageId,
+            resolvedMessageId,
+            phone: item.phone || payload?.phone || payload?.to || null,
+            jid: payload?.jid || null,
+        });
+
         const logs = correlationTerms.length
             ? await prisma.systemLog.findMany({
                 where: {
@@ -58,28 +73,27 @@ export async function GET(
                 : []),
         ];
 
-        return NextResponse.json({
-            success: true,
+        return ok({
             item: {
                 ...item,
                 intent: String(payload?.intent || 'UNKNOWN'),
                 preview: parsePreview(item.payload),
                 payloadParsed: payload,
-                resolvedMessageId: item.providerMessageId || item.internalMessageId || null,
+                resolvedMessageId,
             },
             timeline,
             logs,
         });
     } catch (error) {
-        console.error('[API] queue item GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao carregar queue item' }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Erro ao carregar queue item';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
 
-export async function POST(
+const postHandler = async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
     try {
         const { id } = await params;
         const body = await request.json();
@@ -87,7 +101,7 @@ export async function POST(
 
         const current = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
         if (!current) {
-            return NextResponse.json({ success: false, error: 'Queue item nao encontrado' }, { status: 404 });
+            return fail(E.NOT_FOUND, 'Queue item not found', { status: 404 });
         }
 
         if (parsed.action === 'reprocess') {
@@ -101,7 +115,7 @@ export async function POST(
             });
             const worker = await processWhatsAppOutboxOnce({ limit: 20 });
             const updated = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
-            return NextResponse.json({ success: true, item: updated, worker });
+            return ok({ item: updated, worker });
         }
 
         if (parsed.action === 'cancel') {
@@ -112,15 +126,20 @@ export async function POST(
                     scheduledAt: null,
                 },
             });
-            return NextResponse.json({ success: true, item: updated });
+            return ok({ item: updated });
         }
 
         const worker = await processWhatsAppOutboxOnce({ limit: 20 });
         const updated = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
-        return NextResponse.json({ success: true, item: updated, worker });
+        return ok({ item: updated, worker });
     } catch (error) {
-        console.error('[API] queue item POST erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao executar acao no queue item' }, { status: 500 });
+        if (error instanceof z.ZodError) {
+            return fail(E.VALIDATION_ERROR, 'Payload invalido', { status: 400, details: error.flatten() });
+        }
+        const message = error instanceof Error ? error.message : 'Erro ao executar acao no queue item';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
 
+export const GET = withRequestContext(getHandler);
+export const POST = withRequestContext(postHandler);

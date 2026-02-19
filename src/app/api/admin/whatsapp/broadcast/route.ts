@@ -1,4 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+﻿export const runtime = 'nodejs';
+
+import { NextRequest, NextResponse } from 'next/server';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 

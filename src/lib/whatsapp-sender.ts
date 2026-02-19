@@ -6,6 +6,7 @@ import { normalizeOutboundPhoneBR } from './phone-validator';
 import logger from './logger';
 import { resolveBridgeConfig } from './whatsapp/bridge-config';
 import { extractProviderMessageId } from './whatsapp/provider-message-id';
+import { whatsappCircuitBreaker } from './whatsapp/circuit-breaker';
 
 type DeliveryStatus = 'SENT_CONFIRMED' | 'UNCONFIRMED' | 'FAILED';
 
@@ -15,6 +16,9 @@ interface SendResult {
     bridgeAccepted?: boolean;
     messageId?: string;
     error?: string;
+    errorCode?: string;
+    statusCode?: number;
+    circuitState?: unknown;
     recommendedCommand?: string;
     timestamp: Date;
     phoneFormatted?: string;
@@ -118,6 +122,13 @@ class WhatsAppSenderService {
         try {
             this.refreshBridgeConfig();
 
+            if (whatsappCircuitBreaker.isOpen()) {
+                throw Object.assign(
+                    new Error('WhatsApp circuit breaker is OPEN - bridge calls are suspended'),
+                    { code: 'CIRCUIT_OPEN', circuitState: whatsappCircuitBreaker.toJSON() }
+                );
+            }
+
             await logger.whatsapp('whatsapp_sending', `Enviando para ${phoneResult.formatted}`, {
                 telefone: phoneResult.e164,
                 jid: phoneResult.jid,
@@ -137,6 +148,8 @@ class WhatsAppSenderService {
             const messageId = extractProviderMessageId(payload);
 
             if (response.ok && payload?.success && messageId) {
+                whatsappCircuitBreaker.recordSuccess();
+
                 await logger.whatsapp('whatsapp_sent', `Mensagem enviada para ${phoneResult.formatted}`, {
                     providerMessageId: messageId,
                     resolvedMessageId: messageId,
@@ -155,6 +168,7 @@ class WhatsAppSenderService {
             }
 
             if (response.ok && payload?.success && !messageId) {
+                whatsappCircuitBreaker.recordFailure(503);
                 const error = 'Envio sem confirmacao: bridge retornou sucesso sem messageId.';
 
                 await logger.warning('whatsapp_unconfirmed', error, {
@@ -170,10 +184,15 @@ class WhatsAppSenderService {
                     deliveryStatus: 'UNCONFIRMED',
                     bridgeAccepted: true,
                     error,
+                    errorCode: 'UNCONFIRMED_SEND',
                     recommendedCommand: this.recommendedCommand,
                     timestamp: new Date(),
                     phoneFormatted: phoneResult.formatted,
                 };
+            }
+
+            if (response.status >= 500) {
+                whatsappCircuitBreaker.recordFailure(response.status);
             }
 
             await logger.error('whatsapp_failed', `Falha: ${payload?.error || 'erro desconhecido'}`, undefined, {
@@ -188,18 +207,38 @@ class WhatsAppSenderService {
                 deliveryStatus: 'FAILED',
                 bridgeAccepted: false,
                 error: payload?.error || 'Falha no envio',
+                errorCode: payload?.code || (response.status >= 500 ? 'BRIDGE_UNAVAILABLE' : 'PROVIDER_ERROR'),
+                statusCode: response.status,
                 recommendedCommand: this.recommendedCommand,
                 timestamp: new Date(),
                 phoneFormatted: phoneResult.formatted,
             };
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+            const errorCode = (error as any)?.code ? String((error as any).code) : undefined;
+            if (errorCode !== 'CIRCUIT_OPEN') {
+                whatsappCircuitBreaker.recordFailure();
+            }
+
+            if (errorCode === 'CIRCUIT_OPEN') {
+                return {
+                    success: false,
+                    deliveryStatus: 'FAILED',
+                    error: errorMsg,
+                    errorCode,
+                    circuitState: (error as any)?.circuitState || whatsappCircuitBreaker.toJSON(),
+                    recommendedCommand: this.recommendedCommand,
+                    timestamp: new Date(),
+                    phoneFormatted: phoneResult.formatted,
+                };
+            }
 
             if (errorMsg.includes('fetch failed') || errorMsg.includes('ECONNREFUSED')) {
                 return {
                     success: false,
                     deliveryStatus: 'FAILED',
                     error: 'WhatsApp bridge is offline.',
+                    errorCode: 'BRIDGE_UNAVAILABLE',
                     recommendedCommand: this.recommendedCommand,
                     timestamp: new Date(),
                     phoneFormatted: phoneResult.formatted,
@@ -210,6 +249,7 @@ class WhatsAppSenderService {
                 success: false,
                 deliveryStatus: 'FAILED',
                 error: errorMsg,
+                errorCode: errorCode || 'INTERNAL_ERROR',
                 timestamp: new Date(),
                 phoneFormatted: phoneResult.formatted,
             };

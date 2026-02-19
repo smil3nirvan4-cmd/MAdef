@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { E, fail, paginated, ok } from '@/lib/api/response';
+import { parsePagination, parseSort } from '@/lib/api/query-params';
+import { withRequestContext } from '@/lib/api/with-request-context';
 
-export async function GET(request: NextRequest) {
+const SORTABLE_FIELDS = ['createdAt', 'type', 'action'] as const;
+
+const getHandler = async (request: NextRequest) => {
     try {
-        const searchParams = request.nextUrl.searchParams;
-        const page = parseInt(searchParams.get('page') || '1');
-        const limit = parseInt(searchParams.get('limit') || '50');
+        const guard = await guardCapability('VIEW_LOGS');
+        if (guard instanceof NextResponse) return guard;
+
+        const url = new URL(request.url);
+        const { page, pageSize } = parsePagination(url);
+        const { field, direction } = parseSort(url, [...SORTABLE_FIELDS], 'createdAt', 'desc');
+        const searchParams = url.searchParams;
+
         const type = searchParams.get('type');
         const action = searchParams.get('action');
         const phone = searchParams.get('phone');
@@ -13,7 +24,6 @@ export async function GET(request: NextRequest) {
         const endDate = searchParams.get('endDate');
 
         const where: any = {};
-
         if (type) where.type = type;
         if (action) where.action = { contains: action };
         if (phone) where.metadata = { contains: phone.replace(/\D/g, '') };
@@ -26,38 +36,30 @@ export async function GET(request: NextRequest) {
         const [logs, total] = await Promise.all([
             prisma.systemLog.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
-                skip: (page - 1) * limit,
-                take: limit,
+                orderBy: [{ [field]: direction }, { createdAt: 'desc' }],
+                skip: (page - 1) * pageSize,
+                take: pageSize,
             }),
             prisma.systemLog.count({ where }),
         ]);
 
-        return NextResponse.json({
-            logs,
-            total,
-            page,
-            limit,
-            totalPages: Math.ceil(total / limit),
+        return paginated(logs, { page, pageSize, total }, 200, {
+            filters: { type, action, phone, startDate, endDate },
         });
     } catch (error) {
-        console.error('Erro ao buscar logs:', error);
-        return NextResponse.json(
-            { error: 'Falha ao buscar logs' },
-            { status: 500 }
-        );
+        const message = error instanceof Error ? error.message : 'Falha ao buscar logs';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
 
-export async function DELETE(request: NextRequest) {
+const deleteHandler = async (request: NextRequest) => {
     try {
-        const { olderThanDays } = await request.json();
+        const guard = await guardCapability('VIEW_LOGS');
+        if (guard instanceof NextResponse) return guard;
 
+        const { olderThanDays } = await request.json();
         if (!olderThanDays || olderThanDays < 1) {
-            return NextResponse.json(
-                { error: 'olderThanDays deve ser >= 1' },
-                { status: 400 }
-            );
+            return fail(E.VALIDATION_ERROR, 'olderThanDays deve ser >= 1', { status: 400, field: 'olderThanDays' });
         }
 
         const cutoffDate = new Date();
@@ -67,15 +69,15 @@ export async function DELETE(request: NextRequest) {
             where: { createdAt: { lt: cutoffDate } },
         });
 
-        return NextResponse.json({
+        return ok({
             deleted: result.count,
             message: `${result.count} logs removidos (anteriores a ${cutoffDate.toISOString()})`,
         });
     } catch (error) {
-        console.error('Erro ao limpar logs:', error);
-        return NextResponse.json(
-            { error: 'Falha ao limpar logs' },
-            { status: 500 }
-        );
+        const message = error instanceof Error ? error.message : 'Falha ao limpar logs';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
+
+export const GET = withRequestContext(getHandler);
+export const DELETE = withRequestContext(deleteHandler);

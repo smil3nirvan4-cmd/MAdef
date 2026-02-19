@@ -1,6 +1,7 @@
-﻿import logger from '@/lib/logger';
+import logger from '@/lib/logger';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import { whatsappCircuitBreaker } from '@/lib/whatsapp/circuit-breaker';
 import { extractProviderMessageId } from '@/lib/whatsapp/provider-message-id';
 
 type DeliveryStatus = 'SENT_CONFIRMED' | 'UNCONFIRMED' | 'FAILED';
@@ -11,6 +12,9 @@ interface DocumentSendResult {
     bridgeAccepted?: boolean;
     messageId?: string;
     error?: string;
+    errorCode?: string;
+    statusCode?: number;
+    circuitState?: unknown;
     recommendedCommand: string;
     e164?: string;
     jid?: string;
@@ -30,6 +34,7 @@ export async function sendDocumentViaBridge(params: {
             success: false,
             deliveryStatus: 'FAILED',
             error: normalized.error || 'Telefone invalido',
+            errorCode: 'INVALID_PHONE',
             recommendedCommand: bridgeConfig.recommendedCommand,
         };
     }
@@ -39,6 +44,7 @@ export async function sendDocumentViaBridge(params: {
             success: false,
             deliveryStatus: 'FAILED',
             error: 'WhatsApp requer numero de celular',
+            errorCode: 'INVALID_PHONE',
             recommendedCommand: bridgeConfig.recommendedCommand,
             e164: normalized.e164,
             jid: normalized.jid,
@@ -46,6 +52,13 @@ export async function sendDocumentViaBridge(params: {
     }
 
     try {
+        if (whatsappCircuitBreaker.isOpen()) {
+            throw Object.assign(
+                new Error('WhatsApp circuit breaker is OPEN - bridge calls are suspended'),
+                { code: 'CIRCUIT_OPEN', circuitState: whatsappCircuitBreaker.toJSON() }
+            );
+        }
+
         const response = await fetch(`${bridgeConfig.bridgeUrl}/send-document`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -63,11 +76,17 @@ export async function sendDocumentViaBridge(params: {
         const messageId = extractProviderMessageId(payload);
 
         if (!response.ok || payload?.success === false) {
+            if (response.status >= 500) {
+                whatsappCircuitBreaker.recordFailure(response.status);
+            }
+
             return {
                 success: false,
                 deliveryStatus: 'FAILED',
                 bridgeAccepted: false,
                 error: payload?.error || `Bridge error HTTP ${response.status}`,
+                errorCode: payload?.code || (response.status >= 500 ? 'BRIDGE_UNAVAILABLE' : 'PROVIDER_ERROR'),
+                statusCode: response.status,
                 recommendedCommand: bridgeConfig.recommendedCommand,
                 e164: normalized.e164,
                 jid: normalized.jid,
@@ -75,6 +94,7 @@ export async function sendDocumentViaBridge(params: {
         }
 
         if (!messageId) {
+            whatsappCircuitBreaker.recordFailure(503);
             const error = 'Envio sem confirmacao: bridge retornou sucesso sem messageId.';
 
             await logger.warning('whatsapp_document_unconfirmed', error, {
@@ -91,11 +111,14 @@ export async function sendDocumentViaBridge(params: {
                 deliveryStatus: 'UNCONFIRMED',
                 bridgeAccepted: true,
                 error,
+                errorCode: 'UNCONFIRMED_SEND',
                 recommendedCommand: bridgeConfig.recommendedCommand,
                 e164: normalized.e164,
                 jid: normalized.jid,
             };
         }
+
+        whatsappCircuitBreaker.recordSuccess();
 
         return {
             success: true,
@@ -107,10 +130,17 @@ export async function sendDocumentViaBridge(params: {
             jid: normalized.jid,
         };
     } catch (error: any) {
+        const errorCode = String(error?.code || '');
+        if (errorCode !== 'CIRCUIT_OPEN') {
+            whatsappCircuitBreaker.recordFailure();
+        }
+
         return {
             success: false,
             deliveryStatus: 'FAILED',
             error: error?.message || 'Falha ao enviar documento',
+            errorCode: errorCode || 'INTERNAL_ERROR',
+            circuitState: error?.circuitState,
             recommendedCommand: bridgeConfig.recommendedCommand,
             e164: normalized.e164,
             jid: normalized.jid,

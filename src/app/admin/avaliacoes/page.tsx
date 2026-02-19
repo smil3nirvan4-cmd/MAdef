@@ -1,235 +1,282 @@
-﻿'use client';
+'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ExternalLink, FileText, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import {
-    Search, RefreshCw, Send, Eye, Trash2, MessageCircle,
-    FileText, MoreHorizontal, CheckCircle, XCircle, Filter, Plus
-} from 'lucide-react';
+import { DataTable } from '@/components/admin/data-table/DataTable';
+import type { ColumnDef } from '@/components/admin/data-table/types';
+import { FilterBar, type FilterField } from '@/components/admin/data-table/FilterBar';
+import { useDataTable } from '@/hooks/use-data-table';
+import { useCapabilities } from '@/hooks/use-capabilities';
+import type { ApiPagination } from '@/lib/api/types';
 
-interface Avaliacao {
+interface AvaliacaoRow {
     id: string;
-    paciente: { id: string; nome: string; telefone: string; prioridade?: string; };
     status: string;
-    nivelSugerido?: string;
-    valorProposto?: string;
+    nivelSugerido: string | null;
+    valorProposto: string | null;
     whatsappEnviado: boolean;
-    whatsappErro?: string;
+    whatsappErro: string | null;
     createdAt: string;
+    paciente: {
+        id: string;
+        nome: string | null;
+        telefone: string;
+        tipo?: string | null;
+        cidade?: string | null;
+    };
 }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'purple' }> = {
-    PENDENTE: { label: 'Pendente', variant: 'warning' },
-    ENVIADA: { label: 'Enviada', variant: 'info' },
-    EM_ANALISE: { label: 'Em Analise', variant: 'info' },
-    PROPOSTA_ENVIADA: { label: 'Proposta Enviada', variant: 'purple' },
-    CONTRATO_ENVIADO: { label: 'Contrato Enviado', variant: 'purple' },
-    APROVADA: { label: 'Aprovada', variant: 'success' },
-    REJEITADA: { label: 'Rejeitada', variant: 'error' },
-    CONCLUIDA: { label: 'Concluida', variant: 'success' },
+interface AvaliacaoResponse {
+    success: boolean;
+    data?: AvaliacaoRow[];
+    pagination?: ApiPagination;
+    error?: { message?: string };
+}
+
+const STATUS_BADGE: Record<string, BadgeVariant> = {
+    PENDENTE: 'warning',
+    ENVIADA: 'info',
+    EM_ANALISE: 'info',
+    PROPOSTA_ENVIADA: 'purple',
+    CONTRATO_ENVIADO: 'purple',
+    APROVADA: 'success',
+    REJEITADA: 'error',
+    CONCLUIDA: 'success',
 };
 
-export default function AvaliacoesPage() {
-    const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState('ALL');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [openMenu, setOpenMenu] = useState<string | null>(null);
+const FILTER_FIELDS: FilterField[] = [
+    { key: 'search', label: 'Search', type: 'text', placeholder: 'Patient name or phone...' },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+            { label: 'PENDENTE', value: 'PENDENTE' },
+            { label: 'EM_ANALISE', value: 'EM_ANALISE' },
+            { label: 'PROPOSTA_ENVIADA', value: 'PROPOSTA_ENVIADA' },
+            { label: 'CONTRATO_ENVIADO', value: 'CONTRATO_ENVIADO' },
+            { label: 'APROVADA', value: 'APROVADA' },
+            { label: 'REJEITADA', value: 'REJEITADA' },
+            { label: 'CONCLUIDA', value: 'CONCLUIDA' },
+        ],
+    },
+    {
+        key: 'tipo',
+        label: 'Tipo',
+        type: 'select',
+        options: [
+            { label: 'HOME_CARE', value: 'HOME_CARE' },
+            { label: 'HOSPITAL', value: 'HOSPITAL' },
+        ],
+    },
+    { key: 'created', label: 'Created', type: 'date-range' },
+];
 
-    const fetchAvaliacoes = useCallback(async () => {
+function buildQueryString(args: {
+    page: number;
+    pageSize: number;
+    sort: { field: string; direction: 'asc' | 'desc' };
+    filters: Record<string, string>;
+}): string {
+    const params = new URLSearchParams();
+    params.set('page', String(args.page));
+    params.set('pageSize', String(args.pageSize));
+    params.set('sort', `${args.sort.field}:${args.sort.direction}`);
+
+    const search = args.filters.search?.trim();
+    const status = args.filters.status?.trim();
+    const tipo = args.filters.tipo?.trim();
+    const createdFrom = args.filters.createdFrom?.trim();
+    const createdTo = args.filters.createdTo?.trim();
+
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    if (tipo) params.set('tipo', tipo);
+    if (createdFrom) params.set('createdFrom', createdFrom);
+    if (createdTo) params.set('createdTo', createdTo);
+
+    return params.toString();
+}
+
+function AvaliacoesPageContent() {
+    const { hasCapability } = useCapabilities();
+    const table = useDataTable({
+        defaultPageSize: 20,
+        defaultSort: { field: 'createdAt', direction: 'desc' },
+        syncWithUrl: true,
+    });
+
+    const [rows, setRows] = useState<AvaliacaoRow[]>([]);
+    const [pagination, setPagination] = useState<ApiPagination | undefined>(undefined);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const queryString = useMemo(() => (
+        buildQueryString({
+            page: table.page,
+            pageSize: table.pageSize,
+            sort: table.sort,
+            filters: table.filters,
+        })
+    ), [table.page, table.pageSize, table.sort, table.filters]);
+
+    const fetchRows = useCallback(async () => {
+        setLoading(true);
+        setError(null);
         try {
-            setLoading(true);
-            const res = await fetch('/api/admin/avaliacoes');
-            if (res.ok) {
-                const data = await res.json();
-                setAvaliacoes(data.avaliacoes || []);
+            const response = await fetch(`/api/admin/avaliacoes?${queryString}`, { cache: 'no-store' });
+            const payload: AvaliacaoResponse = await response.json().catch(() => ({ success: false }));
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error?.message || 'Failed to load avaliacoes');
             }
+
+            setRows(payload.data || []);
+            setPagination(payload.pagination);
+        } catch (fetchError) {
+            setRows([]);
+            setPagination(undefined);
+            setError(fetchError instanceof Error ? fetchError.message : 'Failed to load avaliacoes');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [queryString]);
 
-    useEffect(() => { fetchAvaliacoes(); }, [fetchAvaliacoes]);
+    useEffect(() => {
+        fetchRows();
+    }, [fetchRows]);
 
-    const handleAction = async (id: string, action: string, extra?: any) => {
-        setActionLoading(id);
-        setOpenMenu(null);
-        try {
-            if (action === 'whatsapp') {
-                await fetch('/api/admin/avaliacoes/reenviar-whatsapp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ avaliacaoId: id }),
-                });
-            } else if (action === 'enviar_proposta') {
-                await fetch(`/api/admin/avaliacoes/${id}/send-proposta`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-            } else if (action === 'enviar_contrato') {
-                await fetch(`/api/admin/avaliacoes/${id}/send-contrato`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-            } else if (action === 'delete') {
-                if (confirm('Tem certeza que deseja excluir esta avaliacao?')) {
-                    await fetch(`/api/admin/avaliacoes/${id}`, { method: 'DELETE' });
-                }
-            } else {
-                await fetch(`/api/admin/avaliacoes/${id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, ...extra }),
-                });
-            }
-            fetchAvaliacoes();
-        } finally {
-            setActionLoading(null);
-        }
-    };
+    const columns = useMemo<ColumnDef<AvaliacaoRow>[]>(() => ([
+        {
+            key: 'paciente',
+            header: 'Paciente',
+            accessor: (row) => (
+                <div className="space-y-1">
+                    <p className="font-medium text-gray-900">{row.paciente?.nome || 'Sem nome'}</p>
+                    <p className="text-xs text-gray-500">{row.paciente?.telefone || '-'}</p>
+                </div>
+            ),
+        },
+        {
+            key: 'tipo',
+            header: 'Tipo',
+            accessor: (row) => row.paciente?.tipo || '-',
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            sortable: true,
+            accessor: (row) => (
+                <Badge variant={STATUS_BADGE[row.status] || 'default'}>{row.status}</Badge>
+            ),
+        },
+        {
+            key: 'whatsapp',
+            header: 'WhatsApp',
+            accessor: (row) => (
+                row.whatsappEnviado
+                    ? <Badge variant="success">sent</Badge>
+                    : row.whatsappErro
+                        ? <Badge variant="error">error</Badge>
+                        : <Badge variant="warning">pending</Badge>
+            ),
+        },
+        {
+            key: 'createdAt',
+            header: 'Data',
+            sortable: true,
+            accessor: (row) => new Date(row.createdAt).toLocaleString('pt-BR'),
+        },
+        {
+            key: 'acoes',
+            header: 'Acoes',
+            width: '290px',
+            accessor: (row) => {
+                const canSendProposta = hasCapability('SEND_PROPOSTA');
+                const canSendContrato = hasCapability('SEND_CONTRATO');
 
-    const filteredAvaliacoes = avaliacoes.filter((a) => {
-        const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
-        const matchesSearch = a.paciente?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || a.paciente?.telefone?.includes(searchTerm);
-        return matchesStatus && matchesSearch;
-    });
+                return (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Link href={`/admin/avaliacoes/${row.id}`} className="text-sm text-blue-600 hover:underline">
+                            Details
+                        </Link>
+                        {canSendProposta ? (
+                            <Link href={`/admin/avaliacoes/${row.id}`}>
+                                <Button size="sm" variant="outline">
+                                    <FileText className="h-3 w-3" />
+                                    Configurar proposta
+                                </Button>
+                            </Link>
+                        ) : null}
+                        {canSendContrato ? (
+                            <Link href={`/admin/avaliacoes/${row.id}`}>
+                                <Button size="sm" variant="outline">
+                                    <FileText className="h-3 w-3" />
+                                    Configurar contrato
+                                </Button>
+                            </Link>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+    ]), [hasCapability]);
 
     return (
-        <div className="p-6 lg:p-8">
+        <div className="p-6 lg:p-8 space-y-4">
             <PageHeader
-                title="Avaliacoes de Pacientes"
-                description="Gerencie avaliacoes, propostas e contratos."
-                breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'Avaliacoes' }]}
-                actions={
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={fetchAvaliacoes} isLoading={loading}><RefreshCw className="w-4 h-4" /></Button>
-                        <Link href="/admin/avaliacoes/nova"><Button><Plus className="w-4 h-4" />Nova</Button></Link>
+                title="Avaliacoes"
+                description="Track clinical evaluations and enqueue proposta/contrato deliveries."
+                breadcrumbs={[
+                    { label: 'Dashboard', href: '/admin/dashboard' },
+                    { label: 'Avaliacoes' },
+                ]}
+                actions={(
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={fetchRows} isLoading={loading}>
+                            <RefreshCw className="h-4 w-4" />
+                            Refresh
+                        </Button>
+                        <Link href="/admin/avaliacoes/nova">
+                            <Button size="sm">
+                                New
+                                <ExternalLink className="h-4 w-4" />
+                            </Button>
+                        </Link>
                     </div>
-                }
+                )}
             />
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-                {[
-                    { label: 'Pendentes', value: avaliacoes.filter(a => a.status === 'PENDENTE').length, color: 'yellow' },
-                    { label: 'Em Analise', value: avaliacoes.filter(a => a.status === 'EM_ANALISE').length, color: 'blue' },
-                    { label: 'Propostas', value: avaliacoes.filter(a => a.status === 'PROPOSTA_ENVIADA').length, color: 'purple' },
-                    { label: 'Contratos', value: avaliacoes.filter(a => a.status === 'CONTRATO_ENVIADO').length, color: 'indigo' },
-                    { label: 'Concluidas', value: avaliacoes.filter(a => a.status === 'CONCLUIDA').length, color: 'green' },
-                ].map((stat) => (
-                    <Card key={stat.label} className="!p-4">
-                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                        <p className="text-xs text-gray-500">{stat.label}</p>
-                    </Card>
-                ))}
-            </div>
+            <FilterBar
+                fields={FILTER_FIELDS}
+                values={table.filters}
+                onChange={table.setFilter}
+                onClear={table.clearAllFilters}
+            />
 
-            {/* Filters */}
-            <Card className="mb-6 !p-4">
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="w-64">
-                        <Input placeholder="Buscar paciente..." icon={Search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-gray-400" />
-                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                            <option value="ALL">Todos</option>
-                            {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                        </select>
-                    </div>
-                    <span className="ml-auto text-sm text-gray-500"><strong>{filteredAvaliacoes.length}</strong> avaliacoes</span>
-                </div>
-            </Card>
-
-            {/* Table */}
-            <Card noPadding>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Paciente</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Nivel / Valor</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">WhatsApp</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
-                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Acoes</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {loading ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Carregando...</td></tr> :
-                                filteredAvaliacoes.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Nenhuma avaliacao</td></tr> :
-                                    filteredAvaliacoes.map((av) => {
-                                        const st = STATUS_CONFIG[av.status] || { label: av.status, variant: 'default' };
-                                        return (
-                                            <tr key={av.id} className="hover:bg-gray-50 group">
-                                                <td className="px-4 py-3">
-                                                    <div className="font-medium text-gray-900">{av.paciente?.nome || 'N/A'}</div>
-                                                    <div className="text-sm text-gray-500">{av.paciente?.telefone}</div>
-                                                </td>
-                                                <td className="px-4 py-3"><Badge variant={st.variant}>{st.label}</Badge></td>
-                                                <td className="px-4 py-3">
-                                                    <div className="text-sm font-medium">{av.nivelSugerido || '-'}</div>
-                                                    <div className="text-sm text-gray-500">{av.valorProposto ? `R$ ${av.valorProposto}` : '-'}</div>
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    {av.whatsappEnviado ? <Badge variant="success">Enviado</Badge> : av.whatsappErro ? <Badge variant="error">Erro</Badge> : <Badge variant="warning">Pendente</Badge>}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500">{new Date(av.createdAt).toLocaleDateString('pt-BR')}</td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        {/* Quick Actions */}
-                                                        <Button size="sm" variant="ghost" onClick={() => handleAction(av.id, 'whatsapp')} isLoading={actionLoading === av.id} title="Enviar WhatsApp">
-                                                            <MessageCircle className="w-4 h-4 text-green-600" />
-                                                        </Button>
-                                                        <Link href={`/admin/avaliacoes/${av.id}`}>
-                                                            <Button size="sm" variant="ghost" title="Ver Detalhes"><Eye className="w-4 h-4 text-blue-600" /></Button>
-                                                        </Link>
-
-                                                        {/* Dropdown Menu */}
-                                                        <div className="relative">
-                                                            <Button size="sm" variant="ghost" onClick={() => setOpenMenu(openMenu === av.id ? null : av.id)}>
-                                                                <MoreHorizontal className="w-4 h-4" />
-                                                            </Button>
-                                                            {openMenu === av.id && (
-                                                                <div className="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48">
-                                                                    <button onClick={() => handleAction(av.id, 'enviar_proposta')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <FileText className="w-4 h-4 text-purple-600" /> Enviar Proposta
-                                                                    </button>
-                                                                    <button onClick={() => handleAction(av.id, 'enviar_contrato')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <FileText className="w-4 h-4 text-indigo-600" /> Enviar Contrato
-                                                                    </button>
-                                                                    <button onClick={() => handleAction(av.id, 'aprovar')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <CheckCircle className="w-4 h-4 text-green-600" /> Aprovar
-                                                                    </button>
-                                                                    <button onClick={() => handleAction(av.id, 'rejeitar')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <XCircle className="w-4 h-4 text-red-600" /> Rejeitar
-                                                                    </button>
-                                                                    <hr className="my-1" />
-                                                                    <button onClick={() => handleAction(av.id, 'delete')} className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2">
-                                                                        <Trash2 className="w-4 h-4" /> Excluir
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
-
-            {/* Click outside to close menu */}
-            {openMenu && <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />}
+            <DataTable
+                tableId="admin-avaliacoes"
+                columns={columns}
+                data={rows}
+                pagination={pagination}
+                loading={loading}
+                error={error}
+                emptyMessage="No avaliacao found."
+                onPageChange={table.setPage}
+                onSort={table.setSort}
+                caption={`Rows: ${pagination?.total || 0}`}
+            />
         </div>
     );
 }
 
+export default function AvaliacoesPage() {
+    return (
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-gray-500">Loading avaliacoes...</div>}>
+            <AvaliacoesPageContent />
+        </Suspense>
+    );
+}

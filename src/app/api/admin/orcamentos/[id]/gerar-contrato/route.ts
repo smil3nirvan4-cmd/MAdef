@@ -1,13 +1,27 @@
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { buildContratoTemplate } from '@/lib/documents/contrato-template';
-import { gerarContratoPDF } from '@/lib/documents/pdf-generator';
+import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
+import { generateContratoPDF } from '@/lib/documents/pdf-generator';
+import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 
 export async function POST(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const body = await request.json().catch(() => ({}));
+        let sendOptions;
+        try {
+            sendOptions = parseOrcamentoSendOptions(body);
+        } catch (error) {
+            return NextResponse.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Opcoes de preview invalidas',
+            }, { status: 400 });
+        }
+
         const { id } = await params;
         const orcamento = await prisma.orcamento.findUnique({
             where: { id },
@@ -15,24 +29,29 @@ export async function POST(
         });
 
         if (!orcamento) {
-            return NextResponse.json({ success: false, error: 'Orçamento não encontrado' }, { status: 404 });
+            return NextResponse.json({ success: false, error: 'Orcamento nao encontrado' }, { status: 404 });
         }
 
-        const template = buildContratoTemplate({
-            orcamentoId: orcamento.id,
-            pacienteNome: orcamento.paciente?.nome || 'Paciente',
-            pacienteTelefone: orcamento.paciente?.telefone || '',
-            pacienteCidade: orcamento.paciente?.cidade,
-            pacienteBairro: orcamento.paciente?.bairro,
-            tipoCuidado: orcamento.paciente?.tipo,
-            valorFinal: orcamento.valorFinal,
+        const avaliacao = await prisma.avaliacao.findFirst({
+            where: { pacienteId: orcamento.pacienteId },
+            include: { paciente: true },
+            orderBy: { createdAt: 'desc' },
         });
 
-        const buffer = gerarContratoPDF(template.lines);
+        const pdfData = buildOrcamentoPDFData(
+            avaliacao as unknown as Record<string, unknown> | null,
+            orcamento as unknown as Record<string, unknown>,
+            'CONTRATO',
+            sendOptions,
+        );
+        const buffer = await generateContratoPDF(pdfData);
+        const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
+        const fileName = `Contrato_${safeReference}_MaosAmigas.pdf`;
+
         return new NextResponse(new Uint8Array(buffer), {
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${template.fileName}"`,
+                'Content-Disposition': `attachment; filename="${fileName}"`,
             },
         });
     } catch (error) {
@@ -40,3 +59,4 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Erro ao gerar contrato' }, { status: 500 });
     }
 }
+

@@ -47,7 +47,19 @@ const PORT = Number(process.env.WA_BRIDGE_PORT || 4000);
 const AUTH_DIR = path.resolve(__dirname, 'auth_info');
 const SESSION_FILE = path.resolve(process.cwd(), process.env.WA_SESSION_FILE || '.wa-session.json');
 const STATE_FILE = path.resolve(process.cwd(), process.env.WA_STATE_FILE || '.wa-state.json');
-const WEBHOOK_URL = process.env.WA_WEBHOOK_URL || 'http://127.0.0.1:3000/api/whatsapp/webhook';
+function resolveWebhookUrl() {
+    if (process.env.WA_WEBHOOK_URL) return process.env.WA_WEBHOOK_URL;
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_URL || '';
+    if (!appUrl) return '';
+    const base = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
+    const pathValue = (process.env.WA_WEBHOOK_PATH || '/api/whatsapp/webhook').replace(/^\/+/, '');
+    try {
+        return new URL(pathValue, base).toString();
+    } catch {
+        return '';
+    }
+}
+const WEBHOOK_URL = resolveWebhookUrl();
 const WEBHOOK_SECRET = process.env.WHATSAPP_WEBHOOK_SECRET || process.env.WA_WEBHOOK_SECRET || '';
 const RECONNECT_MAX_ATTEMPTS = Number(process.env.WA_RECONNECT_MAX_ATTEMPTS || 10);
 const RECONNECT_BASE_DELAY_MS = Number(process.env.WA_RECONNECT_BASE_DELAY_MS || 5000);
@@ -213,15 +225,23 @@ function scheduleReconnect() {
 }
 
 async function sendToWebhook(data) {
+    if (!WEBHOOK_URL) {
+        return;
+    }
     try {
         const body = JSON.stringify(data);
-        const headers = { 'Content-Type': 'application/json' };
+        const timestamp = String(Math.floor(Date.now() / 1000));
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-webhook-timestamp': timestamp,
+        };
 
         if (WEBHOOK_SECRET) {
-            headers['x-webhook-signature'] = crypto
+            const signature = crypto
                 .createHmac('sha256', WEBHOOK_SECRET)
-                .update(body)
+                .update(`${timestamp}.${body}`)
                 .digest('hex');
+            headers['x-webhook-signature'] = `sha256=${signature}`;
         }
 
         const startedAt = Date.now();
@@ -607,14 +627,28 @@ function resolveTargetJid(target) {
 
 app.post('/send', async (req, res) => {
     if (!sock || connectionStatus !== 'CONNECTED') {
-        return res.status(503).json({ error: 'WhatsApp is not connected.' });
+        return res.status(503).json({
+            error: 'WhatsApp is not connected.',
+            code: 'WHATSAPP_NOT_CONNECTED',
+            context: {
+                connected: connectionStatus === 'CONNECTED',
+                status: connectionStatus,
+            },
+        });
     }
 
     const { phone, message, to } = req.body || {};
     const target = phone || to;
 
     if (!target || !message) {
-        return res.status(400).json({ error: 'Invalid payload.' });
+        return res.status(400).json({
+            error: 'Invalid payload.',
+            code: 'SEND_PAYLOAD_INVALID',
+            context: {
+                hasTarget: Boolean(target),
+                hasMessage: Boolean(message),
+            },
+        });
     }
 
     try {
@@ -632,19 +666,41 @@ app.post('/send', async (req, res) => {
         });
     } catch (error) {
         registerBridgeError(error);
-        return res.status(500).json({ error: error.message || 'Failed to send message.' });
+        return res.status(500).json({
+            error: error.message || 'Failed to send message.',
+            code: 'SEND_MESSAGE_FAILED',
+            context: {
+                connected: connectionStatus === 'CONNECTED',
+                status: connectionStatus,
+            },
+        });
     }
 });
 
 app.post('/send-document', async (req, res) => {
     if (!sock || connectionStatus !== 'CONNECTED') {
-        return res.status(503).json({ error: 'WhatsApp is not connected.' });
+        return res.status(503).json({
+            error: 'WhatsApp is not connected.',
+            code: 'WHATSAPP_NOT_CONNECTED',
+            context: {
+                connected: connectionStatus === 'CONNECTED',
+                status: connectionStatus,
+            },
+        });
     }
 
     const { to, phone, document, fileName, caption, mimetype } = req.body || {};
     const target = to || phone;
     if (!target || !document || !fileName) {
-        return res.status(400).json({ error: 'Invalid payload.' });
+        return res.status(400).json({
+            error: 'Invalid payload.',
+            code: 'SEND_DOCUMENT_PAYLOAD_INVALID',
+            context: {
+                hasTarget: Boolean(target),
+                hasDocument: Boolean(document),
+                hasFileName: Boolean(fileName),
+            },
+        });
     }
 
     try {
@@ -669,7 +725,14 @@ app.post('/send-document', async (req, res) => {
         });
     } catch (error) {
         registerBridgeError(error);
-        return res.status(500).json({ error: error.message || 'Failed to send document.' });
+        return res.status(500).json({
+            error: error.message || 'Failed to send document.',
+            code: 'SEND_DOCUMENT_FAILED',
+            context: {
+                connected: connectionStatus === 'CONNECTED',
+                status: connectionStatus,
+            },
+        });
     }
 });
 
@@ -680,6 +743,9 @@ app.listen(PORT, () => {
 
     if (!WEBHOOK_SECRET) {
         console.warn('[bridge] WHATSAPP_WEBHOOK_SECRET not configured. Webhook signature is disabled.');
+    }
+    if (!WEBHOOK_URL) {
+        console.warn('[bridge] WA_WEBHOOK_URL/APP_URL not configured. Webhook delivery is disabled.');
     }
 
     if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {

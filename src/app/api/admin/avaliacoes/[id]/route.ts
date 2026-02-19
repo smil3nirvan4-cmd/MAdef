@@ -1,12 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/logger';
+import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
+import { E, fail } from '@/lib/api/response';
+
+function isMissingColumnError(error: unknown): boolean {
+    return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === 'P2022');
+}
+
+function resolveMissingColumn(error: unknown): { table: string; column: string } {
+    const message = String((error as Error | undefined)?.message || '');
+    const match = message.match(/column [`"]?(?:\w+\.)?([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)[`"]?/i);
+    if (!match) {
+        return { table: 'Orcamento', column: 'auditHash' };
+    }
+    return {
+        table: match[1] || 'Orcamento',
+        column: match[2] || 'auditHash',
+    };
+}
 
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
+        const schemaCapabilities = await getDbSchemaCapabilities();
+        if (!schemaCapabilities.dbSchemaOk) {
+            await logger.warning('db_schema_drift', 'Schema desatualizado ao carregar detalhes da avaliacao', {
+                table: 'Orcamento',
+                column: 'auditHash',
+                missingColumns: schemaCapabilities.missingColumns,
+                avaliacaoId: id,
+            });
+            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
+                status: 503,
+                details: {
+                    action: 'db_schema_drift',
+                    table: 'Orcamento',
+                    column: 'auditHash',
+                    missingColumns: schemaCapabilities.missingColumns,
+                },
+            });
+        }
+
         const avaliacao = await prisma.avaliacao.findUnique({
             where: { id },
             include: {
@@ -14,18 +52,34 @@ export async function GET(
                     include: {
                         mensagens: { orderBy: { timestamp: 'desc' }, take: 50 },
                         orcamentos: { orderBy: { createdAt: 'desc' }, take: 5 },
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
 
         if (!avaliacao) {
-            return NextResponse.json({ error: 'Avaliação não encontrada' }, { status: 404 });
+            return NextResponse.json({ error: 'Avaliacao nao encontrada' }, { status: 404 });
         }
 
         return NextResponse.json({ avaliacao });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro ao buscar avaliação' }, { status: 500 });
+        if (isMissingColumnError(error)) {
+            const resolved = resolveMissingColumn(error);
+            await logger.warning('db_schema_drift', 'P2022 ao carregar detalhes da avaliacao', {
+                table: resolved.table,
+                column: resolved.column,
+            });
+            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
+                status: 503,
+                details: {
+                    action: 'db_schema_drift',
+                    table: resolved.table,
+                    column: resolved.column,
+                },
+            });
+        }
+
+        return NextResponse.json({ error: 'Erro ao buscar avaliacao' }, { status: 500 });
     }
 }
 
@@ -73,24 +127,24 @@ export async function PATCH(
         const avaliacao = await prisma.avaliacao.update({
             where: { id },
             data: updateData,
-            include: { paciente: true }
+            include: { paciente: true },
         });
 
         return NextResponse.json({ success: true, avaliacao });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro ao atualizar avaliação' }, { status: 500 });
+    } catch {
+        return NextResponse.json({ error: 'Erro ao atualizar avaliacao' }, { status: 500 });
     }
 }
 
 export async function DELETE(
-    request: NextRequest,
+    _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
         await prisma.avaliacao.delete({ where: { id } });
         return NextResponse.json({ success: true });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro ao excluir avaliação' }, { status: 500 });
+    } catch {
+        return NextResponse.json({ error: 'Erro ao excluir avaliacao' }, { status: 500 });
     }
 }

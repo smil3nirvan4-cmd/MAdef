@@ -1,5 +1,18 @@
 {
   "status": "CONNECTED",
+  "connected": true,
+  "reconnecting": false,
   "qrCode": null,
-  "connectedAt": "2026-01-26T22:25:24.497Z"
+  "connectedAt": "2026-02-19T01:22:38.794Z",
+  "phone": "5514981229679",
+  "retryCount": 0,
+  "lastStatusCode": null,
+  "lastError": null,
+  "pairingCode": null,
+  "pairingCodeIssuedAt": null,
+  "isConnecting": false,
+  "lastIncomingMessageAt": null,
+  "lastOutgoingMessageAt": null,
+  "errorCount24h": 0,
+  "webhookLatencyAvgMs": 0
 }

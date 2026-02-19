@@ -1,94 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok, paginated } from '@/lib/api/response';
+import { parsePagination, parseSort } from '@/lib/api/query-params';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(request: NextRequest) {
+const SORTABLE_FIELDS = ['createdAt', 'nome', 'status', 'cidade'] as const;
+
+function parseFilters(searchParams: URLSearchParams) {
+    return {
+        search: String(searchParams.get('search') || '').trim(),
+        status: String(searchParams.get('status') || '').trim(),
+        tipo: String(searchParams.get('tipo') || '').trim(),
+        cidade: String(searchParams.get('cidade') || '').trim(),
+    };
+}
+
+const getHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('VIEW_PACIENTES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
-        const { searchParams } = new URL(request.url);
-        const search = searchParams.get('search') || '';
-        const status = searchParams.get('status');
-        const tipo = searchParams.get('tipo');
+        const url = new URL(request.url);
+        const { page, pageSize } = parsePagination(url);
+        const { field, direction } = parseSort(url, [...SORTABLE_FIELDS], 'createdAt', 'desc');
+        const { search, status, tipo, cidade } = parseFilters(url.searchParams);
 
         const where: any = {};
+        if (status && status !== 'ALL') where.status = status;
+        if (tipo && tipo !== 'ALL') where.tipo = tipo;
+        if (cidade) where.cidade = { contains: cidade };
 
         if (search) {
             where.OR = [
                 { nome: { contains: search } },
-                { telefone: { contains: search } },
+                { telefone: { contains: search.replace(/\D/g, '') || search } },
                 { cidade: { contains: search } },
+                { bairro: { contains: search } },
             ];
         }
 
-        if (status && status !== 'ALL') {
-            where.status = status;
-        }
+        const [pacientes, total, totalGeral, totalAtivos, totalLeads, totalAvaliacao] = await Promise.all([
+            prisma.paciente.findMany({
+                where,
+                include: {
+                    _count: {
+                        select: {
+                            avaliacoes: true,
+                            orcamentos: true,
+                            alocacoes: true,
+                            mensagens: true,
+                        },
+                    },
+                },
+                orderBy: [{ [field]: direction }, { createdAt: 'desc' }],
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+            }),
+            prisma.paciente.count({ where }),
+            prisma.paciente.count(),
+            prisma.paciente.count({ where: { status: 'ATIVO' } }),
+            prisma.paciente.count({ where: { status: 'LEAD' } }),
+            prisma.paciente.count({ where: { status: 'AVALIACAO' } }),
+        ]);
 
-        if (tipo && tipo !== 'ALL') {
-            where.tipo = tipo;
-        }
-
-        const pacientes = await prisma.paciente.findMany({
-            where,
-            include: {
-                _count: {
-                    select: {
-                        avaliacoes: true,
-                        orcamentos: true,
-                        alocacoes: true,
-                        mensagens: true,
-                    }
-                }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 200
-        });
-
-        // Stats
-        const stats = {
-            total: await prisma.paciente.count(),
-            ativos: await prisma.paciente.count({ where: { status: 'ATIVO' } }),
-            leads: await prisma.paciente.count({ where: { status: 'LEAD' } }),
-            avaliacao: await prisma.paciente.count({ where: { status: 'AVALIACAO' } }),
-        };
-
-        return NextResponse.json({ pacientes, stats });
+        return paginated(
+            pacientes,
+            { page, pageSize, total },
+            200,
+            {
+                stats: {
+                    total: totalGeral,
+                    ativos: totalAtivos,
+                    leads: totalLeads,
+                    avaliacao: totalAvaliacao,
+                },
+            }
+        );
     } catch (error) {
-        console.error('Error fetching pacientes:', error);
-        return NextResponse.json({ error: 'Erro ao buscar pacientes' }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Erro ao buscar pacientes';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
 
-export async function POST(request: NextRequest) {
+const postHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('MANAGE_PACIENTES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
-        const { nome, telefone, cidade, bairro, tipo, hospital, quarto, prioridade } = body;
-
+        const telefone = String(body?.telefone || '').trim();
         if (!telefone) {
-            return NextResponse.json({ error: 'Telefone é obrigatório' }, { status: 400 });
+            return fail(E.MISSING_FIELD, 'Telefone e obrigatorio', { status: 400, field: 'telefone' });
         }
 
-        // Check if already exists
         const existing = await prisma.paciente.findUnique({ where: { telefone } });
         if (existing) {
-            return NextResponse.json({ error: 'Paciente já cadastrado com este telefone' }, { status: 400 });
+            return fail(E.CONFLICT, 'Paciente ja cadastrado com este telefone', { status: 409, field: 'telefone' });
         }
 
         const paciente = await prisma.paciente.create({
             data: {
-                nome,
+                nome: body?.nome || null,
                 telefone,
-                cidade,
-                bairro,
-                tipo: tipo || 'HOME_CARE',
-                hospital,
-                quarto,
-                prioridade: prioridade || 'NORMAL',
-                status: 'LEAD',
-            }
+                cidade: body?.cidade || null,
+                bairro: body?.bairro || null,
+                tipo: body?.tipo || 'HOME_CARE',
+                hospital: body?.hospital || null,
+                quarto: body?.quarto || null,
+                prioridade: body?.prioridade || 'NORMAL',
+                status: body?.status || 'LEAD',
+            },
         });
 
-        return NextResponse.json({ success: true, paciente });
+        return ok({ paciente }, 201);
     } catch (error) {
-        console.error('Error creating paciente:', error);
-        return NextResponse.json({ error: 'Erro ao criar paciente' }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Erro ao criar paciente';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
+
+export const GET = withRequestContext(getHandler);
+export const POST = withRequestContext(postHandler);
+

@@ -1,7 +1,7 @@
+import { assertPublicUrl } from '@/lib/config/public-url';
 import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
-import { MockRepository } from '@/lib/repositories/mock-db';
 
 export async function handleAceiteOrcamento(
     message: WhatsAppMessage,
@@ -37,13 +37,15 @@ export async function handleAceiteOrcamento(
                 ]
             });
 
+            const signingUrl = assertPublicUrl(result.signingUrl, 'Link de assinatura').toString();
+
             await sendMessage(from, `
 ✍️ *Assinatura Requerida*
 
 Para formalizar nossa parceria com segurança jurídica, precisamos que você assine o contrato digital.
 
 🔗 *Clique no link para assinar:*
-${result.signingUrl}
+${signingUrl}
 
 Após assinar no site, digite *JÁ ASSINEI* aqui para liberarmos o início do atendimento.
             `.trim());
@@ -55,10 +57,9 @@ Após assinar no site, digite *JÁ ASSINEI* aqui para liberarmos o início do at
                     ...state.data,
                     statusOrcamento: 'ACEITO',
                     envelopeId: result.envelopeId,
-                    signingUrl: result.signingUrl
+                    signingUrl
                 }
             });
-
         } catch (error) {
             console.error('Erro ao gerar contrato:', error);
             await sendMessage(from, '❌ Erro ao gerar contrato. Nossa equipe entrará em contato manualmente.');

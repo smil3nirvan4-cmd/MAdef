@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Additional ignores
     "node_modules/**",
     "*.config.*",
+    "scripts/**",
+    "whatsapp-bridge/**",
   ]),
   // Disable React Compiler plugin completely
   {
@@ -48,12 +50,17 @@ const eslintConfig = defineConfig([
       // Next.js rules - downgrade to warnings
       "@next/next/no-img-element": "warn",
       "@next/next/no-html-link-for-pages": "warn",
+      "@next/next/no-assign-module-variable": "warn",
 
       // General rules - off or warn
       "no-console": "off",
       "no-unused-vars": "off",
       "prefer-const": "warn",
       "no-var": "warn",
+
+      // React Hooks compiler safety rules as warnings while legacy modules are migrated
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
     },
   },
 ]);

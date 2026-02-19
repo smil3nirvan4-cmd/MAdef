@@ -1,14 +1,28 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+﻿export const runtime = 'nodejs';
+
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { enqueueWhatsAppContratoJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 
 export async function POST(
-    _request: NextRequest,
+    request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const body = await request.json().catch(() => ({}));
+        let sendOptions;
+        try {
+            sendOptions = parseOrcamentoSendOptions(body);
+        } catch (error) {
+            return NextResponse.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Opcoes de envio invalidas',
+            }, { status: 400 });
+        }
+
         const { id } = await params;
         const orcamento = await prisma.orcamento.findUnique({
             where: { id },
@@ -33,11 +47,14 @@ export async function POST(
                 orcamentoId: orcamento.id,
                 pacienteId: orcamento.pacienteId,
                 avaliacaoId: avaliacao?.id,
+                sendOptions,
             },
             metadata: {
                 tipo: 'CONTRATO',
                 orcamentoId: orcamento.id,
+                sendOptions,
             },
+            idempotencyKey: typeof body?.idempotencyKey === 'string' ? body.idempotencyKey : undefined,
         });
 
         const worker = await processWhatsAppOutboxOnce({ limit: 10 });

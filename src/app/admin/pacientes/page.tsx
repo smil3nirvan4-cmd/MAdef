@@ -1,170 +1,262 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
+import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import {
-    Search, RefreshCw, MessageCircle, Eye, Phone, MapPin,
-    Building, Calendar, Heart, MoreHorizontal, UserX
-} from 'lucide-react';
+import { DataTable } from '@/components/admin/data-table/DataTable';
+import type { ColumnDef } from '@/components/admin/data-table/types';
+import { FilterBar, type FilterField } from '@/components/admin/data-table/FilterBar';
+import { useDataTable } from '@/hooks/use-data-table';
+import type { ApiPagination } from '@/lib/api/types';
 
-interface Paciente {
+interface PacienteRow {
     id: string;
-    nome: string;
+    nome: string | null;
     telefone: string;
-    cidade?: string;
-    bairro?: string;
+    cidade: string | null;
+    bairro: string | null;
     tipo: string;
-    hospital?: string;
-    quarto?: string;
     status: string;
     createdAt: string;
-    _count: { alocacoes: number; mensagens: number; };
+    _count?: {
+        avaliacoes?: number;
+        orcamentos?: number;
+        alocacoes?: number;
+        mensagens?: number;
+    };
 }
 
-export default function PacientesPage() {
-    const [pacientes, setPacientes] = useState<Paciente[]>([]);
-    const [stats, setStats] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterTipo, setFilterTipo] = useState('ALL');
-    const [openMenu, setOpenMenu] = useState<string | null>(null);
+interface PacientesResponse {
+    success: boolean;
+    data?: PacienteRow[];
+    pagination?: ApiPagination;
+    stats?: {
+        total: number;
+        ativos: number;
+        leads: number;
+        avaliacao: number;
+    };
+    error?: { message?: string };
+}
 
-    const fetchData = useCallback(async () => {
+const STATUS_BADGE: Record<string, BadgeVariant> = {
+    LEAD: 'warning',
+    AVALIACAO: 'info',
+    ATIVO: 'success',
+    INATIVO: 'default',
+};
+
+const FILTER_FIELDS: FilterField[] = [
+    { key: 'search', label: 'Search', type: 'text', placeholder: 'Name or phone...' },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+            { label: 'LEAD', value: 'LEAD' },
+            { label: 'AVALIACAO', value: 'AVALIACAO' },
+            { label: 'ATIVO', value: 'ATIVO' },
+            { label: 'INATIVO', value: 'INATIVO' },
+        ],
+    },
+    { key: 'cidade', label: 'Cidade', type: 'text', placeholder: 'Filter by city...' },
+];
+
+function buildQueryString(args: {
+    page: number;
+    pageSize: number;
+    sort: { field: string; direction: 'asc' | 'desc' };
+    filters: Record<string, string>;
+}): string {
+    const params = new URLSearchParams();
+    params.set('page', String(args.page));
+    params.set('pageSize', String(args.pageSize));
+    params.set('sort', `${args.sort.field}:${args.sort.direction}`);
+
+    const search = args.filters.search?.trim();
+    const status = args.filters.status?.trim();
+    const cidade = args.filters.cidade?.trim();
+
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    if (cidade) params.set('cidade', cidade);
+
+    return params.toString();
+}
+
+function PacientesPageContent() {
+    const table = useDataTable({
+        defaultPageSize: 20,
+        defaultSort: { field: 'createdAt', direction: 'desc' },
+        syncWithUrl: true,
+    });
+
+    const [rows, setRows] = useState<PacienteRow[]>([]);
+    const [pagination, setPagination] = useState<ApiPagination | undefined>(undefined);
+    const [stats, setStats] = useState<PacientesResponse['stats'] | undefined>(undefined);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const queryString = useMemo(() => (
+        buildQueryString({
+            page: table.page,
+            pageSize: table.pageSize,
+            sort: table.sort,
+            filters: table.filters,
+        })
+    ), [table.page, table.pageSize, table.sort, table.filters]);
+
+    const fetchRows = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
-            const params = new URLSearchParams({
-                status: 'ATIVO', // Only active patients (contract signed)
-                ...(searchTerm && { search: searchTerm }),
-                ...(filterTipo !== 'ALL' && { tipo: filterTipo }),
-            });
-            const res = await fetch(`/api/admin/pacientes?${params}`);
-            if (res.ok) {
-                const data = await res.json();
-                setPacientes(data.pacientes || []);
-                setStats(data.stats);
+            const response = await fetch(`/api/admin/pacientes?${queryString}`, { cache: 'no-store' });
+            const payload: PacientesResponse = await response.json().catch(() => ({ success: false }));
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error?.message || 'Failed to load pacientes');
             }
+
+            setRows(payload.data || []);
+            setPagination(payload.pagination);
+            setStats(payload.stats);
+        } catch (fetchError) {
+            setRows([]);
+            setPagination(undefined);
+            setStats(undefined);
+            setError(fetchError instanceof Error ? fetchError.message : 'Failed to load pacientes');
         } finally {
             setLoading(false);
         }
-    }, [searchTerm, filterTipo]);
+    }, [queryString]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => {
+        fetchRows();
+    }, [fetchRows]);
 
-    const handleAction = async (id: string, action: string) => {
-        setOpenMenu(null);
-        if (action === 'whatsapp') {
-            const p = pacientes.find(x => x.id === id);
-            if (p) window.open(`https://wa.me/${p.telefone.replace(/\D/g, '')}`, '_blank');
-        } else if (action === 'desativar') {
-            if (confirm('Desativar este paciente?')) {
-                await fetch(`/api/admin/pacientes/${id}`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'INATIVO' }),
-                });
-                fetchData();
-            }
-        }
-    };
+    const columns = useMemo<ColumnDef<PacienteRow>[]>(() => ([
+        {
+            key: 'nome',
+            header: 'Nome',
+            sortable: true,
+            accessor: (row) => (
+                <div className="space-y-1">
+                    <p className="font-medium text-gray-900">{row.nome || 'Sem nome'}</p>
+                    <p className="text-xs text-gray-500">{row.tipo}</p>
+                </div>
+            ),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            sortable: true,
+            accessor: (row) => (
+                <Badge variant={STATUS_BADGE[row.status] || 'default'}>{row.status}</Badge>
+            ),
+        },
+        {
+            key: 'cidade',
+            header: 'Cidade',
+            sortable: true,
+            accessor: (row) => (
+                <span>{row.cidade || '-'}</span>
+            ),
+        },
+        {
+            key: 'telefone',
+            header: 'Telefone',
+            accessor: (row) => row.telefone,
+        },
+        {
+            key: 'createdAt',
+            header: 'Created',
+            sortable: true,
+            accessor: (row) => new Date(row.createdAt).toLocaleString('pt-BR'),
+        },
+        {
+            key: 'acoes',
+            header: 'Acoes',
+            width: '160px',
+            accessor: (row) => (
+                <div className="flex items-center gap-2">
+                    <Link href={`/admin/pacientes/${row.id}`} className="text-sm text-blue-600 hover:underline">
+                        Detail
+                    </Link>
+                    <a
+                        href={`https://wa.me/${String(row.telefone || '').replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-green-600 hover:underline"
+                    >
+                        WhatsApp
+                    </a>
+                </div>
+            ),
+        },
+    ]), []);
 
     return (
-        <div className="p-6 lg:p-8">
+        <div className="p-6 lg:p-8 space-y-4">
             <PageHeader
-                title="Pacientes Ativos"
-                description="Pacientes com contrato assinado e em atendimento."
-                breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'Pacientes' }]}
-                actions={<Button variant="outline" onClick={fetchData} isLoading={loading}><RefreshCw className="w-4 h-4" /></Button>}
+                title="Pacientes"
+                description="Track active patients, their status, and communication history."
+                breadcrumbs={[
+                    { label: 'Dashboard', href: '/admin/dashboard' },
+                    { label: 'Pacientes' },
+                ]}
+                actions={(
+                    <Button variant="outline" size="sm" onClick={fetchRows} isLoading={loading}>
+                        <RefreshCw className="h-4 w-4" />
+                        Refresh
+                    </Button>
+                )}
             />
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <Card className="!p-4">
-                    <p className="text-2xl font-bold text-green-600">{stats?.ativos || pacientes.length}</p>
-                    <p className="text-xs text-gray-500">Pacientes Ativos</p>
-                </Card>
-                <Card className="!p-4">
-                    <p className="text-2xl font-bold text-blue-600">{pacientes.filter(p => p.tipo === 'HOME_CARE').length}</p>
-                    <p className="text-xs text-gray-500">Home Care</p>
-                </Card>
-                <Card className="!p-4">
-                    <p className="text-2xl font-bold text-purple-600">{pacientes.filter(p => p.tipo === 'HOSPITAL').length}</p>
-                    <p className="text-xs text-gray-500">Hospital</p>
-                </Card>
-                <Card className="!p-4">
-                    <p className="text-2xl font-bold text-orange-600">{pacientes.reduce((s, p) => s + (p._count?.alocacoes || 0), 0)}</p>
-                    <p className="text-xs text-gray-500">Total Alocações</p>
-                </Card>
+            <div className="grid gap-3 md:grid-cols-4">
+                <CardStat label="Total" value={stats?.total ?? pagination?.total ?? 0} />
+                <CardStat label="Ativos" value={stats?.ativos ?? 0} />
+                <CardStat label="Leads" value={stats?.leads ?? 0} />
+                <CardStat label="Avaliacao" value={stats?.avaliacao ?? 0} />
             </div>
 
-            {/* Filters */}
-            <Card className="mb-6 !p-4">
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="w-64"><Input placeholder="Buscar..." icon={Search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                    <select value={filterTipo} onChange={(e) => setFilterTipo(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
-                        <option value="ALL">Todos os Tipos</option>
-                        <option value="HOME_CARE">Home Care</option>
-                        <option value="HOSPITAL">Hospital</option>
-                    </select>
-                    <span className="ml-auto text-sm text-gray-500"><strong>{pacientes.length}</strong> pacientes</span>
-                </div>
-            </Card>
+            <FilterBar
+                fields={FILTER_FIELDS}
+                values={table.filters}
+                onChange={table.setFilter}
+                onClear={table.clearAllFilters}
+            />
 
-            {/* Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {loading ? <div className="col-span-3 text-center py-8 text-gray-500">Carregando...</div> :
-                    pacientes.length === 0 ? <div className="col-span-3 text-center py-8 text-gray-500">Nenhum paciente ativo</div> :
-                        pacientes.map((p) => (
-                            <Card key={p.id} className="hover:shadow-md transition-shadow">
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                                            <Heart className="w-6 h-6 text-red-500" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-gray-900">{p.nome || 'Sem nome'}</h3>
-                                            <Badge variant={p.tipo === 'HOSPITAL' ? 'purple' : 'info'}>{p.tipo === 'HOSPITAL' ? 'Hospital' : 'Home Care'}</Badge>
-                                        </div>
-                                    </div>
-                                    <div className="relative">
-                                        <Button size="sm" variant="ghost" onClick={() => setOpenMenu(openMenu === p.id ? null : p.id)}><MoreHorizontal className="w-4 h-4" /></Button>
-                                        {openMenu === p.id && (
-                                            <div className="absolute right-0 top-8 z-50 bg-white border rounded-lg shadow-lg py-1 w-40">
-                                                <button onClick={() => handleAction(p.id, 'whatsapp')} className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                    <MessageCircle className="w-4 h-4 text-green-600" />WhatsApp
-                                                </button>
-                                                <button onClick={() => handleAction(p.id, 'desativar')} className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2">
-                                                    <UserX className="w-4 h-4" />Desativar
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+            <DataTable
+                tableId="admin-pacientes"
+                columns={columns}
+                data={rows}
+                pagination={pagination}
+                loading={loading}
+                error={error}
+                emptyMessage="No pacientes found."
+                onPageChange={table.setPage}
+                onSort={table.setSort}
+                caption={`Rows: ${pagination?.total || 0}`}
+            />
+        </div>
+    );
+}
 
-                                <div className="space-y-2 text-sm text-gray-600 mb-4">
-                                    <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-gray-400" />{p.telefone}</div>
-                                    {p.tipo === 'HOSPITAL' ? (
-                                        <div className="flex items-center gap-2"><Building className="w-4 h-4 text-gray-400" />{p.hospital} - Q{p.quarto}</div>
-                                    ) : (
-                                        <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-gray-400" />{p.cidade || 'N/A'}{p.bairro && `, ${p.bairro}`}</div>
-                                    )}
-                                </div>
+export default function PacientesPage() {
+    return (
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-gray-500">Loading pacientes...</div>}>
+            <PacientesPageContent />
+        </Suspense>
+    );
+}
 
-                                <div className="flex items-center justify-between pt-3 border-t">
-                                    <div className="flex gap-4 text-xs">
-                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-blue-500" />{p._count?.alocacoes || 0} alocações</span>
-                                    </div>
-                                    <Link href={`/admin/pacientes/${p.id}`}>
-                                        <Button size="sm" variant="ghost"><Eye className="w-4 h-4" />Ver</Button>
-                                    </Link>
-                                </div>
-                            </Card>
-                        ))}
-            </div>
-            {openMenu && <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />}
+function CardStat({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
         </div>
     );
 }

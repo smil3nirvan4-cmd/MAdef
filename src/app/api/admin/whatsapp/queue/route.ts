@@ -1,13 +1,17 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+export const runtime = 'nodejs';
+
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { OUTBOX_INTENTS } from '@/lib/whatsapp/outbox/types';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok, paginated } from '@/lib/api/response';
+import { parseFilter, parsePagination, parseSort } from '@/lib/api/query-params';
 
 const allowedStatuses = ['pending', 'sending', 'sent', 'retrying', 'dead', 'canceled'] as const;
 const sortableFields = ['createdAt', 'scheduledAt', 'retries', 'lastAttemptAt'] as const;
-const sortableDirection = ['asc', 'desc'] as const;
 const allowedIntents = [...OUTBOX_INTENTS, 'all'] as const;
 
 const actionSchema = z.object({
@@ -59,13 +63,18 @@ function normalizeStatusFilter(rawStatus: string | null) {
     return undefined;
 }
 
-export async function GET(request: NextRequest) {
+const getHandler = async (request: NextRequest) => {
     try {
-        const { searchParams } = new URL(request.url);
-        const rawStatus = searchParams.get('status');
-        const phone = searchParams.get('phone') || '';
-        const intent = searchParams.get('intent') || 'all';
-        const idempotencyKey = searchParams.get('idempotencyKey') || '';
+        const url = new URL(request.url);
+        const { searchParams } = url;
+        const { page, pageSize } = parsePagination(url);
+        const { field: sortBy, direction: sortDir } = parseSort(url, [...sortableFields], 'createdAt', 'desc');
+        const parsedFilters = parseFilter(url, ['status', 'intent', 'phone', 'idempotencyKey']);
+
+        const rawStatus = parsedFilters.status ?? searchParams.get('status');
+        const phone = parsedFilters.phone ?? searchParams.get('phone') ?? '';
+        const intent = parsedFilters.intent ?? searchParams.get('intent') ?? 'all';
+        const idempotencyKey = parsedFilters.idempotencyKey ?? searchParams.get('idempotencyKey') ?? '';
         const retriesMin = Number(searchParams.get('retriesMin') || '');
         const retriesMax = Number(searchParams.get('retriesMax') || '');
         const createdFrom = parseDate(searchParams.get('createdFrom'));
@@ -74,34 +83,17 @@ export async function GET(request: NextRequest) {
         const scheduledTo = parseDate(searchParams.get('scheduledTo'));
         const lastAttemptFrom = parseDate(searchParams.get('lastAttemptFrom'));
         const lastAttemptTo = parseDate(searchParams.get('lastAttemptTo'));
-        const sortByRaw = searchParams.get('sortBy') || 'createdAt';
-        const sortDirRaw = searchParams.get('sortDir') || 'desc';
-        const page = Number(searchParams.get('page') || '1');
-        const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || '50')));
-        const sortBy = sortableFields.includes(sortByRaw as any) ? sortByRaw : 'createdAt';
-        const sortDir = sortableDirection.includes(sortDirRaw as any) ? sortDirRaw : 'desc';
 
         const where: any = { AND: [] as any[] };
         const statusFilter = normalizeStatusFilter(rawStatus);
-        if (statusFilter) {
-            where.AND.push({ status: statusFilter });
-        }
-        if (phone) {
-            where.AND.push({ phone: { contains: phone.replace(/\D/g, '') } });
-        }
-        if (idempotencyKey) {
-            where.AND.push({ idempotencyKey: { contains: idempotencyKey } });
-        }
+        if (statusFilter) where.AND.push({ status: statusFilter });
+        if (phone) where.AND.push({ phone: { contains: phone.replace(/\D/g, '') } });
+        if (idempotencyKey) where.AND.push({ idempotencyKey: { contains: idempotencyKey } });
         if (intent && allowedIntents.includes(intent as any) && intent !== 'all') {
             where.AND.push({ payload: { contains: `"intent":"${intent}"` } });
         }
-
-        if (!Number.isNaN(retriesMin)) {
-            where.AND.push({ retries: { gte: retriesMin } });
-        }
-        if (!Number.isNaN(retriesMax)) {
-            where.AND.push({ retries: { lte: retriesMax } });
-        }
+        if (!Number.isNaN(retriesMin)) where.AND.push({ retries: { gte: retriesMin } });
+        if (!Number.isNaN(retriesMax)) where.AND.push({ retries: { lte: retriesMax } });
 
         if (createdFrom || createdTo) {
             where.AND.push({
@@ -111,6 +103,7 @@ export async function GET(request: NextRequest) {
                 },
             });
         }
+
         if (scheduledFrom || scheduledTo) {
             where.AND.push({
                 scheduledAt: {
@@ -119,6 +112,7 @@ export async function GET(request: NextRequest) {
                 },
             });
         }
+
         if (lastAttemptFrom || lastAttemptTo) {
             where.AND.push({
                 lastAttemptAt: {
@@ -128,16 +122,14 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        if (!where.AND.length) {
-            delete where.AND;
-        }
+        if (!where.AND.length) delete where.AND;
 
         const [items, total, grouped] = await Promise.all([
             prisma.whatsAppQueueItem.findMany({
                 where,
                 orderBy: [{ [sortBy]: sortDir }, { createdAt: 'desc' }],
-                skip: (page - 1) * limit,
-                take: limit,
+                skip: (page - 1) * pageSize,
+                take: pageSize,
             }),
             prisma.whatsAppQueueItem.count({ where }),
             prisma.whatsAppQueueItem.groupBy({
@@ -163,62 +155,65 @@ export async function GET(request: NextRequest) {
         }
         stats.failed = stats.dead;
 
-        return NextResponse.json({
-            success: true,
-            queue: items.map((item) => ({
-                id: item.id,
-                phone: item.phone,
-                telefone: `${item.phone}@s.whatsapp.net`,
-                status: item.status,
-                retries: item.retries,
-                error: item.error,
-                scheduledAt: item.scheduledAt,
-                sentAt: item.sentAt,
-                lastAttemptAt: item.lastAttemptAt,
-                createdAt: item.createdAt,
-                updatedAt: item.updatedAt,
-                payload: item.payload,
-                intent: parseIntent(item.payload),
-                preview: parsePreview(item.payload),
-                internalMessageId: item.internalMessageId,
-                idempotencyKey: item.idempotencyKey,
-                providerMessageId: item.providerMessageId,
-                resolvedMessageId: item.providerMessageId || item.internalMessageId || null,
-                direcao: item.status === 'sent' ? 'OUT' : item.status === 'dead' ? 'OUT_FAILED' : 'OUT_PENDING',
-                conteudo: parsePreview(item.payload),
-                timestamp: item.createdAt,
-            })),
-            stats,
-            pagination: {
-                page,
-                limit,
-                total,
-                totalPages: Math.ceil(total / limit),
-            },
-            filters: {
-                status: rawStatus || 'all',
-                intent,
-                idempotencyKey,
-                phone,
-                retriesMin: Number.isNaN(retriesMin) ? null : retriesMin,
-                retriesMax: Number.isNaN(retriesMax) ? null : retriesMax,
-                createdFrom: createdFrom?.toISOString() || null,
-                createdTo: createdTo?.toISOString() || null,
-                scheduledFrom: scheduledFrom?.toISOString() || null,
-                scheduledTo: scheduledTo?.toISOString() || null,
-                lastAttemptFrom: lastAttemptFrom?.toISOString() || null,
-                lastAttemptTo: lastAttemptTo?.toISOString() || null,
-                sortBy,
-                sortDir,
-            },
-        });
-    } catch (error) {
-        console.error('[API] queue GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao listar fila' }, { status: 500 });
-    }
-}
+        const mapped = items.map((item) => ({
+            id: item.id,
+            phone: item.phone,
+            telefone: `${item.phone}@s.whatsapp.net`,
+            status: item.status,
+            retries: item.retries,
+            error: item.error,
+            scheduledAt: item.scheduledAt,
+            sentAt: item.sentAt,
+            lastAttemptAt: item.lastAttemptAt,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            payload: item.payload,
+            intent: parseIntent(item.payload),
+            preview: parsePreview(item.payload),
+            internalMessageId: item.internalMessageId,
+            idempotencyKey: item.idempotencyKey,
+            providerMessageId: item.providerMessageId,
+            resolvedMessageId: item.providerMessageId || item.internalMessageId || null,
+            direcao: item.status === 'sent' ? 'OUT' : item.status === 'dead' ? 'OUT_FAILED' : 'OUT_PENDING',
+            conteudo: parsePreview(item.payload),
+            timestamp: item.createdAt,
+        }));
 
-export async function POST(request: NextRequest) {
+        return paginated(
+            mapped,
+            {
+                page,
+                pageSize,
+                total,
+            },
+            200,
+            {
+                stats,
+                filters: {
+                    status: rawStatus || 'all',
+                    intent,
+                    idempotencyKey,
+                    phone,
+                    retriesMin: Number.isNaN(retriesMin) ? null : retriesMin,
+                    retriesMax: Number.isNaN(retriesMax) ? null : retriesMax,
+                    createdFrom: createdFrom?.toISOString() || null,
+                    createdTo: createdTo?.toISOString() || null,
+                    scheduledFrom: scheduledFrom?.toISOString() || null,
+                    scheduledTo: scheduledTo?.toISOString() || null,
+                    lastAttemptFrom: lastAttemptFrom?.toISOString() || null,
+                    lastAttemptTo: lastAttemptTo?.toISOString() || null,
+                    sortBy,
+                    sortDir,
+                },
+            }
+        );
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Erro ao listar fila';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
+    }
+};
+
+const postHandler = async (request: NextRequest) => {
     try {
         const body = await request.json();
         const parsed = actionSchema.parse(body || {});
@@ -233,12 +228,12 @@ export async function POST(request: NextRequest) {
             });
 
             const worker = await processWhatsAppOutboxOnce({ limit: 10 });
-            return NextResponse.json({ success: true, enqueue, worker });
+            return ok({ enqueue, worker });
         }
 
         if (action === 'process') {
             const result = await processWhatsAppOutboxOnce({ limit: parsed.limit || 20 });
-            return NextResponse.json({ success: true, result });
+            return ok({ result });
         }
 
         if (action === 'retry' || action === 'reprocess') {
@@ -252,7 +247,7 @@ export async function POST(request: NextRequest) {
             });
 
             const worker = await processWhatsAppOutboxOnce({ limit: 20 });
-            return NextResponse.json({ success: true, updated: result.count, worker });
+            return ok({ updated: result.count, worker });
         }
 
         if (action === 'cancel') {
@@ -263,31 +258,34 @@ export async function POST(request: NextRequest) {
                     scheduledAt: null,
                 },
             });
-            return NextResponse.json({ success: true, updated: result.count });
+            return ok({ updated: result.count });
         }
 
         if (action === 'clear_dead' || action === 'clear_failed') {
             const result = await prisma.whatsAppQueueItem.deleteMany({
                 where: { status: 'dead' },
             });
-            return NextResponse.json({ success: true, deleted: result.count });
+            return ok({ deleted: result.count });
         }
 
-        return NextResponse.json({ success: false, error: 'Acao invalida' }, { status: 400 });
+        return fail(E.VALIDATION_ERROR, 'Acao invalida', { status: 400 });
     } catch (error) {
-        console.error('[API] queue POST erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao processar fila' }, { status: 500 });
+        if (error instanceof z.ZodError) {
+            return fail(E.VALIDATION_ERROR, 'Payload invalido', { status: 400, details: error.flatten() });
+        }
+        const message = error instanceof Error ? error.message : 'Erro ao processar fila';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
 
-export async function PATCH(request: NextRequest) {
+const patchHandler = async (request: NextRequest) => {
     try {
         const body = await request.json();
         const id = String(body?.id || '');
         const status = String(body?.status || '');
 
         if (!id || !allowedStatuses.includes(status as any)) {
-            return NextResponse.json({ success: false, error: 'id e status validos sao obrigatorios' }, { status: 400 });
+            return fail(E.VALIDATION_ERROR, 'id e status validos sao obrigatorios', { status: 400 });
         }
 
         const item = await prisma.whatsAppQueueItem.update({
@@ -295,9 +293,13 @@ export async function PATCH(request: NextRequest) {
             data: { status },
         });
 
-        return NextResponse.json({ success: true, item });
+        return ok({ item });
     } catch (error) {
-        console.error('[API] queue PATCH erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar item da fila' }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Erro ao atualizar item da fila';
+        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-}
+};
+
+export const GET = withRequestContext(getHandler);
+export const POST = withRequestContext(postHandler);
+export const PATCH = withRequestContext(patchHandler);

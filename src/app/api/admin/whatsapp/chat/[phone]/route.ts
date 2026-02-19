@@ -1,4 +1,6 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+﻿export const runtime = 'nodejs';
+
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';

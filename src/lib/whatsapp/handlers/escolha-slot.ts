@@ -1,9 +1,7 @@
 import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState, acquireSlotLock } from '../state-manager';
 import { sendMessage } from '../client';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export async function handleEscolhaSlot(
     message: WhatsAppMessage,

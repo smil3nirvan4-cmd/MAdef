@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import logger from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
+import { renderCommercialMessage } from '@/lib/documents/commercial-message';
+import { parseOrcamentoSendOptionsSafe } from '@/lib/documents/send-options';
 import { sendDocumentViaBridge } from '@/lib/documents/whatsapp-documents';
-import { buildContratoTemplate } from '@/lib/documents/contrato-template';
-import { gerarContratoPDF, gerarPropostaPDF } from '@/lib/documents/pdf-generator';
-import { buildPropostaTemplate } from '@/lib/documents/proposta-template';
+import { generateContratoPDF, generatePropostaPDF } from '@/lib/documents/pdf-generator';
 import whatsappSender from '@/lib/whatsapp-sender';
-import { calculateRetryDate } from './backoff';
+import { calculateNextScheduledAt, shouldDie } from './backoff';
 import { renderTemplateContent } from './template-renderer';
 import { whatsappOutboxPayloadSchema, type WhatsAppOutboxPayload } from './types';
 
@@ -78,13 +80,13 @@ async function releaseWorkerLock(ownerId: string): Promise<void> {
     });
 }
 
-async function markAvaliacaoFailure(avaliacaoId: string, error: string, internalMessageId: string): Promise<void> {
+async function markAvaliacaoFailure(avaliacaoId: string, error: string, resolvedMessageId: string): Promise<void> {
     await prisma.avaliacao.update({
         where: { id: avaliacaoId },
         data: {
             whatsappEnviado: false,
             whatsappEnviadoEm: null,
-            whatsappMessageId: internalMessageId,
+            whatsappMessageId: resolvedMessageId,
             whatsappErro: error,
             whatsappTentativas: { increment: 1 },
         },
@@ -126,13 +128,14 @@ async function markScheduledFailure(scheduledId: string): Promise<void> {
 async function executeOutboxPayload(
     payload: WhatsAppOutboxPayload,
     phone: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; errorCode?: string }> {
     if (payload.intent === 'SEND_TEXT') {
         const result = await whatsappSender.sendText(phone, payload.text);
         return {
             success: result.success,
             messageId: result.messageId,
             error: result.error,
+            errorCode: result.errorCode,
         };
     }
 
@@ -164,6 +167,7 @@ async function executeOutboxPayload(
             success: result.success,
             messageId: result.messageId,
             error: result.error,
+            errorCode: result.errorCode,
         };
     }
 
@@ -179,6 +183,7 @@ async function executeOutboxPayload(
             success: result.success,
             messageId: result.messageId || undefined,
             error: result.error,
+            errorCode: result.errorCode,
         };
     }
 
@@ -192,66 +197,71 @@ async function executeOutboxPayload(
             return { success: false, error: 'Orcamento nao encontrado' };
         }
 
-        if (payload.intent === 'SEND_PROPOSTA') {
-            const template = buildPropostaTemplate({
-                orcamentoId: orcamento.id,
-                pacienteNome: orcamento.paciente?.nome || 'Paciente',
-                pacienteTelefone: orcamento.paciente?.telefone || phone,
-                pacienteCidade: orcamento.paciente?.cidade,
-                pacienteBairro: orcamento.paciente?.bairro,
-                tipoCuidado: orcamento.paciente?.tipo,
-                valorFinal: orcamento.valorFinal,
-                cenarioSelecionado: orcamento.cenarioSelecionado,
-            });
+        const avaliacao = await prisma.avaliacao.findFirst({
+            where: { pacienteId: orcamento.pacienteId },
+            include: { paciente: true },
+            orderBy: { createdAt: 'desc' },
+        });
 
-            const envio = await sendDocumentViaBridge({
-                phone,
-                fileName: template.fileName,
-                caption: `Ola ${orcamento.paciente?.nome || ''}! Segue sua proposta da Maos Amigas.`,
-                buffer: gerarPropostaPDF(template.lines),
-            });
-
-            if (envio.success) {
-                await prisma.orcamento.update({
-                    where: { id: orcamento.id },
-                    data: {
-                        status: 'PROPOSTA_ENVIADA',
-                        enviadoEm: new Date(),
-                    },
-                });
-            }
-
+        const tipo = payload.intent === 'SEND_PROPOSTA' ? 'PROPOSTA' : 'CONTRATO';
+        const contextData = (payload.context ?? {}) as Record<string, unknown>;
+        const metadataData = (payload.metadata ?? {}) as Record<string, unknown>;
+        const sendOptions = parseOrcamentoSendOptionsSafe(contextData.sendOptions ?? metadataData.sendOptions);
+        const pdfData = buildOrcamentoPDFData(
+            avaliacao as unknown as Record<string, unknown> | null,
+            orcamento as unknown as Record<string, unknown>,
+            tipo,
+            sendOptions,
+        );
+        const mensagem = renderCommercialMessage({
+            tipo,
+            pacienteNome: String(orcamento.paciente?.nome || avaliacao?.paciente?.nome || 'Paciente'),
+            pdfData,
+            avaliacao: avaliacao as unknown as Record<string, unknown> | null,
+            orcamento: orcamento as unknown as Record<string, unknown>,
+            sendOptions,
+        });
+        if (mensagem.missingVariables.length > 0) {
             return {
-                success: envio.success,
-                messageId: envio.messageId || undefined,
-                error: envio.error,
+                success: false,
+                error: `Variaveis ausentes: ${mensagem.missingVariables.join(', ')}`,
             };
         }
 
-        const template = buildContratoTemplate({
-            orcamentoId: orcamento.id,
-            pacienteNome: orcamento.paciente?.nome || 'Paciente',
-            pacienteTelefone: orcamento.paciente?.telefone || phone,
-            pacienteCidade: orcamento.paciente?.cidade,
-            pacienteBairro: orcamento.paciente?.bairro,
-            tipoCuidado: orcamento.paciente?.tipo,
-            valorFinal: orcamento.valorFinal,
-        });
+        const pdfBuffer = tipo === 'PROPOSTA'
+            ? await generatePropostaPDF(pdfData)
+            : await generateContratoPDF(pdfData);
 
+        const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
         const envio = await sendDocumentViaBridge({
             phone,
-            fileName: template.fileName,
-            caption: `Ola ${orcamento.paciente?.nome || ''}! Segue seu contrato da Maos Amigas.`,
-            buffer: gerarContratoPDF(template.lines),
+            fileName: `${tipo === 'PROPOSTA' ? 'Proposta' : 'Contrato'}_${safeReference}_MaosAmigas.pdf`,
+            caption: mensagem.rendered,
+            buffer: pdfBuffer,
         });
 
         if (envio.success) {
+            const updateData: Prisma.OrcamentoUpdateInput = {
+                status: tipo === 'PROPOSTA' ? 'PROPOSTA_ENVIADA' : 'CONTRATO_ENVIADO',
+                enviadoEm: new Date(),
+                valorFinal: pdfData.cenario.totalSemanal,
+            };
+
+            if (sendOptions?.cenarioSelecionado) {
+                updateData.cenarioSelecionado = sendOptions.cenarioSelecionado;
+            }
+            if (sendOptions?.descontoManualPercent !== undefined) {
+                updateData.descontoManualPercent = sendOptions.descontoManualPercent;
+            }
+            if (sendOptions?.minicustosDesativados !== undefined) {
+                updateData.minicustosDesativados = sendOptions.minicustosDesativados.length
+                    ? JSON.stringify(sendOptions.minicustosDesativados)
+                    : null;
+            }
+
             await prisma.orcamento.update({
                 where: { id: orcamento.id },
-                data: {
-                    status: 'CONTRATO_ENVIADO',
-                    enviadoEm: new Date(),
-                },
+                data: updateData,
             });
         }
 
@@ -259,6 +269,7 @@ async function executeOutboxPayload(
             success: envio.success,
             messageId: envio.messageId || undefined,
             error: envio.error,
+            errorCode: envio.errorCode,
         };
     }
 
@@ -267,7 +278,6 @@ async function executeOutboxPayload(
 
 async function processQueueItem(
     queueItemId: string,
-    maxRetries: number,
     counters: ProcessOutboxResult,
 ): Promise<void> {
     const queueItem = await prisma.whatsAppQueueItem.findUnique({
@@ -280,6 +290,9 @@ async function processQueueItem(
         payload = whatsappOutboxPayloadSchema.parse(JSON.parse(queueItem.payload));
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Payload invalido';
+        const internalMessageId = queueItem.internalMessageId || `queue_${queueItem.id}`;
+        const idempotencyKey = queueItem.idempotencyKey || null;
+
         await prisma.whatsAppQueueItem.update({
             where: { id: queueItem.id },
             data: {
@@ -288,11 +301,40 @@ async function processQueueItem(
                 retries: queueItem.retries + 1,
             },
         });
+
+        await logger.warning('whatsapp_outbox_failed', 'Outbox falhou: payload invalido', {
+            queueItemId: queueItem.id,
+            intent: 'INVALID_PAYLOAD',
+            phone: queueItem.phone,
+            error: message,
+            retries: queueItem.retries + 1,
+            status: 'dead',
+            idempotencyKey,
+            internalMessageId,
+            providerMessageId: queueItem.providerMessageId || null,
+            resolvedMessageId: queueItem.providerMessageId || internalMessageId,
+            context: null,
+        });
+
         counters.dead += 1;
         return;
     }
 
-    const internalMessageId = queueItem.internalMessageId || payload.internalMessageId;
+    const internalMessageId = queueItem.internalMessageId || payload.internalMessageId || `queue_${queueItem.id}`;
+    const idempotencyKey = queueItem.idempotencyKey || payload.idempotencyKey || null;
+
+    await logger.whatsapp('whatsapp_outbox_attempt', `Tentativa de envio: ${payload.intent}`, {
+        queueItemId: queueItem.id,
+        intent: payload.intent,
+        phone: queueItem.phone,
+        retries: queueItem.retries,
+        idempotencyKey,
+        internalMessageId,
+        providerMessageId: queueItem.providerMessageId || null,
+        resolvedMessageId: queueItem.providerMessageId || internalMessageId,
+        context: payload.context || null,
+    });
+
     const delivery = await executeOutboxPayload(payload, queueItem.phone);
     const resolvedMessageId = delivery.messageId || internalMessageId;
 
@@ -318,6 +360,7 @@ async function processQueueItem(
             queueItemId: queueItem.id,
             intent: payload.intent,
             phone: queueItem.phone,
+            idempotencyKey,
             providerMessageId: delivery.messageId || null,
             internalMessageId,
             resolvedMessageId,
@@ -330,9 +373,41 @@ async function processQueueItem(
 
     const nextRetries = queueItem.retries + 1;
     const errorMessage = delivery.error || 'Falha no envio';
-    const shouldDie = nextRetries > maxRetries || isNonRetryableError(errorMessage);
+    const isCircuitSuspended = delivery.errorCode === 'CIRCUIT_OPEN';
+    if (isCircuitSuspended) {
+        const scheduledAt = new Date(Date.now() + 65_000);
+        await prisma.whatsAppQueueItem.update({
+            where: { id: queueItem.id },
+            data: {
+                status: 'retrying',
+                error: errorMessage,
+                scheduledAt,
+            },
+        });
 
-    if (shouldDie) {
+        counters.retrying += 1;
+
+        await logger.warning('whatsapp_outbox_circuit_suspended', `Circuit breaker aberto: ${payload.intent}`, {
+            queueItemId: queueItem.id,
+            intent: payload.intent,
+            phone: queueItem.phone,
+            idempotencyKey,
+            internalMessageId,
+            providerMessageId: delivery.messageId || null,
+            resolvedMessageId,
+            retries: queueItem.retries,
+            scheduledAt: scheduledAt.toISOString(),
+            status: 'retrying',
+            errorCode: delivery.errorCode,
+            context: payload.context || null,
+        });
+        return;
+    }
+
+    const deadByRetries = shouldDie(nextRetries);
+    const shouldMarkDead = deadByRetries || isNonRetryableError(errorMessage);
+
+    if (shouldMarkDead) {
         await prisma.whatsAppQueueItem.update({
             where: { id: queueItem.id },
             data: {
@@ -350,7 +425,7 @@ async function processQueueItem(
                 status: 'retrying',
                 retries: nextRetries,
                 error: errorMessage,
-                scheduledAt: calculateRetryDate(nextRetries),
+                scheduledAt: calculateNextScheduledAt(nextRetries),
             },
         });
         counters.retrying += 1;
@@ -359,25 +434,43 @@ async function processQueueItem(
     if (payload.context?.avaliacaoId) {
         await markAvaliacaoFailure(payload.context.avaliacaoId, errorMessage, resolvedMessageId);
     }
-    if (payload.context?.scheduledId && shouldDie) {
+    if (payload.context?.scheduledId && shouldMarkDead) {
         await markScheduledFailure(String(payload.context.scheduledId));
     }
 
-    await logger.warning('whatsapp_outbox_failed', `Outbox falhou: ${payload.intent}`, {
-        queueItemId: queueItem.id,
-        intent: payload.intent,
-        phone: queueItem.phone,
-        error: errorMessage,
-        retries: nextRetries,
-        status: shouldDie ? 'dead' : 'retrying',
-        internalMessageId,
-        context: payload.context || null,
-    });
+    if (shouldMarkDead) {
+        await logger.warning('whatsapp_outbox_dead', `Outbox morto: ${payload.intent}`, {
+            queueItemId: queueItem.id,
+            intent: payload.intent,
+            phone: queueItem.phone,
+            error: errorMessage,
+            retries: nextRetries,
+            status: 'dead',
+            idempotencyKey,
+            internalMessageId,
+            providerMessageId: delivery.messageId || null,
+            resolvedMessageId,
+            context: payload.context || null,
+        });
+    } else {
+        await logger.warning('whatsapp_outbox_failed', `Outbox falhou: ${payload.intent}`, {
+            queueItemId: queueItem.id,
+            intent: payload.intent,
+            phone: queueItem.phone,
+            error: errorMessage,
+            retries: nextRetries,
+            status: 'retrying',
+            idempotencyKey,
+            internalMessageId,
+            providerMessageId: delivery.messageId || null,
+            resolvedMessageId,
+            context: payload.context || null,
+        });
+    }
 }
 
 export async function processWhatsAppOutboxOnce(options: ProcessOutboxOptions = {}): Promise<ProcessOutboxResult> {
     const limit = options.limit ?? 20;
-    const maxRetries = options.maxRetries ?? 5;
     const ownerId = `worker_${randomUUID()}`;
     const now = new Date();
 
@@ -428,7 +521,7 @@ export async function processWhatsAppOutboxOnce(options: ProcessOutboxOptions = 
 
             result.picked += 1;
             try {
-                await processQueueItem(item.id, maxRetries, result);
+                await processQueueItem(item.id, result);
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Erro inesperado no worker';
                 await prisma.whatsAppQueueItem.updateMany({
@@ -442,6 +535,10 @@ export async function processWhatsAppOutboxOnce(options: ProcessOutboxOptions = 
 
                 await logger.error('whatsapp_outbox_worker_error', 'Falha inesperada ao processar item da fila', error as Error, {
                     queueItemId: item.id,
+                    idempotencyKey: item.idempotencyKey || null,
+                    internalMessageId: item.internalMessageId || `queue_${item.id}`,
+                    providerMessageId: item.providerMessageId || null,
+                    resolvedMessageId: item.providerMessageId || item.internalMessageId || `queue_${item.id}`,
                 });
             }
         }

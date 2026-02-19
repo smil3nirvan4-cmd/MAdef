@@ -1,11 +1,12 @@
-/**
+﻿/**
  * WhatsApp Message Queue
- * Garante envio de mensagens mesmo com conexão instável
+ * Garante envio de mensagens mesmo com conexÃ£o instÃ¡vel
  * Usa o Bridge API para enviar mensagens
  */
 
 import fs from 'fs';
 import path from 'path';
+import { resolveBridgeConfig } from './bridge-config';
 
 interface QueuedMessage {
     id: string;
@@ -19,7 +20,6 @@ interface QueuedMessage {
 }
 
 const QUEUE_FILE = path.join(process.cwd(), '.wa-queue.json');
-const BRIDGE_URL = 'http://localhost:4000';
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 10000; // 10 segundos
 
@@ -32,7 +32,7 @@ export function loadQueue(): void {
         if (fs.existsSync(QUEUE_FILE)) {
             const data = fs.readFileSync(QUEUE_FILE, 'utf-8');
             messageQueue = JSON.parse(data);
-            console.log(`📦 [Queue] ${messageQueue.filter(m => m.status === 'PENDING').length} mensagens pendentes carregadas`);
+            console.log(`ðŸ“¦ [Queue] ${messageQueue.filter(m => m.status === 'PENDING').length} mensagens pendentes carregadas`);
         }
     } catch (_e) {
         console.error('[Queue] Erro ao carregar fila:', _e);
@@ -49,7 +49,7 @@ function saveQueue(): void {
     }
 }
 
-// Adicionar mensagem à fila
+// Adicionar mensagem Ã  fila
 export function addToQueue(to: string, text: string): string {
     const id = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const message: QueuedMessage = {
@@ -63,7 +63,7 @@ export function addToQueue(to: string, text: string): string {
 
     messageQueue.push(message);
     saveQueue();
-    console.log(`📥 [Queue] Mensagem adicionada à fila: ${id} -> ${to}`);
+    console.log(`ðŸ“¥ [Queue] Mensagem adicionada Ã  fila: ${id} -> ${to}`);
 
     // Tentar processar imediatamente
     processQueue();
@@ -87,21 +87,23 @@ export async function processQueue(): Promise<void> {
             return;
         }
 
-        console.log(`📤 [Queue] Processando ${pendingMessages.length} mensagens via Bridge API...`);
+        console.log(`ðŸ“¤ [Queue] Processando ${pendingMessages.length} mensagens via Bridge API...`);
 
-        // Verificar se o Bridge está online
+        const { bridgeUrl } = resolveBridgeConfig();
+
+        // Verificar se o Bridge estÃ¡ online
         try {
-            const statusRes = await fetch(`${BRIDGE_URL}/status`);
+            const statusRes = await fetch(`${bridgeUrl}/status`);
             const status = await statusRes.json();
 
             if (!status.connected) {
-                console.log('⏳ [Queue] Bridge não conectado, reagendando...');
+                console.log('â³ [Queue] Bridge nÃ£o conectado, reagendando...');
                 isProcessing = false;
                 setTimeout(() => processQueue(), RETRY_DELAY);
                 return;
             }
         } catch (e) {
-            console.log('⏳ [Queue] Bridge indisponível, reagendando...');
+            console.log('â³ [Queue] Bridge indisponÃ­vel, reagendando...');
             isProcessing = false;
             setTimeout(() => processQueue(), RETRY_DELAY);
             return;
@@ -114,7 +116,7 @@ export async function processQueue(): Promise<void> {
 
                 const jid = msg.to.includes('@') ? msg.to : `${msg.to}@s.whatsapp.net`;
 
-                const res = await fetch(`${BRIDGE_URL}/send`, {
+                const res = await fetch(`${bridgeUrl}/send`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ phone: jid, message: msg.text })
@@ -122,19 +124,19 @@ export async function processQueue(): Promise<void> {
 
                 if (res.ok) {
                     msg.status = 'SENT';
-                    console.log(`✅ [Queue] Mensagem enviada via Bridge: ${msg.id}`);
+                    console.log(`âœ… [Queue] Mensagem enviada via Bridge: ${msg.id}`);
                 } else {
                     const err = await res.json();
                     throw new Error(err.error || 'Erro no Bridge');
                 }
 
             } catch (error: any) {
-                console.error(`❌ [Queue] Erro ao enviar ${msg.id}:`, error.message);
+                console.error(`âŒ [Queue] Erro ao enviar ${msg.id}:`, error.message);
                 msg.error = error.message;
 
                 if (msg.attempts >= MAX_RETRIES) {
                     msg.status = 'FAILED';
-                    console.log(`⛔ [Queue] Mensagem ${msg.id} falhou após ${MAX_RETRIES} tentativas`);
+                    console.log(`â›” [Queue] Mensagem ${msg.id} falhou apÃ³s ${MAX_RETRIES} tentativas`);
                 }
             }
 
@@ -144,10 +146,10 @@ export async function processQueue(): Promise<void> {
             await new Promise(r => setTimeout(r, 1000));
         }
 
-        // Verificar se ainda há pendentes
+        // Verificar se ainda hÃ¡ pendentes
         const stillPending = messageQueue.filter(m => m.status === 'PENDING');
         if (stillPending.length > 0) {
-            console.log(`⏳ [Queue] ${stillPending.length} mensagens ainda pendentes, reagendando...`);
+            console.log(`â³ [Queue] ${stillPending.length} mensagens ainda pendentes, reagendando...`);
             setTimeout(() => processQueue(), RETRY_DELAY);
         }
 
@@ -164,7 +166,7 @@ export function getQueueStatus(): { pending: number; sent: number; failed: numbe
         pending: messageQueue.filter(m => m.status === 'PENDING').length,
         sent: messageQueue.filter(m => m.status === 'SENT').length,
         failed: messageQueue.filter(m => m.status === 'FAILED').length,
-        messages: messageQueue.slice(-20) // Últimas 20 mensagens
+        messages: messageQueue.slice(-20) // Ãšltimas 20 mensagens
     };
 }
 
@@ -180,9 +182,10 @@ export function cleanOldMessages(): void {
 
     if (messageQueue.length !== before) {
         saveQueue();
-        console.log(`🗑️ [Queue] Removidas ${before - messageQueue.length} mensagens antigas`);
+        console.log(`ðŸ—‘ï¸ [Queue] Removidas ${before - messageQueue.length} mensagens antigas`);
     }
 }
 
 // Inicializar queue
 loadQueue();
+

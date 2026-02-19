@@ -1,7 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { E, fail } from '@/lib/api/response';
+import { guardCapability } from '@/lib/auth/capability-guard';
 import { prisma } from '@/lib/prisma';
+import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
+import { computeInputHash } from '@/lib/pricing/input-hash';
+import { z } from 'zod';
+
+const scenarioSnapshotSchema = z.object({
+    input: z.unknown(),
+    output: z.unknown(),
+    unidadeId: z.string().optional(),
+    configVersionId: z.string().optional(),
+    moeda: z.string().optional(),
+});
+
+const createOrcamentoSchema = z.object({
+    pacienteId: z.string().min(1),
+    avaliacaoId: z.string().optional(),
+    cenarioEconomico: z.string().nullable().optional(),
+    cenarioRecomendado: z.string().nullable().optional(),
+    cenarioPremium: z.string().nullable().optional(),
+    cenarioSelecionado: z.enum(['economico', 'recomendado', 'premium']).default('recomendado'),
+    valorFinal: z.number().nullable().optional(),
+    status: z.string().default('RASCUNHO'),
+    unidadeId: z.string().optional(),
+    configVersionId: z.string().optional(),
+    moeda: z.string().optional(),
+    snapshotInput: z.string().nullable().optional(),
+    snapshotOutput: z.string().nullable().optional(),
+    planningInput: z.unknown().optional(),
+    normalizedSchedule: z.unknown().optional(),
+    pricingBreakdown: z.unknown().optional(),
+    engineVersion: z.string().optional(),
+    calculationHash: z.string().optional(),
+    descontoManualPercent: z.number().min(0).nullable().optional(),
+    minicustosDesativados: z.array(z.string()).optional(),
+    snapshotsByScenario: z.object({
+        economico: scenarioSnapshotSchema.optional(),
+        recomendado: scenarioSnapshotSchema.optional(),
+        premium: scenarioSnapshotSchema.optional(),
+    }).optional(),
+});
+
+type ScenarioKey = 'economico' | 'recomendado' | 'premium';
+
+function parseScenarioKey(value: string | null | undefined): ScenarioKey {
+    const normalized = String(value || 'recomendado').trim().toLowerCase();
+    if (normalized === 'economico') return 'economico';
+    if (normalized === 'premium') return 'premium';
+    return 'recomendado';
+}
+
+function toJsonString(value: unknown): string | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') return value;
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return null;
+    }
+}
 
 export async function GET() {
+    const guard = await guardCapability('VIEW_ORCAMENTOS');
+    if (guard instanceof NextResponse) {
+        return guard;
+    }
+
     try {
         const orcamentos = await prisma.orcamento.findMany({
             include: {
@@ -10,46 +75,97 @@ export async function GET() {
                         id: true,
                         nome: true,
                         telefone: true,
-                    }
-                }
+                    },
+                },
             },
             orderBy: { createdAt: 'desc' },
-            take: 100
+            take: 100,
         });
 
-        return NextResponse.json({ orcamentos });
+        return NextResponse.json({ success: true, data: orcamentos, orcamentos });
     } catch (error) {
         console.error('Error fetching orcamentos:', error);
-        return NextResponse.json({ error: 'Erro ao buscar orçamentos' }, { status: 500 });
+        return fail(E.DATABASE_ERROR, 'Erro ao buscar orcamentos', { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { pacienteId, cenarioEconomico, cenarioRecomendado, cenarioPremium, valorFinal } = body;
+    const guard = await guardCapability('MANAGE_ORCAMENTOS');
+    if (guard instanceof NextResponse) {
+        return guard;
+    }
 
-        if (!pacienteId) {
-            return NextResponse.json({ error: 'Paciente é obrigatório' }, { status: 400 });
+    try {
+        const body = await request.json().catch(() => ({}));
+        const parsed = createOrcamentoSchema.safeParse(body);
+        if (!parsed.success) {
+            return fail(E.VALIDATION_ERROR, 'Dados invalidos para criar orcamento', {
+                status: 400,
+                details: parsed.error.issues,
+            });
         }
+
+        const data = parsed.data;
+        const selectedScenario = parseScenarioKey(data.cenarioSelecionado);
+        const scenarioSnapshot = data.snapshotsByScenario?.[selectedScenario];
+        const fallbackConfig = (!data.unidadeId || !data.configVersionId || !data.moeda)
+            ? await getPricingConfigSnapshot()
+            : null;
+        const unidadeId = data.unidadeId ?? scenarioSnapshot?.unidadeId ?? fallbackConfig?.unidadeId ?? null;
+        const configVersionId = data.configVersionId ?? scenarioSnapshot?.configVersionId ?? fallbackConfig?.configVersionId ?? null;
+        const moeda = data.moeda ?? scenarioSnapshot?.moeda ?? fallbackConfig?.currency ?? 'BRL';
+        const snapshotInput = data.snapshotInput ?? toJsonString(scenarioSnapshot?.input);
+        const snapshotOutput = data.snapshotOutput ?? toJsonString(scenarioSnapshot?.output);
+        const planningInput = toJsonString(data.planningInput);
+        const normalizedSchedule = toJsonString(data.normalizedSchedule);
+        const pricingBreakdown = toJsonString(data.pricingBreakdown);
+        const engineVersion = data.engineVersion ?? null;
+        const calculationHash = data.calculationHash ?? computeInputHash({
+            snapshotInput,
+            snapshotOutput,
+            planningInput,
+            normalizedSchedule,
+            pricingBreakdown,
+            configVersionId,
+            selectedScenario,
+        });
 
         const orcamento = await prisma.orcamento.create({
             data: {
-                pacienteId,
-                cenarioEconomico,
-                cenarioRecomendado,
-                cenarioPremium,
-                valorFinal: valorFinal ? parseFloat(valorFinal) : null,
-                status: 'RASCUNHO',
+                pacienteId: data.pacienteId,
+                unidadeId,
+                configVersionId,
+                avaliacaoId: data.avaliacaoId ?? null,
+                cenarioEconomico: data.cenarioEconomico ?? null,
+                cenarioRecomendado: data.cenarioRecomendado ?? null,
+                cenarioPremium: data.cenarioPremium ?? null,
+                cenarioSelecionado: selectedScenario,
+                valorFinal: data.valorFinal ?? null,
+                snapshotInput,
+                snapshotOutput,
+                planningInput,
+                normalizedSchedule,
+                pricingBreakdown,
+                engineVersion,
+                calculationHash,
+                descontoManualPercent: data.descontoManualPercent ?? null,
+                minicustosDesativados: data.minicustosDesativados?.length
+                    ? JSON.stringify(data.minicustosDesativados)
+                    : null,
+                moeda,
+                status: data.status,
             },
             include: {
-                paciente: true
-            }
+                paciente: true,
+            },
         });
 
-        return NextResponse.json({ success: true, orcamento });
+        return NextResponse.json({ success: true, data: orcamento, orcamento });
     } catch (error) {
         console.error('Error creating orcamento:', error);
-        return NextResponse.json({ error: 'Erro ao criar orçamento' }, { status: 500 });
+        return fail(E.DATABASE_ERROR, 'Erro ao criar orcamento', {
+            status: 500,
+            details: error instanceof Error ? error.message : undefined,
+        });
     }
 }

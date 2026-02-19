@@ -132,6 +132,8 @@ async function upsertByIdempotency(
         phone,
         idempotencyKey: payload.idempotencyKey,
         internalMessageId: payload.internalMessageId,
+        providerMessageId: null,
+        resolvedMessageId: payload.internalMessageId,
         scheduledAt: scheduledAt?.toISOString() || null,
         context: payload.context || null,
     });
@@ -241,4 +243,3 @@ export async function enqueueWhatsAppContratoJob(input: EnqueueContratoInput): P
 
     return upsertByIdempotency(base.normalized.e164, payload, input.scheduledAt ?? null);
 }
-
