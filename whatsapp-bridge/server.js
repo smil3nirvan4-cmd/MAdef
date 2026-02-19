@@ -49,7 +49,14 @@ const SESSION_FILE = path.resolve(process.cwd(), process.env.WA_SESSION_FILE || 
 const STATE_FILE = path.resolve(process.cwd(), process.env.WA_STATE_FILE || '.wa-state.json');
 function resolveWebhookUrl() {
     if (process.env.WA_WEBHOOK_URL) return process.env.WA_WEBHOOK_URL;
-    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_URL || '';
+    const appUrl =
+        process.env.APP_URL ||
+        process.env.NEXT_PUBLIC_URL ||
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.AUTH_URL ||
+        process.env.NEXTAUTH_URL ||
+        process.env.WEB_URL ||
+        '';
     if (!appUrl) return '';
     const base = appUrl.endsWith('/') ? appUrl : `${appUrl}/`;
     const pathValue = (process.env.WA_WEBHOOK_PATH || '/api/whatsapp/webhook').replace(/^\/+/, '');
@@ -745,7 +752,9 @@ app.listen(PORT, () => {
         console.warn('[bridge] WHATSAPP_WEBHOOK_SECRET not configured. Webhook signature is disabled.');
     }
     if (!WEBHOOK_URL) {
-        console.warn('[bridge] WA_WEBHOOK_URL/APP_URL not configured. Webhook delivery is disabled.');
+        console.warn('[bridge] WA_WEBHOOK_URL/APP_URL/NEXT_PUBLIC_APP_URL not configured. Webhook delivery is disabled.');
+    } else {
+        console.log(`[bridge] webhook enabled -> ${WEBHOOK_URL}`);
     }
 
     if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
