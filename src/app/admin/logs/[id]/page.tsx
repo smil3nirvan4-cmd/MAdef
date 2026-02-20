@@ -80,7 +80,7 @@ export default function LogDetailPage() {
     const metadata = useMemo(() => safeParseMetadata(log?.metadata || null), [log?.metadata]);
 
     if (loading) {
-        return <div className="p-6 lg:p-8 text-sm text-gray-500">Loading log...</div>;
+        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading log...</div>;
     }
 
     if (error || !log) {
@@ -97,7 +97,7 @@ export default function LogDetailPage() {
                 />
                 <Card>
                     <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm text-red-600">{error || 'Log not found'}</p>
+                        <p className="text-sm text-error-600">{error || 'Log not found'}</p>
                         <Link href="/admin/logs">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4" />
@@ -132,36 +132,36 @@ export default function LogDetailPage() {
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Type</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Type</p>
                     <Badge variant={TYPE_VARIANTS[log.type] || 'default'}>{log.type}</Badge>
                 </Card>
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">User</p>
-                    <p className="text-sm text-gray-700">{log.userId || '-'}</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">User</p>
+                    <p className="text-sm text-foreground">{log.userId || '-'}</p>
                 </Card>
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Created</p>
-                    <p className="text-sm text-gray-700">{new Date(log.createdAt).toLocaleString('pt-BR')}</p>
-                    <p className="mt-1 text-xs text-gray-500">Duration: {log.duration ?? '-'} ms</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Created</p>
+                    <p className="text-sm text-foreground">{new Date(log.createdAt).toLocaleString('pt-BR')}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Duration: {log.duration ?? '-'} ms</p>
                 </Card>
             </div>
 
             <Card>
-                <p className="mb-2 text-xs uppercase text-gray-500">Message</p>
-                <p className="text-sm text-gray-800">{log.message}</p>
+                <p className="mb-2 text-xs uppercase text-muted-foreground">Message</p>
+                <p className="text-sm text-foreground">{log.message}</p>
             </Card>
 
             <Card>
-                <p className="mb-2 text-xs uppercase text-gray-500">Metadata</p>
-                <pre className="max-h-[480px] overflow-auto rounded-lg bg-gray-900 p-4 text-xs text-green-300">
+                <p className="mb-2 text-xs uppercase text-muted-foreground">Metadata</p>
+                <pre className="max-h-[480px] overflow-auto rounded-lg bg-neutral-900 p-4 text-xs text-green-300">
                     {metadata}
                 </pre>
             </Card>
 
             {log.stack ? (
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Stack</p>
-                    <pre className="max-h-[360px] overflow-auto rounded-lg bg-gray-900 p-4 text-xs text-red-300">
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Stack</p>
+                    <pre className="max-h-[360px] overflow-auto rounded-lg bg-neutral-900 p-4 text-xs text-red-300">
                         {log.stack}
                     </pre>
                 </Card>

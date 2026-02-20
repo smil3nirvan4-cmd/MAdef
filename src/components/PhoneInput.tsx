@@ -66,13 +66,13 @@ export default function PhoneInput({
     return (
         <div className={`flex flex-col gap-1 ${className}`}>
             {label && (
-                <label className="text-sm font-medium text-gray-700">
-                    {label}{required && <span className="text-red-500 ml-1">*</span>}
+                <label className="text-sm font-medium text-foreground">
+                    {label}{required && <span className="text-error-500 ml-1">*</span>}
                 </label>
             )}
 
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🇧🇷</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🇧🇷</span>
                 <input
                     type="tel"
                     value={displayValue}
@@ -80,9 +80,9 @@ export default function PhoneInput({
                     onBlur={() => setTouched(true)}
                     placeholder={placeholder}
                     required={required}
-                    className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500
-            ${showError ? 'border-red-500 bg-red-50' : ''}
-            ${showSuccess ? 'border-green-500 bg-green-50' : ''}`}
+                    className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-ring transition-all
+            ${showError ? 'border-error-500 bg-error-50' : ''}
+            ${showSuccess ? 'border-secondary-500 bg-success-50' : ''}`}
                 />
                 {showValidation && touched && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -92,11 +92,11 @@ export default function PhoneInput({
             </div>
 
             {showError && validation?.error && (
-                <p className="text-sm text-red-600">{validation.error}</p>
+                <p className="text-sm text-error-600">{validation.error}</p>
             )}
 
             {showSuccess && validation?.type !== 'celular' && (
-                <p className="text-sm text-yellow-600">⚠️ WhatsApp requer celular</p>
+                <p className="text-sm text-warning-600">WhatsApp requer celular</p>
             )}
         </div>
     );

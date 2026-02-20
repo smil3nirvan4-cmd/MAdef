@@ -116,24 +116,24 @@ export default function CandidatosPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('AGUARDANDO_RH')}>
-                    <p className="text-2xl font-bold text-yellow-600">{stats?.aguardandoRH || 0}</p>
-                    <p className="text-xs text-gray-500">Aguardando RH</p>
+                    <p className="text-2xl font-bold text-warning-600">{stats?.aguardandoRH || 0}</p>
+                    <p className="text-xs text-muted-foreground">Aguardando RH</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('EM_ENTREVISTA')}>
-                    <p className="text-2xl font-bold text-blue-600">{stats?.emEntrevista || 0}</p>
-                    <p className="text-xs text-gray-500">Em Entrevista</p>
+                    <p className="text-2xl font-bold text-info-600">{stats?.emEntrevista || 0}</p>
+                    <p className="text-xs text-muted-foreground">Em Entrevista</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('APROVADO')}>
-                    <p className="text-2xl font-bold text-green-600">{stats?.aprovados || 0}</p>
-                    <p className="text-xs text-gray-500">Aprovados</p>
+                    <p className="text-2xl font-bold text-success-600">{stats?.aprovados || 0}</p>
+                    <p className="text-xs text-muted-foreground">Aprovados</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('REJEITADO')}>
-                    <p className="text-2xl font-bold text-red-600">{stats?.rejeitados || 0}</p>
-                    <p className="text-xs text-gray-500">Rejeitados</p>
+                    <p className="text-2xl font-bold text-error-600">{stats?.rejeitados || 0}</p>
+                    <p className="text-xs text-muted-foreground">Rejeitados</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('ALL')}>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.total || 0}</p>
-                    <p className="text-xs text-gray-500">Total</p>
+                    <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
+                    <p className="text-xs text-muted-foreground">Total</p>
                 </Card>
             </div>
 
@@ -143,89 +143,110 @@ export default function CandidatosPage() {
                     <div className="w-64">
                         <Input placeholder="Buscar nome ou telefone..." icon={Search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
-                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="h-10 border border-border bg-card rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all">
                         <option value="ALL">Todos Status</option>
                         {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
-                    <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <select value={filterArea} onChange={(e) => setFilterArea(e.target.value)} className="h-10 border border-border bg-card rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-ring focus:border-transparent outline-none transition-all">
                         <option value="ALL">Todas Áreas</option>
                         {areas.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
-                    <span className="ml-auto text-sm text-gray-500"><strong>{cuidadores.length}</strong> candidatos</span>
+                    <span className="ml-auto text-sm text-muted-foreground"><strong>{cuidadores.length}</strong> candidatos</span>
                 </div>
             </Card>
 
             {/* Table */}
-            <Card noPadding>
+            <Card noPadding className="border border-border overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
+                    <table className="w-full text-sm">
+                        <thead className="bg-surface-subtle border-b border-border">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Candidato</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Área</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Scores</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Atividade</th>
-                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Candidato</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Área</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Scores</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Atividade</th>
+                                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {loading ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Carregando...</td></tr> :
-                                cuidadores.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Nenhum candidato</td></tr> :
+                        <tbody className="divide-y divide-border">
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={i}>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-32" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-40" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-6 w-20 rounded-full" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-24" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-24" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-8 w-20 rounded-md" /></td>
+                                    </tr>
+                                ))
+                            ) :
+                                cuidadores.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="p-12 text-center">
+                                            <div className="flex flex-col items-center justify-center text-muted-foreground">
+                                                <UserX className="w-10 h-10 mb-3 opacity-20" />
+                                                <p className="font-medium">Nenhum candidato encontrado</p>
+                                                <p className="text-xs opacity-70 mt-1">Tente ajustar os filtros ou buscar por outro termo.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) :
                                     cuidadores.map((c) => {
                                         const st = STATUS_CONFIG[c.status] || { label: c.status, variant: 'default' };
                                         return (
-                                            <tr key={c.id} className="hover:bg-gray-50 group">
+                                            <tr key={c.id} className="hover:bg-surface-subtle transition-colors group">
                                                 <td className="px-4 py-3">
-                                                    <div className="font-medium text-gray-900">{c.nome || 'Sem nome'}</div>
-                                                    <div className="text-sm text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{c.telefone}</div>
-                                                    {c.endereco && <div className="text-xs text-gray-400 flex items-center gap-1"><MapPin className="w-3 h-3" />{c.endereco}</div>}
+                                                    <div className="font-medium text-foreground">{c.nome || 'Sem nome'}</div>
+                                                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 tabular-nums"><Phone className="w-3 h-3" />{c.telefone}</div>
+                                                    {c.endereco && <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 max-w-[200px] truncate"><MapPin className="w-3 h-3 flex-shrink-0" />{c.endereco}</div>}
                                                 </td>
                                                 <td className="px-4 py-3"><Badge>{c.area || 'N/A'}</Badge></td>
                                                 <td className="px-4 py-3"><Badge variant={st.variant}>{st.label}</Badge></td>
                                                 <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                        {c.quizScore !== null && <span className="flex items-center gap-1" title="Quiz Score"><Star className="w-3 h-3 text-yellow-500" />{c.quizScore}</span>}
-                                                        {c.scoreRH !== null && <span className="flex items-center gap-1" title="Score RH"><UserCheck className="w-3 h-3 text-blue-500" />{c.scoreRH}</span>}
-                                                        {!c.quizScore && !c.scoreRH && <span className="text-gray-400">-</span>}
+                                                    <div className="flex items-center gap-3 text-sm tabular-nums">
+                                                        {c.quizScore !== null && <span className="flex items-center gap-1" title="Quiz Score"><Star className="w-3.5 h-3.5 text-warning-500 fill-warning-500" />{c.quizScore}</span>}
+                                                        {c.scoreRH !== null && <span className="flex items-center gap-1" title="Score RH"><UserCheck className="w-3.5 h-3.5 text-info-500" />{c.scoreRH}</span>}
+                                                        {!c.quizScore && !c.scoreRH && <span className="text-muted-foreground">-</span>}
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <div className="text-xs text-gray-500">
+                                                    <div className="text-xs text-muted-foreground tabular-nums">
                                                         <div>{c._count?.mensagens || 0} msgs</div>
                                                         <div>{c._count?.alocacoes || 0} alocações</div>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <div className="flex items-center justify-center gap-1">
+                                                    <div className="flex items-center justify-center gap-1 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 transition-opacity">
                                                         <Button size="sm" variant="ghost" onClick={() => handleAction(c.id, 'whatsapp')} title="WhatsApp">
-                                                            <MessageCircle className="w-4 h-4 text-green-600" />
+                                                            <MessageCircle className="w-4 h-4 text-secondary-600" />
                                                         </Button>
                                                         <Link href={`/admin/candidatos/${c.id}`}>
-                                                            <Button size="sm" variant="ghost" title="Ver"><Eye className="w-4 h-4 text-blue-600" /></Button>
+                                                            <Button size="sm" variant="ghost" title="Ver"><Eye className="w-4 h-4 text-primary" /></Button>
                                                         </Link>
                                                         <div className="relative">
                                                             <Button size="sm" variant="ghost" onClick={() => setOpenMenu(openMenu === c.id ? null : c.id)}>
-                                                                <MoreHorizontal className="w-4 h-4" />
+                                                                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                                                             </Button>
                                                             {openMenu === c.id && (
-                                                                <div className="absolute right-0 top-8 z-50 bg-white border rounded-lg shadow-lg py-1 w-48">
-                                                                    <button onClick={() => setShowScoreModal(c.id)} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <UserCheck className="w-4 h-4 text-green-600" />Aprovar (c/ Score)
+                                                                <div className="absolute right-0 top-8 z-50 bg-card border border-border rounded-lg shadow-xl py-1 w-48 animate-in fade-in zoom-in-95 duration-100">
+                                                                    <button onClick={() => setShowScoreModal(c.id)} className="w-full px-4 py-2 text-left text-sm hover:bg-surface-subtle flex items-center gap-2 text-foreground">
+                                                                        <UserCheck className="w-4 h-4 text-success-600" />Aprovar (c/ Score)
                                                                     </button>
-                                                                    <button onClick={() => handleAction(c.id, 'entrevistar')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <Calendar className="w-4 h-4 text-blue-600" />Marcar Entrevista
+                                                                    <button onClick={() => handleAction(c.id, 'entrevistar')} className="w-full px-4 py-2 text-left text-sm hover:bg-surface-subtle flex items-center gap-2 text-foreground">
+                                                                        <Calendar className="w-4 h-4 text-info-600" />Marcar Entrevista
                                                                     </button>
-                                                                    <button onClick={() => handleAction(c.id, 'rejeitar')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <UserX className="w-4 h-4 text-red-600" />Rejeitar
+                                                                    <button onClick={() => handleAction(c.id, 'rejeitar')} className="w-full px-4 py-2 text-left text-sm hover:bg-surface-subtle flex items-center gap-2 text-foreground">
+                                                                        <UserX className="w-4 h-4 text-error-600" />Rejeitar
                                                                     </button>
                                                                     {c.status === 'REJEITADO' && (
-                                                                        <button onClick={() => handleAction(c.id, 'reativar')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                            <RefreshCw className="w-4 h-4 text-purple-600" />Reativar
+                                                                        <button onClick={() => handleAction(c.id, 'reativar')} className="w-full px-4 py-2 text-left text-sm hover:bg-surface-subtle flex items-center gap-2 text-foreground">
+                                                                            <RefreshCw className="w-4 h-4 text-accent-600" />Reativar
                                                                         </button>
                                                                     )}
-                                                                    <hr className="my-1" />
-                                                                    <button onClick={() => handleAction(c.id, 'delete')} className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2">
+                                                                    <hr className="my-1 border-border" />
+                                                                    <button onClick={() => handleAction(c.id, 'delete')} className="w-full px-4 py-2 text-left text-sm hover:bg-error-50 text-error-600 flex items-center gap-2">
                                                                         <Trash2 className="w-4 h-4" />Excluir
                                                                     </button>
                                                                 </div>

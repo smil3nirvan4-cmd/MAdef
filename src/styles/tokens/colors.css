@@ -1,43 +1,92 @@
 :root {
-  /* Neutral Color Palette */
-  --neutral-50: #fafafa;
-  --neutral-100: #f4f4f5;
-  --neutral-200: #e4e4e7;
-  --neutral-300: #d4d4d8;
-  --neutral-400: #a1a1aa;
-  --neutral-500: #71717a;
-  --neutral-600: #52525b;
-  --neutral-700: #3f3f46;
-  --neutral-800: #27272a;
-  --neutral-900: #18181b;
-  --neutral-950: #09090b;
+  /* ── Primary Teal ── */
+  --primary-50: #E6F7F7;
+  --primary-100: #B3E8E8;
+  --primary-200: #80D9D9;
+  --primary-300: #4DC9C9;
+  --primary-400: #2DA8A8;
+  --primary-500: #24A8A8;
+  --primary-600: #1F9494;
+  --primary-700: #1A7F7F;
+  --primary-800: #156B6B;
+  --primary-900: #0F5454;
 
-  /* Primary Brand Color (Blue) */
-  --primary-50: #eff6ff;
-  --primary-100: #dbeafe;
-  --primary-200: #bfdbfe;
-  --primary-300: #93c5fd;
-  --primary-400: #60a5fa;
-  --primary-500: #3b82f6;
-  --primary-600: #2563eb;
-  --primary-700: #1d4ed8;
-  --primary-800: #1e40af;
-  --primary-900: #1e3a8a;
+  /* ── Accent Orange ── */
+  --accent-400: #FB923C;
+  --accent-500: #F97316;
+  --accent-600: #EA580C;
+  --accent-700: #C2410C;
 
-  /* Success (Green) */
+  /* ── Secondary Green ── */
+  --secondary-400: #3DAF8C;
+  --secondary-500: #339977;
+  --secondary-600: #288A6E;
+  --secondary-700: #1E6B55;
+
+  /* ── Neutral (Slate) ── */
+  --neutral-50: #f8fafc;
+  --neutral-100: #f1f5f9;
+  --neutral-200: #e2e8f0;
+  --neutral-300: #cbd5e1;
+  --neutral-400: #94a3b8;
+  --neutral-500: #64748b;
+  --neutral-600: #475569;
+  --neutral-700: #334155;
+  --neutral-800: #1e293b;
+  --neutral-900: #0f172a;
+  --neutral-950: #020617;
+
+  /* ── Success ── */
   --success-50: #f0fdf4;
+  --success-100: #dcfce7;
   --success-500: #22c55e;
   --success-600: #16a34a;
   --success-700: #15803d;
 
-  /* Warning (Amber/Yellow) */
+  /* ── Warning ── */
   --warning-50: #fffbeb;
-  --warning-500: #f59e0b;
-  --warning-600: #d97706;
+  --warning-100: #fef3c7;
+  --warning-500: #EAB308;
+  --warning-600: #CA8A04;
 
-  /* Error (Red) */
+  /* ── Error ── */
   --error-50: #fef2f2;
+  --error-100: #fee2e2;
   --error-500: #ef4444;
   --error-600: #dc2626;
   --error-700: #b91c1c;
+
+  /* ── Info ── */
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+
+  /* ── Hero Gradient ── */
+  --gradient-hero: linear-gradient(135deg, #24A8A8, #288A6E);
+
+  /* ── Spacing ── */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+
+  /* ── Inputs ── */
+  --input-bg: var(--neutral-50);
+
+  /* ── Border Radius ── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px hsl(180 85% 50% / .15), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-glow: 0 25px 50px -12px hsl(180 85% 50% / .25);
 }

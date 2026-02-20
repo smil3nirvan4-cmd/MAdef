@@ -8,6 +8,7 @@ import type {
     PlantaoData,
 } from './pdf-generator';
 import type { OrcamentoSendOptions } from './send-options';
+import { COVERAGE_PRESETS, getPresetShortLabel, type CoveragePresetKey } from '../pricing/coverage-presets';
 
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object'
@@ -364,7 +365,8 @@ function hasPlanningOptions(options?: OrcamentoSendOptions): boolean {
         || options.horasCuidadoDia !== undefined
         || options.diasAtendimento?.length
         || options.tempoCuidadoDescricao
-        || options.alocacaoResumo,
+        || options.alocacaoResumo
+        || options.presetCobertura,
     );
 }
 
@@ -399,12 +401,15 @@ function extractAvaliacaoSecoes(
     const katz = asRecord(detalhes.katz);
     const lawton = asRecord(detalhes.lawton);
     const responsibilities = asRecord(detalhes.responsibilities);
+    const evaluator = asRecord(detalhes.evaluator);
 
     const secaoDiscovery: string[] = [];
     pushLine(secaoDiscovery, 'Gatilho', discovery.gatilho);
     pushLine(secaoDiscovery, 'Urgencia', discovery.urgencia);
+    pushLine(secaoDiscovery, 'Motivo da urgencia', discovery.motivoUrgencia);
     pushLine(secaoDiscovery, 'Situacao atual', discovery.situacaoAtual);
     pushLine(secaoDiscovery, 'Sobrecarga familiar', discovery.sobrecargaFamiliar);
+    pushLine(secaoDiscovery, 'O que tira o sono', discovery.oQueTiraOSono);
     pushLine(secaoDiscovery, 'Preocupacoes', discovery.preocupacoes);
     pushLine(secaoDiscovery, 'Experiencia anterior', discovery.experienciaAnterior);
 
@@ -418,6 +423,9 @@ function extractAvaliacaoSecoes(
     pushLine(secaoPaciente, 'Estado civil', patient.estadoCivil);
     pushLine(secaoPaciente, 'Religiao', patient.religiao);
     pushLine(secaoPaciente, 'Temperamento', patient.temperamento);
+    pushLine(secaoPaciente, 'Exigencias e preferencias', patient.exigenciasPreferencias);
+    pushLine(secaoPaciente, 'Tracos a evitar', patient.tracosEvitar);
+    pushLine(secaoPaciente, 'Motivo para substituicao', patient.motivoSubstituicao);
     pushLine(secaoPaciente, 'Preferencias alimentares', patient.preferenciasAlimentares);
 
     const condicoes = asRecord(clinical.condicoes);
@@ -459,10 +467,22 @@ function extractAvaliacaoSecoes(
     const secaoResponsabilidades: string[] = [];
     pushLine(secaoResponsabilidades, 'Medicacao separacao', medsResp.separacao);
     pushLine(secaoResponsabilidades, 'Medicacao administracao', medsResp.administracao);
+    pushLine(secaoResponsabilidades, 'Afeicao de sinais vitais', responsibilities.sinaisVitais);
+    pushLine(secaoResponsabilidades, 'Estimulacao', responsibilities.estimulacao);
+    pushLine(secaoResponsabilidades, 'Banho e Higiene', responsibilities.banhoHigiene);
+    pushLine(secaoResponsabilidades, 'Roupas', responsibilities.roupas);
+    pushLine(secaoResponsabilidades, 'Acompanhamento Externo', responsibilities.acompanhamentoExterno);
     pushLine(secaoResponsabilidades, 'Insumos', responsibilities.insumos);
     pushLine(secaoResponsabilidades, 'Alimentacao', responsibilities.alimentacao);
     pushLine(secaoResponsabilidades, 'Limpeza', responsibilities.limpeza);
     pushLine(secaoResponsabilidades, 'Observacoes', responsibilities.observacoes);
+
+    const secaoAvaliador: string[] = [];
+    pushLine(secaoAvaliador, 'Resumo do acompanhamento', evaluator.resumoVaga);
+    pushLine(secaoAvaliador, 'Restricoes absolutas (HH)', evaluator.restricoesAbsolutas);
+    pushLine(secaoAvaliador, 'Perfil ideal (HH)', evaluator.perfilIdeal);
+    pushLine(secaoAvaliador, 'Complexidade (HH)', evaluator.complexidade);
+    pushLine(secaoAvaliador, 'Setup geral do ambiente', evaluator.setupAmbiente);
 
     const secoes: AvaliacaoSectionData[] = [];
     if (secaoDiscovery.length) secoes.push({ titulo: 'Contexto da Demanda', linhas: secaoDiscovery });
@@ -470,6 +490,7 @@ function extractAvaliacaoSecoes(
     if (secaoClinica.length) secoes.push({ titulo: 'Resumo Clinico', linhas: secaoClinica });
     if (secaoEscalas.length) secoes.push({ titulo: 'Escalas e ABEMID', linhas: secaoEscalas });
     if (secaoResponsabilidades.length) secoes.push({ titulo: 'Responsabilidades e Rotina', linhas: secaoResponsabilidades });
+    if (secaoAvaliador.length) secoes.push({ titulo: 'Setup e Avaliador M.A.', linhas: secaoAvaliador });
     return secoes;
 }
 
@@ -497,7 +518,13 @@ export function buildOrcamentoPDFData(
             horasCuidadoDia: options?.horasCuidadoDia,
             tempoCuidadoDescricao: options?.tempoCuidadoDescricao,
             alocacaoResumo: options?.alocacaoResumo,
+            presetCobertura: options?.presetCobertura,
         }
+        : undefined;
+
+    const presetKey = options?.presetCobertura as CoveragePresetKey | undefined;
+    const presetCoberturaLabel = presetKey && COVERAGE_PRESETS[presetKey]
+        ? getPresetShortLabel(presetKey, (options?.horasCoberturaOverride ?? 12) as 12 | 24)
         : undefined;
 
     const createdAt = orcamento.createdAt ? new Date(String(orcamento.createdAt)) : new Date();
@@ -519,5 +546,6 @@ export function buildOrcamentoPDFData(
         avaliacaoSecoes: extractAvaliacaoSecoes(avaliacao, orcamento),
         configuracaoComercial,
         tipo,
+        presetCoberturaLabel,
     };
 }

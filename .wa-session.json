@@ -3,7 +3,7 @@
   "connected": true,
   "reconnecting": false,
   "qrCode": null,
-  "connectedAt": "2026-02-19T01:22:38.794Z",
+  "connectedAt": "2026-02-20T17:05:56.826Z",
   "phone": "5514981229679",
   "retryCount": 0,
   "lastStatusCode": null,
@@ -12,7 +12,7 @@
   "pairingCodeIssuedAt": null,
   "isConnecting": false,
   "lastIncomingMessageAt": null,
-  "lastOutgoingMessageAt": null,
+  "lastOutgoingMessageAt": "2026-02-20T17:05:56.826Z",
   "errorCount24h": 0,
   "webhookLatencyAvgMs": 0
 }

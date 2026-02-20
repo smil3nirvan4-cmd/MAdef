@@ -123,8 +123,8 @@ export default function LeadDetailPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Carregando detalhes do lead...</div>;
-    if (!lead) return <div className="p-8 text-center text-red-500">Lead não encontrado</div>;
+    if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando detalhes do lead...</div>;
+    if (!lead) return <div className="p-8 text-center text-error-500">Lead não encontrado</div>;
 
     const st = STATUS_CONFIG[lead.status] || { label: lead.status, variant: 'default', stage: 'PENDENTE' };
     const pr = PRIORIDADE_CONFIG[lead.prioridade] || { label: lead.prioridade, variant: 'default' };
@@ -160,15 +160,15 @@ export default function LeadDetailPage() {
             ==================================== */}
             <Card className="!p-6">
                 <h3 className="font-semibold text-lg mb-6 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-blue-600" />
+                    <Activity className="w-5 h-5 text-primary" />
                     Fluxo do Atendimento
                 </h3>
                 <div className="flex items-center justify-between relative">
                     {/* Progress bar background */}
-                    <div className="absolute left-0 right-0 top-6 h-1 bg-gray-200 rounded" />
+                    <div className="absolute left-0 right-0 top-6 h-1 bg-neutral-200 rounded" />
                     {/* Progress bar fill */}
                     <div
-                        className="absolute left-0 top-6 h-1 bg-blue-500 rounded transition-all duration-500"
+                        className="absolute left-0 top-6 h-1 bg-primary-500 rounded transition-all duration-500"
                         style={{ width: `${(currentStageIndex / (FLOW_STAGES.length - 1)) * 100}%` }}
                     />
 
@@ -182,15 +182,15 @@ export default function LeadDetailPage() {
                             <div key={stage.key} className="relative z-10 flex flex-col items-center">
                                 <div className={`
                                     w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all
-                                    ${isCompleted ? 'bg-green-500 border-green-500 text-white' : ''}
-                                    ${isCurrent ? 'bg-blue-500 border-blue-500 text-white ring-4 ring-blue-100' : ''}
-                                    ${isPending ? 'bg-white border-gray-300 text-gray-400' : ''}
+                                    ${isCompleted ? 'bg-secondary-500 border-secondary-500 text-white' : ''}
+                                    ${isCurrent ? 'bg-primary-500 border-primary-500 text-white ring-4 ring-blue-100' : ''}
+                                    ${isPending ? 'bg-card border-border-hover text-muted-foreground' : ''}
                                 `}>
                                     {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <Icon className="w-5 h-5" />}
                                 </div>
                                 <span className={`
                                     mt-2 text-xs font-medium text-center
-                                    ${isCurrent ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-400'}
+                                    ${isCurrent ? 'text-primary' : isCompleted ? 'text-secondary-600' : 'text-muted-foreground'}
                                 `}>
                                     {stage.label}
                                 </span>
@@ -210,8 +210,8 @@ export default function LeadDetailPage() {
                 <Card className="space-y-4">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
-                                <User className="w-5 h-5 text-blue-600" />
+                            <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+                                <User className="w-5 h-5 text-primary" />
                                 Informações do Cliente
                             </h3>
                         </div>
@@ -220,15 +220,15 @@ export default function LeadDetailPage() {
 
                     <div className="space-y-3 pt-2">
                         <div className="flex items-center gap-3 text-sm">
-                            <User className="w-4 h-4 text-gray-400" />
+                            <User className="w-4 h-4 text-muted-foreground" />
                             <span className="font-medium">{lead.nome || 'Nome não informado'}</span>
                         </div>
                         <div className="flex items-center gap-3 text-sm">
-                            <Phone className="w-4 h-4 text-gray-400" />
+                            <Phone className="w-4 h-4 text-muted-foreground" />
                             <span>{lead.telefone}</span>
                         </div>
                         <div className="flex items-center gap-3 text-sm">
-                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
                             <span>
                                 {lead.cidade || 'Cidade N/A'}
                                 {lead.bairro && `, ${lead.bairro}`}
@@ -236,22 +236,22 @@ export default function LeadDetailPage() {
                         </div>
                         {lead.hospital && (
                             <div className="flex items-center gap-3 text-sm">
-                                <Home className="w-4 h-4 text-gray-400" />
+                                <Home className="w-4 h-4 text-muted-foreground" />
                                 <span>{lead.hospital} {lead.quarto && `- Quarto ${lead.quarto}`}</span>
                             </div>
                         )}
                         <div className="flex items-center gap-3 text-sm">
-                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span>Tipo: <Badge variant="info" className="ml-1">{lead.tipo || 'HOME_CARE'}</Badge></span>
                         </div>
                     </div>
 
                     <div className="pt-4 border-t space-y-2">
                         <Button className="w-full justify-start" variant="outline" onClick={() => handleAction('whatsapp')}>
-                            <MessageCircle className="w-4 h-4 mr-2 text-green-600" /> Abrir WhatsApp
+                            <MessageCircle className="w-4 h-4 mr-2 text-secondary-600" /> Abrir WhatsApp
                         </Button>
                         <Button className="w-full justify-start" variant="outline" onClick={() => handleAction('avaliar')}>
-                            <ClipboardList className="w-4 h-4 mr-2 text-blue-600" /> Iniciar Avaliação
+                            <ClipboardList className="w-4 h-4 mr-2 text-primary" /> Iniciar Avaliação
                         </Button>
                     </div>
                 </Card>
@@ -260,14 +260,14 @@ export default function LeadDetailPage() {
                     DADOS DA AVALIAÇÃO (se existir)
                 ==================================== */}
                 <Card className="space-y-4">
-                    <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
-                        <ClipboardList className="w-5 h-5 text-purple-600" />
+                    <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+                        <ClipboardList className="w-5 h-5 text-accent-600" />
                         Dados da Avaliação
                     </h3>
 
                     {!lead.avaliacoes?.length ? (
-                        <div className="text-center py-8 text-gray-500">
-                            <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <div className="text-center py-8 text-muted-foreground">
+                            <AlertCircle className="w-12 h-12 mx-auto mb-3 text-muted-foreground/50" />
                             <p>Nenhuma avaliação realizada</p>
                             <Button variant="primary" className="mt-4" onClick={() => handleAction('avaliar')}>
                                 <Edit className="w-4 h-4 mr-2" /> Iniciar Avaliação
@@ -279,16 +279,16 @@ export default function LeadDetailPage() {
                                 <>
                                     {/* Discovery */}
                                     {(avaliacaoData as Record<string, Record<string, string>>).discovery && (
-                                        <div className="p-3 bg-blue-50 rounded-lg">
-                                            <p className="text-xs font-medium text-blue-700 mb-1">Gatilho / Motivação</p>
+                                        <div className="p-3 bg-info-50 rounded-lg">
+                                            <p className="text-xs font-medium text-primary mb-1">Gatilho / Motivação</p>
                                             <p className="text-sm">{(avaliacaoData as Record<string, Record<string, string>>).discovery?.gatilho || 'N/A'}</p>
                                         </div>
                                     )}
 
                                     {/* Patient Info */}
                                     {(avaliacaoData as Record<string, Record<string, string>>).patient && (
-                                        <div className="p-3 bg-purple-50 rounded-lg">
-                                            <p className="text-xs font-medium text-purple-700 mb-1">Paciente</p>
+                                        <div className="p-3 bg-accent-500/10 rounded-lg">
+                                            <p className="text-xs font-medium text-accent-700 mb-1">Paciente</p>
                                             <p className="text-sm">Idade: {(avaliacaoData as Record<string, Record<string, string>>).patient?.idade || 'N/A'}</p>
                                             <p className="text-sm">Peso: {(avaliacaoData as Record<string, Record<string, string>>).patient?.peso || 'N/A'} kg</p>
                                         </div>
@@ -296,8 +296,8 @@ export default function LeadDetailPage() {
 
                                     {/* Clinical */}
                                     {(avaliacaoData as Record<string, Record<string, unknown>>).clinical && (
-                                        <div className="p-3 bg-green-50 rounded-lg">
-                                            <p className="text-xs font-medium text-green-700 mb-1">Dados Clínicos</p>
+                                        <div className="p-3 bg-success-50 rounded-lg">
+                                            <p className="text-xs font-medium text-secondary-700 mb-1">Dados Clínicos</p>
                                             <p className="text-sm">Medicamentos: {((avaliacaoData as Record<string, Record<string, Record<string, string>>>).clinical?.medicamentos)?.total || 'N/A'}</p>
                                             <p className="text-sm">Quedas: {(avaliacaoData as Record<string, Record<string, string>>).clinical?.quedas || 'N/A'}</p>
                                         </div>
@@ -305,15 +305,15 @@ export default function LeadDetailPage() {
 
                                     {/* Valor Proposto */}
                                     {lead.avaliacoes[0].valorProposto && (
-                                        <div className="p-3 bg-yellow-50 rounded-lg">
-                                            <p className="text-xs font-medium text-yellow-700 mb-1">Valor Proposto</p>
-                                            <p className="text-lg font-bold text-yellow-800">R$ {lead.avaliacoes[0].valorProposto}</p>
+                                        <div className="p-3 bg-warning-50 rounded-lg">
+                                            <p className="text-xs font-medium text-warning-600 mb-1">Valor Proposto</p>
+                                            <p className="text-lg font-bold text-warning-600">R$ {lead.avaliacoes[0].valorProposto}</p>
                                         </div>
                                     )}
                                 </>
                             )}
 
-                            <div className="pt-2 border-t text-xs text-gray-500">
+                            <div className="pt-2 border-t text-xs text-muted-foreground">
                                 Última avaliação: {new Date(lead.avaliacoes[0].createdAt).toLocaleString('pt-BR')}
                             </div>
                         </div>
@@ -324,8 +324,8 @@ export default function LeadDetailPage() {
                     AÇÕES DO FLUXO
                 ==================================== */}
                 <Card className="space-y-4">
-                    <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
-                        <ArrowRight className="w-5 h-5 text-green-600" />
+                    <h3 className="font-semibold text-lg text-foreground flex items-center gap-2">
+                        <ArrowRight className="w-5 h-5 text-secondary-600" />
                         Ações
                     </h3>
 
@@ -338,7 +338,7 @@ export default function LeadDetailPage() {
                                 onClick={() => handleAction('status', 'EM_AVALIACAO')}
                                 isLoading={actionLoading === 'status'}
                             >
-                                <ClipboardList className="w-4 h-4 mr-2 text-blue-600" />
+                                <ClipboardList className="w-4 h-4 mr-2 text-primary" />
                                 Iniciar Análise
                             </Button>
                         )}
@@ -347,7 +347,7 @@ export default function LeadDetailPage() {
                         {['EM_AVALIACAO', 'AVALIACAO'].includes(lead.status) && (
                             <Link href={`/admin/avaliacoes/nova?pacienteId=${lead.id}`} className="block">
                                 <Button className="w-full justify-start" variant="outline">
-                                    <Send className="w-4 h-4 mr-2 text-purple-600" />
+                                    <Send className="w-4 h-4 mr-2 text-accent-600" />
                                     Realizar Avaliação e Enviar Proposta
                                 </Button>
                             </Link>
@@ -355,10 +355,10 @@ export default function LeadDetailPage() {
 
                         {/* Aguardando resposta da proposta */}
                         {lead.status === 'PROPOSTA_ENVIADA' && (
-                            <div className="p-4 bg-purple-50 rounded-lg text-center">
+                            <div className="p-4 bg-accent-500/10 rounded-lg text-center">
                                 <Send className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-                                <p className="text-sm text-purple-700 font-medium">Aguardando resposta do cliente</p>
-                                <p className="text-xs text-purple-600 mt-1">O cliente deve responder &quot;Confirmo&quot; ou &quot;Recuso&quot;</p>
+                                <p className="text-sm text-accent-700 font-medium">Aguardando resposta do cliente</p>
+                                <p className="text-xs text-accent-600 mt-1">O cliente deve responder &quot;Confirmo&quot; ou &quot;Recuso&quot;</p>
                             </div>
                         )}
 
@@ -377,9 +377,9 @@ export default function LeadDetailPage() {
 
                         {/* Proposta Recusada */}
                         {lead.status === 'PROPOSTA_RECUSADA' && (
-                            <div className="p-4 bg-red-50 rounded-lg text-center">
-                                <AlertCircle className="w-8 h-8 mx-auto mb-2 text-red-500" />
-                                <p className="text-sm text-red-700 font-medium">Proposta Recusada</p>
+                            <div className="p-4 bg-error-50 rounded-lg text-center">
+                                <AlertCircle className="w-8 h-8 mx-auto mb-2 text-error-500" />
+                                <p className="text-sm text-error-700 font-medium">Proposta Recusada</p>
                                 <Button
                                     className="mt-3"
                                     variant="outline"
@@ -393,9 +393,9 @@ export default function LeadDetailPage() {
                         {/* Contrato Enviado - Aguardando Assinatura */}
                         {['AGUARDANDO_CONTRATO', 'CONTRATO_ENVIADO'].includes(lead.status) && (
                             <div className="space-y-3">
-                                <div className="p-4 bg-yellow-50 rounded-lg text-center">
-                                    <FileSignature className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
-                                    <p className="text-sm text-yellow-700 font-medium">Aguardando assinatura</p>
+                                <div className="p-4 bg-warning-50 rounded-lg text-center">
+                                    <FileSignature className="w-8 h-8 mx-auto mb-2 text-warning-500" />
+                                    <p className="text-sm text-warning-600 font-medium">Aguardando assinatura</p>
                                 </div>
                                 <Button
                                     className="w-full justify-start"
@@ -411,10 +411,10 @@ export default function LeadDetailPage() {
 
                         {/* Cliente Ativo */}
                         {lead.status === 'ATIVO' && (
-                            <div className="p-4 bg-green-50 rounded-lg text-center">
-                                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                                <p className="text-sm text-green-700 font-medium">Cliente Ativo</p>
-                                <p className="text-xs text-green-600 mt-1">Atendimento em andamento</p>
+                            <div className="p-4 bg-success-50 rounded-lg text-center">
+                                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-success-500" />
+                                <p className="text-sm text-secondary-700 font-medium">Cliente Ativo</p>
+                                <p className="text-xs text-secondary-600 mt-1">Atendimento em andamento</p>
                             </div>
                         )}
                     </div>
@@ -426,30 +426,30 @@ export default function LeadDetailPage() {
             ==================================== */}
             <Card>
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5 text-green-600" />
+                    <MessageCircle className="w-5 h-5 text-secondary-600" />
                     Histórico de Conversas WhatsApp ({lead.mensagens?.length || 0} mensagens)
                 </h3>
 
                 {!lead.mensagens?.length ? (
-                    <p className="text-sm text-gray-500 italic text-center py-8">Nenhuma mensagem registrada.</p>
+                    <p className="text-sm text-muted-foreground italic text-center py-8">Nenhuma mensagem registrada.</p>
                 ) : (
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                         {lead.mensagens.map(msg => (
                             <div
                                 key={msg.id}
                                 className={`p-3 rounded-lg text-sm ${msg.direcao === 'IN'
-                                    ? 'bg-gray-100 mr-12'
-                                    : 'bg-green-100 ml-12'
+                                    ? 'bg-surface-subtle mr-12'
+                                    : 'bg-success-100 ml-12'
                                     }`}
                             >
                                 <div className="flex justify-between items-start gap-2">
                                     <p className="flex-1 whitespace-pre-wrap">{msg.conteudo}</p>
-                                    <span className="text-xs text-gray-500 whitespace-nowrap">
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap">
                                         {new Date(msg.timestamp).toLocaleDateString('pt-BR')} {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
                                 {(msg.flow || msg.step) && (
-                                    <p className="text-xs text-gray-400 mt-1">
+                                    <p className="text-xs text-muted-foreground mt-1">
                                         {msg.flow && `Fluxo: ${msg.flow}`} {msg.step && `| Etapa: ${msg.step}`}
                                     </p>
                                 )}
@@ -465,7 +465,7 @@ export default function LeadDetailPage() {
             {lead.avaliacoes && lead.avaliacoes.length > 0 && (
                 <Card>
                     <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <ClipboardList className="w-5 h-5 text-purple-600" />
+                        <ClipboardList className="w-5 h-5 text-accent-600" />
                         Histórico de Avaliações Completo ({lead.avaliacoes.length})
                     </h3>
                     <div className="space-y-6">
@@ -485,7 +485,7 @@ export default function LeadDetailPage() {
                                     if (typeof value === 'object' && !Array.isArray(value)) {
                                         items.push(
                                             <div key={`${prefix}${key}`} className="col-span-2 mt-2">
-                                                <p className="font-semibold text-gray-700 capitalize border-b pb-1 mb-2">{label}</p>
+                                                <p className="font-semibold text-foreground capitalize border-b pb-1 mb-2">{label}</p>
                                                 <div className="grid grid-cols-2 gap-2 pl-2">
                                                     {renderData(value as Record<string, unknown>, `${prefix}${key}.`)}
                                                 </div>
@@ -494,14 +494,14 @@ export default function LeadDetailPage() {
                                     } else if (Array.isArray(value)) {
                                         items.push(
                                             <div key={`${prefix}${key}`} className="col-span-2">
-                                                <span className="text-xs text-gray-500 capitalize">{label}:</span>
+                                                <span className="text-xs text-muted-foreground capitalize">{label}:</span>
                                                 <p className="text-sm">{value.join(', ')}</p>
                                             </div>
                                         );
                                     } else {
                                         items.push(
-                                            <div key={`${prefix}${key}`} className="p-2 bg-gray-50 rounded">
-                                                <span className="text-xs text-gray-500 capitalize block">{label}:</span>
+                                            <div key={`${prefix}${key}`} className="p-2 bg-background rounded">
+                                                <span className="text-xs text-muted-foreground capitalize block">{label}:</span>
                                                 <p className="text-sm font-medium">{String(value)}</p>
                                             </div>
                                         );
@@ -511,18 +511,18 @@ export default function LeadDetailPage() {
                             };
 
                             return (
-                                <div key={av.id} className="border-2 rounded-xl p-5 bg-white shadow-sm">
+                                <div key={av.id} className="border-2 rounded-xl p-5 bg-card shadow-sm">
                                     {/* Header da Avaliação */}
                                     <div className="flex justify-between items-center mb-4 pb-3 border-b">
                                         <div>
                                             <span className="font-bold text-lg">Avaliação #{lead.avaliacoes!.length - idx}</span>
-                                            <p className="text-xs text-gray-500">ID: {av.id}</p>
+                                            <p className="text-xs text-muted-foreground">ID: {av.id}</p>
                                         </div>
                                         <div className="flex flex-col items-end gap-1">
                                             <Badge variant={av.status === 'ENVIADA' ? 'success' : av.status === 'PENDENTE' ? 'warning' : 'info'}>
                                                 {av.status}
                                             </Badge>
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-muted-foreground">
                                                 {new Date(av.createdAt).toLocaleString('pt-BR')}
                                             </span>
                                         </div>
@@ -530,15 +530,15 @@ export default function LeadDetailPage() {
 
                                     {/* Valor Proposto */}
                                     {av.valorProposto && (
-                                        <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg mb-4 border-l-4 border-yellow-500">
-                                            <p className="text-sm text-yellow-800">💰 Valor Proposto</p>
+                                        <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg mb-4 border-l-4 border-warning-500">
+                                            <p className="text-sm text-warning-600">Valor Proposto</p>
                                             <p className="text-2xl font-bold text-yellow-900">R$ {av.valorProposto}</p>
                                         </div>
                                     )}
 
                                     {/* Status de Envio WhatsApp */}
                                     {av.whatsappEnviado && (
-                                        <div className="p-3 bg-green-50 rounded-lg text-sm text-green-700 mb-4 flex items-center gap-2">
+                                        <div className="p-3 bg-success-50 rounded-lg text-sm text-secondary-700 mb-4 flex items-center gap-2">
                                             <MessageCircle className="w-4 h-4" />
                                             Proposta enviada via WhatsApp em {av.whatsappEnviadoEm ? new Date(av.whatsappEnviadoEm).toLocaleString('pt-BR') : 'data não registrada'}
                                         </div>
@@ -547,7 +547,7 @@ export default function LeadDetailPage() {
                                     {/* TODOS OS DADOS COLETADOS */}
                                     {dados && (
                                         <div className="space-y-4">
-                                            <p className="font-semibold text-gray-900 text-sm uppercase tracking-wide">📋 Dados Completos da Avaliação:</p>
+                                            <p className="font-semibold text-foreground text-sm uppercase tracking-wide">Dados Completos da Avaliacao:</p>
                                             <div className="grid grid-cols-2 gap-3 text-sm">
                                                 {renderData(dados as Record<string, unknown>)}
                                             </div>
@@ -557,10 +557,10 @@ export default function LeadDetailPage() {
                                     {/* JSON Raw para debug se necessário */}
                                     {dados && (
                                         <details className="mt-4">
-                                            <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                                            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
                                                 Ver dados brutos (JSON)
                                             </summary>
-                                            <pre className="mt-2 p-3 bg-gray-900 text-green-400 rounded text-xs overflow-auto max-h-48">
+                                            <pre className="mt-2 p-3 bg-neutral-900 text-success-500 rounded text-xs overflow-auto max-h-48">
                                                 {JSON.stringify(dados, null, 2)}
                                             </pre>
                                         </details>
@@ -578,7 +578,7 @@ export default function LeadDetailPage() {
             {lead.orcamentos && lead.orcamentos.length > 0 && (
                 <Card>
                     <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-blue-600" />
+                        <FileText className="w-5 h-5 text-primary" />
                         Orçamentos ({lead.orcamentos.length})
                     </h3>
                     <div className="space-y-3">
@@ -586,7 +586,7 @@ export default function LeadDetailPage() {
                             <div key={orc.id} className="border rounded-lg p-4 flex justify-between items-center">
                                 <div>
                                     <p className="font-medium">R$ {orc.valorFinal?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                                    <p className="text-xs text-gray-500">{new Date(orc.createdAt).toLocaleString('pt-BR')}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(orc.createdAt).toLocaleString('pt-BR')}</p>
                                 </div>
                                 <Badge variant={orc.status === 'APROVADO' ? 'success' : orc.status === 'RECUSADO' ? 'error' : 'warning'}>
                                     {orc.status}
@@ -603,7 +603,7 @@ export default function LeadDetailPage() {
             {lead.formSubmissions && lead.formSubmissions.length > 0 && (
                 <Card>
                     <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        <Edit className="w-5 h-5 text-indigo-600" />
+                        <Edit className="w-5 h-5 text-info-600" />
                         Formulários Recebidos (Site) ({lead.formSubmissions.length})
                     </h3>
                     <div className="space-y-3">
@@ -617,13 +617,13 @@ export default function LeadDetailPage() {
                                 <div key={form.id} className="border rounded-lg p-4">
                                     <div className="flex justify-between items-center mb-2">
                                         <Badge variant="info">{form.tipo}</Badge>
-                                        <span className="text-xs text-gray-500">{new Date(form.createdAt).toLocaleString('pt-BR')}</span>
+                                        <span className="text-xs text-muted-foreground">{new Date(form.createdAt).toLocaleString('pt-BR')}</span>
                                     </div>
                                     {dados && (
                                         <div className="text-sm space-y-1">
                                             {Object.entries(dados).slice(0, 8).map(([key, value]) => (
                                                 <div key={key} className="flex gap-2">
-                                                    <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                                    <span className="text-muted-foreground capitalize">{key.replace(/_/g, ' ')}:</span>
                                                     <span>{String(value)}</span>
                                                 </div>
                                             ))}

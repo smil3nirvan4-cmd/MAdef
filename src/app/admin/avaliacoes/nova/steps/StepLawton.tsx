@@ -22,47 +22,47 @@ const items = [
 export default function StepLawton({ data, onUpdate, onNext, onBack }: StepLawtonProps) {
     return (
         <div className="max-w-4xl mx-auto p-4">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Escala de Lawton</h1>
-            <p className="text-gray-500 mb-8">Avalie a capacidade para Atividades Instrumentais de Vida Diária (AIVD).</p>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Escala de Lawton</h1>
+            <p className="text-muted-foreground mb-8">Avalie a capacidade para Atividades Instrumentais de Vida Diária (AIVD).</p>
 
             <div className="space-y-6">
                 {items.map(({ key, label, q1, q2, q3 }) => {
                     const currentVal = data[key as keyof LawtonEvaluation];
                     return (
-                        <div key={key} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">{label}</h3>
+                        <div key={key} className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                            <h3 className="text-lg font-bold text-foreground mb-4 border-b pb-2">{label}</h3>
                             <div className="grid md:grid-cols-3 gap-3">
                                 <button
                                     onClick={() => onUpdate(key as keyof LawtonEvaluation, 3)}
-                                    className={`p-4 rounded-lg border text-left transition-all ${currentVal === 3
-                                            ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
-                                            : 'border-gray-200 hover:bg-gray-50'
+                                    className={`p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${currentVal === 3
+                                        ? 'bg-primary-50 border-primary-500 ring-1 ring-ring shadow-sm'
+                                        : 'border-border hover:bg-background hover:border-primary/30'
                                         }`}
                                 >
-                                    <div className="font-bold text-blue-900 mb-1">3 pts</div>
-                                    <div className="text-sm text-gray-600">{q1} (Independente)</div>
+                                    <div className="font-bold text-primary mb-1">3 pts</div>
+                                    <div className="text-sm text-foreground">{q1} (Independente)</div>
                                 </button>
 
                                 <button
                                     onClick={() => onUpdate(key as keyof LawtonEvaluation, 2)}
-                                    className={`p-4 rounded-lg border text-left transition-all ${currentVal === 2
-                                            ? 'bg-yellow-50 border-yellow-500 ring-1 ring-yellow-500'
-                                            : 'border-gray-200 hover:bg-gray-50'
+                                    className={`p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${currentVal === 2
+                                        ? 'bg-warning-50 border-warning-500 ring-1 ring-warning-500 shadow-sm'
+                                        : 'border-border hover:bg-background hover:border-primary/30'
                                         }`}
                                 >
-                                    <div className="font-bold text-yellow-900 mb-1">2 pts</div>
-                                    <div className="text-sm text-gray-600">{q2} (Parcial)</div>
+                                    <div className="font-bold text-warning-700 mb-1">2 pts</div>
+                                    <div className="text-sm text-foreground">{q2} (Parcial)</div>
                                 </button>
 
                                 <button
                                     onClick={() => onUpdate(key as keyof LawtonEvaluation, 1)}
-                                    className={`p-4 rounded-lg border text-left transition-all ${currentVal === 1
-                                            ? 'bg-red-50 border-red-500 ring-1 ring-red-500'
-                                            : 'border-gray-200 hover:bg-gray-50'
+                                    className={`p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${currentVal === 1
+                                        ? 'bg-error-50 border-error-500 ring-1 ring-error-500 shadow-sm'
+                                        : 'border-border hover:bg-background hover:border-primary/30'
                                         }`}
                                 >
-                                    <div className="font-bold text-red-900 mb-1">1 pt</div>
-                                    <div className="text-sm text-gray-600">{q3} (Dependente)</div>
+                                    <div className="font-bold text-error-700 mb-1">1 pt</div>
+                                    <div className="text-sm text-foreground">{q3} (Dependente)</div>
                                 </button>
                             </div>
                         </div>
@@ -71,10 +71,10 @@ export default function StepLawton({ data, onUpdate, onNext, onBack }: StepLawto
             </div>
 
             <div className="flex justify-between mt-8 pt-6 border-t pb-20">
-                <button onClick={onBack} className="text-gray-500 hover:text-gray-700">← Voltar</button>
+                <button onClick={onBack} className="text-muted-foreground hover:text-foreground">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-blue-700"
+                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
                 >
                     Finalizar Avaliação Clínica →
                 </button>

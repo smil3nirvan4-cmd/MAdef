@@ -22,10 +22,10 @@ export function DataTable<T extends { id: string | number }>({
     emptyMessage = "Nenhum registro encontrado.",
 }: DataTableProps<T>) {
     return (
-        <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
+                    <thead className="bg-background text-muted-foreground border-b border-border">
                         <tr>
                             {columns.map((col, index) => (
                                 <th
@@ -40,12 +40,12 @@ export function DataTable<T extends { id: string | number }>({
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border">
                         {data.length === 0 ? (
                             <tr>
                                 <td
                                     colSpan={columns.length}
-                                    className="px-6 py-12 text-center text-gray-500"
+                                    className="px-6 py-12 text-center text-muted-foreground"
                                 >
                                     {emptyMessage}
                                 </td>
@@ -57,11 +57,11 @@ export function DataTable<T extends { id: string | number }>({
                                     onClick={() => onRowClick?.(item)}
                                     className={cn(
                                         "group transition-colors",
-                                        onRowClick ? "cursor-pointer hover:bg-gray-50" : ""
+                                        onRowClick ? "cursor-pointer hover:bg-background" : ""
                                     )}
                                 >
                                     {columns.map((col, index) => (
-                                        <td key={index} className="px-6 py-4 text-gray-700">
+                                        <td key={index} className="px-6 py-4 text-foreground">
                                             {col.cell
                                                 ? col.cell(item)
                                                 : col.accessorKey

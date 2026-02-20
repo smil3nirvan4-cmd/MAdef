@@ -189,8 +189,8 @@ function LogsPageContent() {
             sortable: true,
             accessor: (row) => (
                 <div className="space-y-1">
-                    <p className="font-mono text-xs text-gray-700">{row.action}</p>
-                    <p className="text-xs text-gray-500 line-clamp-2">{row.message}</p>
+                    <p className="font-mono text-xs text-foreground">{row.action}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{row.message}</p>
                 </div>
             ),
         },
@@ -204,7 +204,7 @@ function LogsPageContent() {
             key: 'requestId',
             header: 'Request ID',
             accessor: (row) => (
-                <span className="font-mono text-xs text-gray-600">{parseRequestId(row.metadata)}</span>
+                <span className="font-mono text-xs text-foreground">{parseRequestId(row.metadata)}</span>
             ),
             hidden: true,
         },
@@ -220,7 +220,7 @@ function LogsPageContent() {
             header: 'Details',
             width: '110px',
             accessor: (row) => (
-                <Link href={`/admin/logs/${row.id}`} className="text-sm text-blue-600 hover:underline">
+                <Link href={`/admin/logs/${row.id}`} className="text-sm text-primary hover:underline">
                     Open
                 </Link>
             ),
@@ -241,7 +241,7 @@ function LogsPageContent() {
             />
 
             {!dbSchemaStatus.ok ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="rounded-lg border border-error-100 bg-error-50 px-4 py-3 text-sm text-error-700">
                     <p className="font-medium">Database schema drift detectado.</p>
                     <p className="mt-1">
                         Missing columns: {dbSchemaStatus.missingColumns.join(', ') || 'nao informado'}.
@@ -274,7 +274,7 @@ function LogsPageContent() {
 
 export default function LogsPage() {
     return (
-        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-gray-500">Loading logs...</div>}>
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading logs...</div>}>
             <LogsPageContent />
         </Suspense>
     );

@@ -3,7 +3,7 @@ import { KATZEvaluation } from '@/types/evaluation';
 
 interface StepKatzProps {
     data: KATZEvaluation;
-    onUpdate: (field: keyof KATZEvaluation, value: 'independente' | 'dependente') => void;
+    onUpdate: (field: keyof KATZEvaluation, value: 'independente' | 'parcial' | 'dependente') => void;
     onNext: () => void;
     onBack: () => void;
 }
@@ -19,36 +19,45 @@ const activities = [
 
 export default function StepKatz({ data, onUpdate, onNext, onBack }: StepKatzProps) {
     return (
-        <div className="max-w-4xl mx-auto p-4">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Escala de Katz</h1>
-            <p className="text-gray-500 mb-8">Avalie a independência do paciente nas Atividades de Vida Diária (AVDs).</p>
+        <div className="max-w-5xl mx-auto p-4">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Escala de Katz</h1>
+            <p className="text-muted-foreground mb-8">Avalie a independência do paciente nas Atividades de Vida Diária (AVDs).</p>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid lg:grid-cols-2 gap-6">
                 {activities.map(({ key, label, desc }) => (
-                    <div key={key} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div key={key} className="bg-card p-6 rounded-xl shadow-sm border border-border">
                         <div className="mb-4">
-                            <h3 className="text-lg font-bold text-gray-800">{label}</h3>
-                            <p className="text-sm text-gray-500">{desc}</p>
+                            <h3 className="text-lg font-bold text-foreground">{label}</h3>
+                            <p className="text-sm text-muted-foreground">{desc}</p>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 text-sm">
                             <button
                                 onClick={() => onUpdate(key as keyof KATZEvaluation, 'independente')}
-                                className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${data[key as keyof KATZEvaluation] === 'independente'
-                                        ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
-                                        : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                                className={`flex-1 py-2 px-2 rounded-lg border font-medium transition-all active:scale-[0.98] ${data[key as keyof KATZEvaluation] === 'independente'
+                                    ? 'bg-success-50 border-secondary-500 text-secondary-700 shadow-sm ring-1 ring-secondary-500'
+                                    : 'border-border hover:bg-background hover:border-primary/30 text-foreground'
                                     }`}
                             >
-                                ✨ Independente
+                                ✨ S (Sempre independente)
+                            </button>
+                            <button
+                                onClick={() => onUpdate(key as keyof KATZEvaluation, 'parcial')}
+                                className={`flex-1 py-2 px-2 rounded-lg border font-medium transition-all active:scale-[0.98] ${data[key as keyof KATZEvaluation] === 'parcial'
+                                    ? 'bg-warning-50 border-warning-500 text-warning-700 shadow-sm ring-1 ring-warning-500'
+                                    : 'border-border hover:bg-background hover:border-primary/30 text-foreground'
+                                    }`}
+                            >
+                                AV (Às vezes precisa de ajuda)
                             </button>
                             <button
                                 onClick={() => onUpdate(key as keyof KATZEvaluation, 'dependente')}
-                                className={`flex-1 py-3 px-4 rounded-lg border font-medium transition-all ${data[key as keyof KATZEvaluation] === 'dependente'
-                                        ? 'bg-red-50 border-red-500 text-red-700 shadow-sm'
-                                        : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                                className={`flex-1 py-2 px-2 rounded-lg border font-medium transition-all active:scale-[0.98] ${data[key as keyof KATZEvaluation] === 'dependente'
+                                    ? 'bg-error-50 border-error-500 text-error-700 shadow-sm ring-1 ring-error-500'
+                                    : 'border-border hover:bg-background hover:border-primary/30 text-foreground'
                                     }`}
                             >
-                                🆘 Dependente
+                                🆘 Sempre (Dependente total)
                             </button>
                         </div>
                     </div>
@@ -56,10 +65,10 @@ export default function StepKatz({ data, onUpdate, onNext, onBack }: StepKatzPro
             </div>
 
             <div className="flex justify-between mt-8 pt-6 border-t">
-                <button onClick={onBack} className="text-gray-500 hover:text-gray-700">← Voltar</button>
+                <button onClick={onBack} className="text-muted-foreground hover:text-foreground">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-blue-700"
+                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
                 >
                     Próxima Etapa: Lawton →
                 </button>

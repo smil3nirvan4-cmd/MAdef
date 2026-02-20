@@ -41,6 +41,7 @@ export interface PlanejamentoData {
     horasCuidadoDia?: number;
     tempoCuidadoDescricao?: string;
     alocacaoResumo?: string;
+    presetCobertura?: string;
 }
 
 export interface AvaliacaoSectionData {
@@ -75,6 +76,7 @@ export interface OrcamentoPDFData {
     avaliacaoSecoes?: AvaliacaoSectionData[];
     configuracaoComercial: ConfiguracaoComercialData;
     tipo: 'PROPOSTA' | 'CONTRATO';
+    presetCoberturaLabel?: string;
 }
 
 const BRAND = '#00B0B9';
@@ -161,6 +163,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         const doc = new PDFDocument({
             size: 'A4',
             margin: 50,
+            bufferPages: true,
             font: PDF_FONT_REGULAR_PATH,
         });
         const chunks: Buffer[] = [];
@@ -176,18 +179,26 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         const width = doc.page.width - 100;
         let y = 50;
 
-        doc.fontSize(18).fillColor(BRAND).font(PDF_FONT_BOLD_NAME).text('MAOS AMIGAS', 50, y);
-        doc.fontSize(9).fillColor('#555').font(PDF_FONT_REGULAR_NAME).text('Cuidadores de Idosos - Toledo PR', 50, y + 22);
+        const logoPath = path.join(process.cwd(), 'src/assets/logo.png');
+        if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 50, y, { height: 40 });
+        } else {
+            doc.fontSize(18).fillColor(BRAND).font(PDF_FONT_BOLD_NAME).text('MAOS AMIGAS', 50, y);
+            doc.fontSize(9).fillColor('#555').font(PDF_FONT_REGULAR_NAME).text('Cuidadores de Idosos - Toledo PR', 50, y + 22);
+        }
 
         const titulo = data.tipo === 'PROPOSTA' ? 'PROPOSTA COMERCIAL' : 'CONTRATO DE PRESTACAO DE SERVICOS';
-        doc.fontSize(11).fillColor('#222').font(PDF_FONT_BOLD_NAME).text(titulo, 300, y, { align: 'right', width: width - 250 });
-        doc.fontSize(9).fillColor('#555').font(PDF_FONT_REGULAR_NAME)
-            .text(`Ref. ${data.referencia}`, 300, y + 16, { align: 'right', width: width - 250 })
-            .text(data.dataEmissao, 300, y + 28, { align: 'right', width: width - 250 });
+        doc.fontSize(12).fillColor('#111').font(PDF_FONT_BOLD_NAME).text(titulo, 250, y, { align: 'right', width: width - 200 });
 
-        y += 50;
-        doc.moveTo(50, y).lineTo(50 + width, y).strokeColor(BRAND).stroke();
-        y += 12;
+        doc.fontSize(8).fillColor('#666').font(PDF_FONT_REGULAR_NAME)
+            .text(`Ref. ${data.referencia}  |  Emissao: ${data.dataEmissao}`, 250, y + 16, { align: 'right', width: width - 200 })
+            .text('Contato: (45) 9 8825-0695', 250, y + 28, { align: 'right', width: width - 200 })
+            .text('contato@maosamigas.com', 250, y + 38, { align: 'right', width: width - 200 })
+            .text('Toledo - PR', 250, y + 48, { align: 'right', width: width - 200 });
+
+        y += 70;
+        doc.moveTo(50, y).lineTo(50 + width, y).strokeColor(BRAND).lineWidth(1.5).stroke();
+        y += 15;
 
         doc.fontSize(11).fillColor(BRAND).font(PDF_FONT_BOLD_NAME).text('01  PERFIL DO ATENDIMENTO', 50, y);
         y += 18;
@@ -198,12 +209,21 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
             ['Profissional:', data.profissionalMinimo],
             ['Cobertura:', `${data.cenario.coberturaInicio ?? 'Dom 19h'} -> ${data.cenario.coberturaFim ?? 'Sab 07h'}`],
         ];
+        if (data.presetCoberturaLabel) {
+            perfil.push(['Tipo de cobertura:', data.presetCoberturaLabel]);
+        }
 
         doc.fontSize(9).fillColor('#333');
+        const labelColWidth = 110;
         for (const [label, value] of perfil) {
-            doc.font(PDF_FONT_BOLD_NAME).text(label, 50, y, { continued: true, width: 120 });
-            doc.font(PDF_FONT_REGULAR_NAME).text(` ${value}`);
-            y += 14;
+            if (y > doc.page.height - 60) {
+                doc.addPage();
+                y = 50;
+            }
+            doc.font(PDF_FONT_BOLD_NAME).text(label, 50, y, { width: labelColWidth });
+            const labelY = doc.y;
+            doc.font(PDF_FONT_REGULAR_NAME).text(String(value), 50 + labelColWidth, y, { width: width - labelColWidth });
+            y = Math.max(labelY, doc.y) + 4;
         }
 
         if (data.planejamento) {
@@ -237,14 +257,24 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
             }
 
             if (planejamentoLinhas.length > 0) {
-                y += 4;
+                y += 6;
+                if (y > doc.page.height - 80) {
+                    doc.addPage();
+                    y = 50;
+                }
                 doc.fontSize(10).fillColor(BRAND).font(PDF_FONT_BOLD_NAME).text('Planejamento 360', 50, y);
-                y += 14;
+                y = doc.y + 6;
                 doc.fontSize(8).fillColor('#333');
+
                 for (const [label, value] of planejamentoLinhas) {
-                    doc.font(PDF_FONT_BOLD_NAME).text(label, 50, y, { continued: true, width: 120 });
-                    doc.font(PDF_FONT_REGULAR_NAME).text(` ${value}`);
-                    y += 12;
+                    if (y > doc.page.height - 60) {
+                        doc.addPage();
+                        y = 50;
+                    }
+                    doc.font(PDF_FONT_BOLD_NAME).text(label, 50, y, { width: labelColWidth });
+                    const labelY = doc.y;
+                    doc.font(PDF_FONT_REGULAR_NAME).text(String(value), 50 + labelColWidth, y, { width: width - labelColWidth });
+                    y = Math.max(labelY, doc.y) + 4;
                 }
             }
         }
@@ -364,7 +394,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
 
         const comercial = data.configuracaoComercial;
         doc.fontSize(10).fillColor(BRAND).font(PDF_FONT_BOLD_NAME).text('Configuracao Comercial', 50, y);
-        y += 12;
+        y = doc.y + 8;
         const comercialLinhas: Array<[string, string]> = [
             ['Valor do periodo:', brl(comercial.valorPeriodo)],
             ['Data vencimento:', comercial.dataVencimento],
@@ -379,15 +409,17 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         ];
 
         doc.fontSize(8).fillColor('#333');
+        const comercialLabelWidth = 140;
         for (const [label, value] of comercialLinhas) {
-            if (y > 720) {
+            if (y > doc.page.height - 60) {
                 doc.addPage();
                 y = 50;
                 doc.fontSize(8).fillColor('#333');
             }
-            doc.font(PDF_FONT_BOLD_NAME).text(label, 50, y, { continued: true, width: 120 });
-            doc.font(PDF_FONT_REGULAR_NAME).text(` ${value}`);
-            y += 11;
+            doc.font(PDF_FONT_BOLD_NAME).text(label, 50, y, { width: comercialLabelWidth });
+            const labelY = doc.y;
+            doc.font(PDF_FONT_REGULAR_NAME).text(String(value), 50 + comercialLabelWidth, y, { width: width - comercialLabelWidth });
+            y = Math.max(labelY, doc.y) + 4;
         }
         y += 8;
 
@@ -422,10 +454,10 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         const valorNoturno = valorDiurno * (1 + an / 100);
         const valorFds = valorNoturno * (1 + afds / 100);
 
-        const compositionColumns = [160, 80, 80, 80];
+        const compositionColumns = [180, 90, 90, 90];
         const compositionHeaders = ['Componente', 'Diurno', 'Noturno', 'Not.+FDS'];
 
-        doc.rect(50, y, 400, 14).fill('#E8F9FA');
+        doc.rect(50, y, 450, 14).fill('#E8F9FA');
         x = 50;
         doc.fillColor('#333').font(PDF_FONT_BOLD_NAME).fontSize(8);
         for (let i = 0; i < compositionHeaders.length; i += 1) {
@@ -443,7 +475,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
 
         doc.font(PDF_FONT_REGULAR_NAME).fontSize(8).fillColor('#222');
         for (let row = 0; row < compositionRows.length; row += 1) {
-            doc.rect(50, y, 400, 13).fill(row % 2 === 0 ? '#FFFFFF' : '#FAFAFA');
+            doc.rect(50, y, 450, 13).fill(row % 2 === 0 ? '#FFFFFF' : '#FAFAFA');
             x = 50;
             for (let col = 0; col < compositionRows[row].length; col += 1) {
                 doc.text(compositionRows[row][col], x + 2, y + 3, { width: compositionColumns[col], align: col > 0 ? 'right' : 'left' });
@@ -452,7 +484,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
             y += 13;
         }
 
-        doc.rect(50, y, 400, 14).fill(BRAND);
+        doc.rect(50, y, 450, 14).fill(BRAND);
         x = 50;
         const compositionTotals = ['= Preco Final ao Cliente', brl(valorDiurno), brl(valorNoturno), brl(valorFds)];
         doc.fillColor('#FFFFFF').font(PDF_FONT_BOLD_NAME).fontSize(8);
@@ -487,11 +519,17 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
             }
         }
 
-        const pageBottom = doc.page.height - 40;
-        doc.moveTo(50, pageBottom - 15).lineTo(50 + width, pageBottom - 15).strokeColor('#CCC').stroke();
-        doc.fontSize(7).fillColor('#888').font(PDF_FONT_REGULAR_NAME)
-            .text(`Maos Amigas - maosamigas.com - Documento confidencial - Valida por ${data.validadeDias} dias`, 50, pageBottom - 10, { width, align: 'center' });
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+            doc.switchToPage(i);
+            const pageBottom = doc.page.height - 40;
+            doc.moveTo(50, pageBottom - 15).lineTo(50 + width, pageBottom - 15).strokeColor('#E5E7EB').lineWidth(1).stroke();
+            doc.fontSize(8).fillColor('#6B7280').font(PDF_FONT_REGULAR_NAME)
+                .text('✓ Empresa Registrada - CNPJ: 52.724.250/0001-78   |   Maos Amigas', 50, pageBottom - 8, { continued: true, width, align: 'center' })
+                .text(`   |   Pag. ${i + 1} de ${pages.count}`);
+        }
 
+        doc.flushPages();
         doc.end();
     });
 }
@@ -512,6 +550,7 @@ export async function generateContractTextPDF(title: string, content: string): P
         const doc = new PDFDocument({
             size: 'A4',
             margin: 50,
+            bufferPages: true,
             font: PDF_FONT_REGULAR_PATH,
         });
         const chunks: Buffer[] = [];
@@ -522,8 +561,28 @@ export async function generateContractTextPDF(title: string, content: string): P
 
         doc.registerFont(PDF_FONT_REGULAR_NAME, PDF_FONT_REGULAR_PATH);
         doc.registerFont(PDF_FONT_BOLD_NAME, PDF_FONT_BOLD_PATH);
-        doc.font(PDF_FONT_BOLD_NAME).fontSize(14).fillColor(BRAND).text(title, { align: 'left' });
-        doc.moveDown(0.5);
+
+        const width = doc.page.width - 100;
+        let y = 50;
+
+        const logoPath = path.join(process.cwd(), 'src/assets/logo.png');
+        if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 50, y, { height: 40 });
+        } else {
+            doc.fontSize(18).fillColor(BRAND).font(PDF_FONT_BOLD_NAME).text('MAOS AMIGAS', 50, y);
+        }
+
+        doc.fontSize(12).fillColor('#111').font(PDF_FONT_BOLD_NAME).text(title, 250, y, { align: 'right', width: width - 200 });
+
+        doc.fontSize(8).fillColor('#666').font(PDF_FONT_REGULAR_NAME)
+            .text('Contato: (45) 9 8825-0695', 250, y + 16, { align: 'right', width: width - 200 })
+            .text('contato@maosamigas.com', 250, y + 26, { align: 'right', width: width - 200 })
+            .text('Toledo - PR', 250, y + 36, { align: 'right', width: width - 200 });
+
+        y += 65;
+        doc.moveTo(50, y).lineTo(50 + width, y).strokeColor(BRAND).lineWidth(1.5).stroke();
+
+        doc.y = y + 15;
         doc.font(PDF_FONT_REGULAR_NAME).fontSize(9).fillColor('#111');
 
         const lines = String(content || '').split(/\r?\n/);
@@ -538,6 +597,17 @@ export async function generateContractTextPDF(title: string, content: string): P
             });
         }
 
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+            doc.switchToPage(i);
+            const pageBottom = doc.page.height - 40;
+            doc.moveTo(50, pageBottom - 15).lineTo(50 + width, pageBottom - 15).strokeColor('#E5E7EB').lineWidth(1).stroke();
+            doc.fontSize(8).fillColor('#6B7280').font(PDF_FONT_REGULAR_NAME)
+                .text('✓ Empresa Registrada - CNPJ: 52.724.250/0001-78   |   Maos Amigas', 50, pageBottom - 8, { continued: true, width, align: 'center' })
+                .text(`   |   Pag. ${i + 1} de ${pages.count}`);
+        }
+
+        doc.flushPages();
         doc.end();
     });
 }

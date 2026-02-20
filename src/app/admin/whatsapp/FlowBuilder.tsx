@@ -46,9 +46,9 @@ const STEP_ICONS: Record<string, any> = {
 };
 
 const STEP_COLORS: Record<string, string> = {
-    message: 'bg-blue-100 border-blue-300', question: 'bg-green-100 border-green-300', media: 'bg-purple-100 border-purple-300',
-    condition: 'bg-yellow-100 border-yellow-300', action: 'bg-red-100 border-red-300', delay: 'bg-gray-100 border-gray-300',
-    buttons: 'bg-cyan-100 border-cyan-300', list: 'bg-orange-100 border-orange-300',
+    message: 'bg-info-100 border-blue-300', question: 'bg-success-100 border-secondary-400/40', media: 'bg-accent-500/15 border-accent-500/40',
+    condition: 'bg-warning-100 border-yellow-300', action: 'bg-error-100 border-error-500/40', delay: 'bg-surface-subtle border-border-hover',
+    buttons: 'bg-cyan-100 border-cyan-300', list: 'bg-accent-500/15 border-orange-300',
 };
 
 export function FlowBuilderTab() {
@@ -148,7 +148,7 @@ export function FlowBuilderTab() {
                 </div>
 
                 {showNewFlow && (
-                    <div className="p-4 border-b bg-blue-50">
+                    <div className="p-4 border-b bg-info-50">
                         <Input placeholder="Nome do fluxo" value={newFlow.name} onChange={(e) => setNewFlow({ ...newFlow, name: e.target.value })} className="mb-2" />
                         <Input placeholder="Trigger (palavras|separadas|por|pipe)" value={newFlow.trigger} onChange={(e) => setNewFlow({ ...newFlow, trigger: e.target.value })} className="mb-2" />
                         <select value={newFlow.category} onChange={(e) => setNewFlow({ ...newFlow, category: e.target.value })} className="w-full border rounded px-2 py-1 mb-2 text-sm">
@@ -162,14 +162,14 @@ export function FlowBuilderTab() {
                 <div className="overflow-y-auto max-h-[60vh]">
                     {categories.map(cat => (
                         <div key={cat}>
-                            <div className="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase text-gray-500">{cat}</div>
+                            <div className="px-4 py-2 bg-background text-xs font-semibold uppercase text-muted-foreground">{cat}</div>
                             {flows.filter(f => f.category === cat).map(flow => (
                                 <button key={flow.id} onClick={() => handleSelectFlow(flow.id)}
-                                    className={`w-full p-3 text-left border-b hover:bg-gray-50 flex items-center gap-3 ${selectedFlow?.id === flow.id ? 'bg-blue-50' : ''}`}>
-                                    <div className={`w-3 h-3 rounded-full ${flow.active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                    className={`w-full p-3 text-left border-b hover:bg-background flex items-center gap-3 ${selectedFlow?.id === flow.id ? 'bg-primary-50' : ''}`}>
+                                    <div className={`w-3 h-3 rounded-full ${flow.active ? 'bg-secondary-400' : 'bg-neutral-300'}`} />
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium truncate">{flow.name}</p>
-                                        <p className="text-xs text-gray-500">{flow.steps?.length || 0} etapas</p>
+                                        <p className="text-xs text-muted-foreground">{flow.steps?.length || 0} etapas</p>
                                     </div>
                                 </button>
                             ))}
@@ -199,7 +199,7 @@ export function FlowBuilderTab() {
 
                     {/* Add Step Buttons */}
                     <div className="p-4 border-b flex flex-wrap gap-2">
-                        <span className="text-sm text-gray-500 mr-2">Adicionar:</span>
+                        <span className="text-sm text-muted-foreground mr-2">Adicionar:</span>
                         {stepTypes.map(type => {
                             const Icon = STEP_ICONS[type] || MessageCircle;
                             return <Button key={type} size="sm" variant="outline" onClick={() => addStep(type)}><Icon className="w-4 h-4" />{type}</Button>;
@@ -224,12 +224,12 @@ export function FlowBuilderTab() {
                             />
                         ))}
                         {selectedFlow.steps.length === 0 && (
-                            <p className="text-center text-gray-500 py-8">Adicione etapas usando os botões acima</p>
+                            <p className="text-center text-muted-foreground py-8">Adicione etapas usando os botões acima</p>
                         )}
                     </div>
                 </Card>
             ) : (
-                <Card className="lg:col-span-2 flex items-center justify-center text-gray-500">
+                <Card className="lg:col-span-2 flex items-center justify-center text-muted-foreground">
                     Selecione um fluxo para editar
                 </Card>
             )}
@@ -248,17 +248,17 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
     const Icon = STEP_ICONS[step.type] || MessageCircle;
 
     return (
-        <div className={`border-2 rounded-lg ${STEP_COLORS[step.type] || 'bg-gray-50 border-gray-200'}`}>
+        <div className={`border-2 rounded-lg ${STEP_COLORS[step.type] || 'bg-background border-border'}`}>
             <div className="p-3 flex items-center gap-3 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-                <GripVertical className="w-4 h-4 text-gray-400" />
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
                 <Icon className="w-5 h-5" />
                 <span className="font-medium flex-1">{step.id}</span>
                 <Badge>{step.type}</Badge>
                 <div className="flex gap-1">
-                    <button onClick={(e) => { e.stopPropagation(); onMove('up'); }} disabled={index === 0} className="p-1 hover:bg-white rounded disabled:opacity-30">↑</button>
-                    <button onClick={(e) => { e.stopPropagation(); onMove('down'); }} disabled={index === totalSteps - 1} className="p-1 hover:bg-white rounded disabled:opacity-30">↓</button>
-                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="p-1 hover:bg-white rounded"><Copy className="w-4 h-4" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 hover:bg-red-100 rounded"><Trash2 className="w-4 h-4 text-red-500" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onMove('up'); }} disabled={index === 0} className="p-1 hover:bg-card rounded disabled:opacity-30">↑</button>
+                    <button onClick={(e) => { e.stopPropagation(); onMove('down'); }} disabled={index === totalSteps - 1} className="p-1 hover:bg-card rounded disabled:opacity-30">↓</button>
+                    <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="p-1 hover:bg-card rounded"><Copy className="w-4 h-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 hover:bg-error-50 rounded"><Trash2 className="w-4 h-4 text-error-500" /></button>
                 </div>
                 {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </div>
@@ -268,7 +268,7 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                     <div className="grid grid-cols-2 gap-3">
                         <Input label="ID da Etapa" value={step.id} onChange={(e) => onUpdate({ id: e.target.value })} />
                         <div>
-                            <label className="text-xs text-gray-600">Próxima Etapa</label>
+                            <label className="text-xs text-foreground">Próxima Etapa</label>
                             <select value={step.nextStep || ''} onChange={(e) => onUpdate({ nextStep: e.target.value })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">
                                 <option value="">Fim do fluxo</option>
                                 {allSteps.filter(s => s.id !== step.id).map(s => <option key={s.id} value={s.id}>{s.id}</option>)}
@@ -278,7 +278,7 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
 
                     {/* Content */}
                     <div>
-                        <label className="text-xs text-gray-600">Conteúdo da Mensagem</label>
+                        <label className="text-xs text-foreground">Conteúdo da Mensagem</label>
                         <textarea className="w-full border rounded p-2 text-sm h-24 mt-1" value={step.content} onChange={(e) => onUpdate({ content: e.target.value })} placeholder="Use {{variavel}} para dados dinâmicos" />
                     </div>
 
@@ -287,14 +287,14 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                         <div>
                             <Input label="Salvar resposta em (variável)" value={step.variable || ''} onChange={(e) => onUpdate({ variable: e.target.value })} placeholder="nome_variavel" />
                             <div className="mt-2">
-                                <label className="text-xs text-gray-600">Opções de Resposta (opcional)</label>
+                                <label className="text-xs text-foreground">Opções de Resposta (opcional)</label>
                                 {step.options?.map((opt, i) => (
                                     <div key={i} className="flex gap-2 mt-1">
                                         <Input placeholder="Valor" value={opt.value} onChange={(e) => { const opts = [...(step.options || [])]; opts[i].value = e.target.value; onUpdate({ options: opts }); }} className="flex-1" />
                                         <select value={opt.nextStep} onChange={(e) => { const opts = [...(step.options || [])]; opts[i].nextStep = e.target.value; onUpdate({ options: opts }); }} className="border rounded px-2 text-sm">
                                             <option value="">Próx. padrão</option>{allSteps.map(s => <option key={s.id} value={s.id}>{s.id}</option>)}
                                         </select>
-                                        <button onClick={() => { onUpdate({ options: step.options?.filter((_, j) => j !== i) }); }} className="text-red-500">×</button>
+                                        <button onClick={() => { onUpdate({ options: step.options?.filter((_, j) => j !== i) }); }} className="text-error-500">×</button>
                                     </div>
                                 ))}
                                 <Button size="sm" variant="outline" className="mt-2" onClick={() => onUpdate({ options: [...(step.options || []), { value: '', nextStep: '' }] })}><Plus className="w-3 h-3" />Opção</Button>
@@ -305,9 +305,9 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                     {step.type === 'media' && (
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-xs text-gray-600">Tipo de Mídia</label>
+                                <label className="text-xs text-foreground">Tipo de Mídia</label>
                                 <select value={step.mediaType || 'image'} onChange={(e) => onUpdate({ mediaType: e.target.value })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">
-                                    {mediaTypes.map(mt => <option key={mt} value={mt}>{mt === 'image' ? '🖼️ Imagem' : mt === 'video' ? '🎬 Vídeo' : mt === 'audio' ? '🎵 Áudio' : '📄 Documento'}</option>)}
+                                    {mediaTypes.map(mt => <option key={mt} value={mt}>{mt === 'image' ? 'Imagem' : mt === 'video' ? 'Video' : mt === 'audio' ? 'Audio' : 'Documento'}</option>)}
                                 </select>
                             </div>
                             <Input label="URL da Mídia" value={step.mediaUrl || ''} onChange={(e) => onUpdate({ mediaUrl: e.target.value })} placeholder="https://..." />
@@ -321,7 +321,7 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                     {step.type === 'action' && (
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-xs text-gray-600">Tipo de Ação</label>
+                                <label className="text-xs text-foreground">Tipo de Ação</label>
                                 <select value={step.action?.type || ''} onChange={(e) => onUpdate({ action: { ...step.action, type: e.target.value, params: step.action?.params || {} } })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">
                                     <option value="">Selecione...</option>
                                     {actionTypes.map(at => <option key={at} value={at}>{at}</option>)}
@@ -336,7 +336,7 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                             <div className="grid grid-cols-3 gap-2">
                                 <Input label="Variável" value={step.condition?.variable || ''} onChange={(e) => onUpdate({ condition: { ...step.condition!, variable: e.target.value } })} />
                                 <div>
-                                    <label className="text-xs text-gray-600">Operador</label>
+                                    <label className="text-xs text-foreground">Operador</label>
                                     <select value={step.condition?.operator || '=='} onChange={(e) => onUpdate({ condition: { ...step.condition!, operator: e.target.value } })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">
                                         <option value="==">Igual</option><option value="!=">Diferente</option><option value="contains">Contém</option><option value=">">Maior</option><option value="<">Menor</option>
                                     </select>
@@ -344,8 +344,8 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                                 <Input label="Valor" value={step.condition?.value || ''} onChange={(e) => onUpdate({ condition: { ...step.condition!, value: e.target.value } })} />
                             </div>
                             <div className="grid grid-cols-2 gap-2">
-                                <div><label className="text-xs text-gray-600">Se TRUE → Etapa</label><select value={step.condition?.trueStep || ''} onChange={(e) => onUpdate({ condition: { ...step.condition!, trueStep: e.target.value } })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">{allSteps.map(s => <option key={s.id} value={s.id}>{s.id}</option>)}</select></div>
-                                <div><label className="text-xs text-gray-600">Se FALSE → Etapa</label><select value={step.condition?.falseStep || ''} onChange={(e) => onUpdate({ condition: { ...step.condition!, falseStep: e.target.value } })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">{allSteps.map(s => <option key={s.id} value={s.id}>{s.id}</option>)}</select></div>
+                                <div><label className="text-xs text-foreground">Se TRUE → Etapa</label><select value={step.condition?.trueStep || ''} onChange={(e) => onUpdate({ condition: { ...step.condition!, trueStep: e.target.value } })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">{allSteps.map(s => <option key={s.id} value={s.id}>{s.id}</option>)}</select></div>
+                                <div><label className="text-xs text-foreground">Se FALSE → Etapa</label><select value={step.condition?.falseStep || ''} onChange={(e) => onUpdate({ condition: { ...step.condition!, falseStep: e.target.value } })} className="w-full border rounded px-2 py-1.5 mt-1 text-sm">{allSteps.map(s => <option key={s.id} value={s.id}>{s.id}</option>)}</select></div>
                             </div>
                         </div>
                     )}
@@ -354,12 +354,12 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                     {step.type === 'buttons' && (
                         <div className="space-y-3">
                             <div className="p-3 bg-cyan-50 rounded-lg">
-                                <p className="text-xs text-cyan-700 mb-1">🔘 Máximo de 3 botões clicáveis. Os botões aparecerão na tela do usuário para ele tocar.</p>
+                                <p className="text-xs text-cyan-700 mb-1">Maximo de 3 botoes clicáveis. Os botões aparecerão na tela do usuário para ele tocar.</p>
                             </div>
                             <Input label="Salvar resposta em (variável)" value={step.variable || ''} onChange={(e) => onUpdate({ variable: e.target.value })} placeholder="resposta" />
                             <Input label="Rodapé (opcional)" value={step.footer || ''} onChange={(e) => onUpdate({ footer: e.target.value })} placeholder="Selecione uma opção" />
                             <div>
-                                <label className="text-xs text-gray-600">Botões (máx 3)</label>
+                                <label className="text-xs text-foreground">Botões (máx 3)</label>
                                 {step.buttons?.map((btn, i) => (
                                     <div key={i} className="flex gap-2 mt-2 items-center">
                                         <Input placeholder="ID" value={btn.id} onChange={(e) => { const btns = [...(step.buttons || [])]; btns[i].id = e.target.value; onUpdate({ buttons: btns }); }} className="w-24" />
@@ -367,7 +367,7 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                                         <select value={btn.nextStep || ''} onChange={(e) => { const btns = [...(step.buttons || [])]; btns[i].nextStep = e.target.value; onUpdate({ buttons: btns }); }} className="border rounded px-2 py-1 text-sm">
                                             <option value="">Próx. padrão</option>{allSteps.filter(s => s.id !== step.id).map(s => <option key={s.id} value={s.id}>{s.id}</option>)}
                                         </select>
-                                        <button onClick={() => { onUpdate({ buttons: step.buttons?.filter((_, j) => j !== i) }); }} className="text-red-500 text-xl">×</button>
+                                        <button onClick={() => { onUpdate({ buttons: step.buttons?.filter((_, j) => j !== i) }); }} className="text-error-500 text-xl">×</button>
                                     </div>
                                 ))}
                                 {(!step.buttons || step.buttons.length < 3) && (
@@ -380,8 +380,8 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                     {/* LISTA INTERATIVA */}
                     {step.type === 'list' && (
                         <div className="space-y-3">
-                            <div className="p-3 bg-orange-50 rounded-lg">
-                                <p className="text-xs text-orange-700 mb-1">📋 Lista com seções e itens. O usuário toca em "Ver opções" e escolhe um item.</p>
+                            <div className="p-3 bg-accent-500/10 rounded-lg">
+                                <p className="text-xs text-accent-700 mb-1">Lista com secoes e itens. O usuário toca em "Ver opções" e escolhe um item.</p>
                             </div>
                             <Input label="Salvar resposta em (variável)" value={step.variable || ''} onChange={(e) => onUpdate({ variable: e.target.value })} placeholder="escolha" />
                             <div className="grid grid-cols-2 gap-3">
@@ -389,12 +389,12 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                                 <Input label="Rodapé (opcional)" value={step.footer || ''} onChange={(e) => onUpdate({ footer: e.target.value })} />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-600 font-semibold">Seções e Itens</label>
+                                <label className="text-xs text-foreground font-semibold">Seções e Itens</label>
                                 {step.sections?.map((sec, si) => (
-                                    <div key={si} className="mt-3 p-3 border rounded-lg bg-white">
+                                    <div key={si} className="mt-3 p-3 border rounded-lg bg-card">
                                         <div className="flex gap-2 items-center mb-2">
                                             <Input placeholder="Título da Seção" value={sec.title} onChange={(e) => { const secs = [...(step.sections || [])]; secs[si].title = e.target.value; onUpdate({ sections: secs }); }} className="flex-1" />
-                                            <button onClick={() => { onUpdate({ sections: step.sections?.filter((_, j) => j !== si) }); }} className="text-red-500">🗑️</button>
+                                            <button onClick={() => { onUpdate({ sections: step.sections?.filter((_, j) => j !== si) }); }} className="text-error-500"></button>
                                         </div>
                                         {sec.rows?.map((row, ri) => (
                                             <div key={ri} className="flex gap-2 mt-1 items-center ml-4">
@@ -404,7 +404,7 @@ function StepEditor({ step, index, totalSteps, allSteps, mediaTypes, actionTypes
                                                 <select value={row.nextStep || ''} onChange={(e) => { const secs = [...(step.sections || [])]; secs[si].rows[ri].nextStep = e.target.value; onUpdate({ sections: secs }); }} className="border rounded px-2 py-1 text-xs">
                                                     <option value="">Próx.</option>{allSteps.filter(s => s.id !== step.id).map(s => <option key={s.id} value={s.id}>{s.id}</option>)}
                                                 </select>
-                                                <button onClick={() => { const secs = [...(step.sections || [])]; secs[si].rows = secs[si].rows.filter((_, j) => j !== ri); onUpdate({ sections: secs }); }} className="text-red-500">×</button>
+                                                <button onClick={() => { const secs = [...(step.sections || [])]; secs[si].rows = secs[si].rows.filter((_, j) => j !== ri); onUpdate({ sections: secs }); }} className="text-error-500">×</button>
                                             </div>
                                         ))}
                                         <Button size="sm" variant="ghost" className="mt-2 ml-4" onClick={() => { const secs = [...(step.sections || [])]; secs[si].rows.push({ id: `item_${Date.now()}`, title: '', description: '' }); onUpdate({ sections: secs }); }}><Plus className="w-3 h-3" />Item</Button>

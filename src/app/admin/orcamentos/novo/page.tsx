@@ -66,8 +66,8 @@ type CenarioField = 'cenarioEconomico' | 'cenarioRecomendado' | 'cenarioPremium'
 type CenarioSelecionado = 'economico' | 'recomendado' | 'premium';
 
 const CENARIO_CONFIG: Array<{ key: CenarioField; label: string; selected: CenarioSelecionado; tone: string }> = [
-    { key: 'cenarioEconomico', label: 'Economico', selected: 'economico', tone: 'text-blue-700' },
-    { key: 'cenarioRecomendado', label: 'Recomendado', selected: 'recomendado', tone: 'text-emerald-700' },
+    { key: 'cenarioEconomico', label: 'Economico', selected: 'economico', tone: 'text-primary' },
+    { key: 'cenarioRecomendado', label: 'Recomendado', selected: 'recomendado', tone: 'text-secondary-700' },
     { key: 'cenarioPremium', label: 'Premium', selected: 'premium', tone: 'text-violet-700' },
 ];
 
@@ -291,11 +291,11 @@ function NovoOrcamentoContent() {
 
             <Card>
                 {preview ? (
-                    <div className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
-                        <p className="text-sm font-semibold text-emerald-700">
+                    <div className="mb-5 rounded-md border border-emerald-200 bg-secondary-400/10 px-4 py-3">
+                        <p className="text-sm font-semibold text-secondary-700">
                             Dados calculados da avaliacao - {preview.pacienteNome}
                         </p>
-                        <p className="mt-1 text-xs text-emerald-700">
+                        <p className="mt-1 text-xs text-secondary-700">
                             Complexidade: <strong>{preview.metadados.complexidadeInferida}</strong>
                             {' | '}
                             Profissional: <strong>{preview.metadados.tipoProfissionalInferido}</strong>
@@ -309,12 +309,12 @@ function NovoOrcamentoContent() {
                             ) : null}
                         </p>
                         {preview.metadados.doencasInferidas?.length ? (
-                            <p className="mt-1 text-xs text-emerald-700">
+                            <p className="mt-1 text-xs text-secondary-700">
                                 Doencas inferidas: <strong>{preview.metadados.doencasInferidas.join(', ')}</strong>
                             </p>
                         ) : null}
                         {preview.metadados.avisos?.length ? (
-                            <ul className="mt-2 space-y-1 text-xs text-amber-700">
+                            <ul className="mt-2 space-y-1 text-xs text-warning-600">
                                 {preview.metadados.avisos.map((aviso, index) => (
                                     <li key={`${aviso}-${index}`}>- {aviso}</li>
                                 ))}
@@ -324,13 +324,13 @@ function NovoOrcamentoContent() {
                 ) : null}
 
                 {loadingPreview ? (
-                    <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                    <div className="mb-4 rounded-md border border-primary-200 bg-info-50 px-3 py-2 text-sm text-primary">
                         Calculando cenarios a partir da avaliacao...
                     </div>
                 ) : null}
 
                 {error ? (
-                    <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <div className="mb-4 rounded-md border border-error-100 bg-error-50 px-3 py-2 text-sm text-error-700">
                         {error}
                     </div>
                 ) : null}
@@ -347,11 +347,11 @@ function NovoOrcamentoContent() {
                                 />
                             </div>
                             <div>
-                                <label className="mb-1 block text-sm text-gray-600">Paciente</label>
+                                <label className="mb-1 block text-sm text-foreground">Paciente</label>
                                 <select
                                     value={form.pacienteId}
                                     onChange={(event) => setForm((prev) => ({ ...prev, pacienteId: event.target.value }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2"
                                 >
                                     <option value="">Selecione...</option>
                                     {filteredPacientes.map((paciente) => (
@@ -363,14 +363,14 @@ function NovoOrcamentoContent() {
                             </div>
                         </div>
                     ) : (
-                        <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                            <p className="font-semibold text-gray-800">{preview.pacienteNome}</p>
-                            <p className="text-xs text-gray-500">Paciente ID: {preview.pacienteId}</p>
+                        <div className="rounded-md border border-border bg-background px-4 py-3 text-sm text-foreground">
+                            <p className="font-semibold text-foreground">{preview.pacienteNome}</p>
+                            <p className="text-xs text-muted-foreground">Paciente ID: {preview.pacienteId}</p>
                         </div>
                     )}
 
                     <div>
-                        <p className="mb-2 text-sm font-medium text-gray-700">Cenarios de Orcamento</p>
+                        <p className="mb-2 text-sm font-medium text-foreground">Cenarios de Orcamento</p>
                         <div className="grid gap-3 md:grid-cols-3">
                             {CENARIO_CONFIG.map((scenario) => {
                                 const parsed = parseCenario(form[scenario.key]);
@@ -381,8 +381,8 @@ function NovoOrcamentoContent() {
                                         type="button"
                                         className={`rounded-lg border-2 p-3 text-left transition ${
                                             selected
-                                                ? 'border-emerald-500 bg-emerald-50'
-                                                : 'border-gray-200 bg-white hover:border-gray-300'
+                                                ? 'border-emerald-500 bg-secondary-400/10'
+                                                : 'border-border bg-card hover:border-border-hover'
                                         }`}
                                         onClick={() => setSelectedScenario(scenario.selected, parsed?.totalSemanal)}
                                     >
@@ -393,18 +393,18 @@ function NovoOrcamentoContent() {
                                             <div className="mt-2">
                                                 <p className={`text-lg font-semibold ${scenario.tone}`}>
                                                     {formatCurrency(parsed.totalSemanal || 0)}
-                                                    <span className="ml-1 text-xs font-normal text-gray-500">/sem</span>
+                                                    <span className="ml-1 text-xs font-normal text-muted-foreground">/sem</span>
                                                 </p>
-                                                <p className="text-xs text-gray-500">
+                                                <p className="text-xs text-muted-foreground">
                                                     {formatCurrency(parsed.estimativaMensal || 0)}/mes
                                                 </p>
-                                                <p className="text-xs text-gray-400">
+                                                <p className="text-xs text-muted-foreground">
                                                     {parsed.plantoes?.length || 0} plantoes
                                                 </p>
                                             </div>
                                         ) : (
                                             <textarea
-                                                className="mt-2 h-20 w-full resize-none rounded border border-gray-200 p-2 text-xs"
+                                                className="mt-2 h-20 w-full resize-none rounded border border-border p-2 text-xs"
                                                 value={form[scenario.key]}
                                                 placeholder="JSON do cenario"
                                                 onClick={(event) => event.stopPropagation()}
@@ -427,17 +427,17 @@ function NovoOrcamentoContent() {
                             onChange={(event) => setForm((prev) => ({ ...prev, valorFinal: event.target.value }))}
                         />
                         {form.valorFinal ? (
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-muted-foreground">
                                 Estimativa mensal: {formatCurrency((Number(form.valorFinal) || 0) * 4.33)}
                             </p>
                         ) : null}
                     </div>
 
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                        <p className="mb-3 text-sm font-semibold text-gray-700">Planejamento 360 (pre-proposta)</p>
+                    <div className="rounded-lg border border-border bg-background p-4">
+                        <p className="mb-3 text-sm font-semibold text-foreground">Planejamento 360 (pre-proposta)</p>
                         <div className="grid gap-3 md:grid-cols-3">
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Inicio do cuidado</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Inicio do cuidado</label>
                                 <input
                                     type="date"
                                     value={form.planejamento360.dataInicioCuidado || ''}
@@ -448,11 +448,11 @@ function NovoOrcamentoContent() {
                                             dataInicioCuidado: event.target.value,
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 />
                             </div>
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Fim do cuidado</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Fim do cuidado</label>
                                 <input
                                     type="date"
                                     value={form.planejamento360.dataFimCuidado || ''}
@@ -463,11 +463,11 @@ function NovoOrcamentoContent() {
                                             dataFimCuidado: event.target.value,
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 />
                             </div>
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Horas de cuidado/dia</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Horas de cuidado/dia</label>
                                 <input
                                     type="number"
                                     min={1}
@@ -480,14 +480,14 @@ function NovoOrcamentoContent() {
                                             horasCuidadoDia: Number(event.target.value) || 12,
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 />
                             </div>
                         </div>
 
                         <div className="mt-3 grid gap-3 md:grid-cols-3">
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Periodicidade</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Periodicidade</label>
                                 <select
                                     value={form.planejamento360.periodicidade || 'SEMANAL'}
                                     onChange={(event) => setForm((prev) => ({
@@ -497,7 +497,7 @@ function NovoOrcamentoContent() {
                                             periodicidade: event.target.value as Planejamento360['periodicidade'],
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 >
                                     <option value="DIARIO">Diario</option>
                                     <option value="SEMANAL">Semanal</option>
@@ -506,7 +506,7 @@ function NovoOrcamentoContent() {
                                 </select>
                             </div>
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Semanas planejadas</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Semanas planejadas</label>
                                 <input
                                     type="number"
                                     min={1}
@@ -518,11 +518,11 @@ function NovoOrcamentoContent() {
                                             semanasPlanejadas: Number(event.target.value) || 4,
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 />
                             </div>
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Meses planejados</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Meses planejados</label>
                                 <input
                                     type="number"
                                     min={1}
@@ -534,14 +534,14 @@ function NovoOrcamentoContent() {
                                             mesesPlanejados: Number(event.target.value) || 1,
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 />
                             </div>
                         </div>
 
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Dias de atendimento (csv)</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Dias de atendimento (csv)</label>
                                 <input
                                     value={(form.planejamento360.diasAtendimento || []).join(',')}
                                     onChange={(event) => setForm((prev) => ({
@@ -551,12 +551,12 @@ function NovoOrcamentoContent() {
                                             diasAtendimento: event.target.value.split(',').map((item) => item.trim()).filter(Boolean),
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     placeholder="seg,ter,qua,qui,sex"
                                 />
                             </div>
                             <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-600">Tempo de cuidado</label>
+                                <label className="mb-1 block text-xs font-medium text-foreground">Tempo de cuidado</label>
                                 <input
                                     value={form.planejamento360.tempoCuidadoDescricao || ''}
                                     onChange={(event) => setForm((prev) => ({
@@ -566,14 +566,14 @@ function NovoOrcamentoContent() {
                                             tempoCuidadoDescricao: event.target.value,
                                         },
                                     }))}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     placeholder="Ex.: 12h/dia por 3 meses"
                                 />
                             </div>
                         </div>
 
                         <div className="mt-3">
-                            <label className="mb-1 block text-xs font-medium text-gray-600">Resumo de alocacao/escala</label>
+                            <label className="mb-1 block text-xs font-medium text-foreground">Resumo de alocacao/escala</label>
                             <textarea
                                 value={form.planejamento360.alocacaoResumo || ''}
                                 onChange={(event) => setForm((prev) => ({
@@ -583,7 +583,7 @@ function NovoOrcamentoContent() {
                                         alocacaoResumo: event.target.value,
                                     },
                                 }))}
-                                className="h-20 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                className="h-20 w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 placeholder="Ex.: 2 cuidadoras fixas + 1 folguista, troca semanal..."
                             />
                         </div>
@@ -605,7 +605,7 @@ function NovoOrcamentoContent() {
 
 export default function NovoOrcamentoPage() {
     return (
-        <Suspense fallback={<div className="p-6 text-sm text-gray-500">Carregando...</div>}>
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Carregando...</div>}>
             <NovoOrcamentoContent />
         </Suspense>
     );

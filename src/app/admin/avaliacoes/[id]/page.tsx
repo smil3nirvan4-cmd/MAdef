@@ -646,7 +646,7 @@ export default function AvaliacaoDetailPage() {
     }, [avaliacao?.dadosDetalhados]);
 
     if (loading) {
-        return <div className="p-6 lg:p-8 text-sm text-gray-500">Loading avaliacao...</div>;
+        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading avaliacao...</div>;
     }
 
     if (error && !avaliacao) {
@@ -663,7 +663,7 @@ export default function AvaliacaoDetailPage() {
                 />
                 <Card>
                     <div className="flex items-center justify-between">
-                        <p className="text-sm text-red-600">{error}</p>
+                        <p className="text-sm text-error-600">{error}</p>
                         <Link href="/admin/avaliacoes">
                             <Button size="sm" variant="outline">
                                 <ArrowLeft className="h-4 w-4" />
@@ -702,16 +702,16 @@ export default function AvaliacaoDetailPage() {
 
             {error ? (
                 <Card>
-                    <p className="text-sm text-red-600">{error}</p>
+                    <p className="text-sm text-error-600">{error}</p>
                 </Card>
             ) : null}
 
             {isDbSchemaBlocked ? (
                 <Card>
-                    <p className="text-sm text-red-700">
+                    <p className="text-sm text-error-700">
                         Envio de proposta/contrato bloqueado: schema do banco desatualizado.
                     </p>
-                    <p className="mt-1 text-xs text-red-600">
+                    <p className="mt-1 text-xs text-error-600">
                         Missing columns: {dbSchemaStatus.missingColumns.join(', ') || 'nao informado'}.
                     </p>
                 </Card>
@@ -719,40 +719,40 @@ export default function AvaliacaoDetailPage() {
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Paciente</p>
-                    <p className="font-medium text-gray-900">{avaliacao.paciente?.nome || 'Sem nome'}</p>
-                    <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Paciente</p>
+                    <p className="font-medium text-foreground">{avaliacao.paciente?.nome || 'Sem nome'}</p>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-foreground">
                         <Phone className="h-4 w-4" />
                         {avaliacao.paciente?.telefone}
                     </p>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                         {avaliacao.paciente?.cidade || '-'} {avaliacao.paciente?.bairro ? `- ${avaliacao.paciente.bairro}` : ''}
                     </p>
                 </Card>
 
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Status</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Status</p>
                     <Badge variant={STATUS_VARIANT[avaliacao.status] || 'default'}>{avaliacao.status}</Badge>
-                    <div className="mt-3 space-y-1 text-sm text-gray-600">
+                    <div className="mt-3 space-y-1 text-sm text-foreground">
                         <p>Created: {safeFormatDate(avaliacao.createdAt)}</p>
                         <p>Validated: {safeFormatDate(avaliacao.validadoEm)}</p>
                     </div>
                 </Card>
 
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">WhatsApp Tracking</p>
-                    <p className="text-sm text-gray-700">Sent: {avaliacao.whatsappEnviado ? 'yes' : 'no'}</p>
-                    <p className="text-sm text-gray-700">Sent At: {safeFormatDate(avaliacao.whatsappEnviadoEm)}</p>
-                    <p className="text-sm text-gray-700">Message ID: {avaliacao.whatsappMessageId || '-'}</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">WhatsApp Tracking</p>
+                    <p className="text-sm text-foreground">Sent: {avaliacao.whatsappEnviado ? 'yes' : 'no'}</p>
+                    <p className="text-sm text-foreground">Sent At: {safeFormatDate(avaliacao.whatsappEnviadoEm)}</p>
+                    <p className="text-sm text-foreground">Message ID: {avaliacao.whatsappMessageId || '-'}</p>
                     {avaliacao.whatsappErro ? (
-                        <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-600">{avaliacao.whatsappErro}</p>
+                        <p className="mt-2 rounded bg-error-50 p-2 text-xs text-error-600">{avaliacao.whatsappErro}</p>
                     ) : null}
                 </Card>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
-                    <p className="mb-3 text-xs uppercase text-gray-500">Acoes</p>
+                    <p className="mb-3 text-xs uppercase text-muted-foreground">Acoes</p>
                     <div className="flex flex-wrap gap-2">
                         <Button
                             size="sm"
@@ -779,7 +779,7 @@ export default function AvaliacaoDetailPage() {
                             className={`inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium transition-colors ${
                                 canManageOrcamentos
                                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                    : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                                    : 'cursor-not-allowed bg-surface-subtle text-muted-foreground'
                             }`}
                             aria-disabled={!canManageOrcamentos}
                             onClick={(event) => {
@@ -828,41 +828,41 @@ export default function AvaliacaoDetailPage() {
                 </Card>
 
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Resumo Clinico</p>
-                    <p className="text-sm text-gray-700">Nivel sugerido: {avaliacao.nivelSugerido || '-'}</p>
-                    <p className="text-sm text-gray-700">Carga sugerida: {avaliacao.cargaSugerida || '-'}</p>
-                    <p className="text-sm text-gray-700">Valor proposto: {avaliacao.valorProposto || '-'}</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Resumo Clinico</p>
+                    <p className="text-sm text-foreground">Nivel sugerido: {avaliacao.nivelSugerido || '-'}</p>
+                    <p className="text-sm text-foreground">Carga sugerida: {avaliacao.cargaSugerida || '-'}</p>
+                    <p className="text-sm text-foreground">Valor proposto: {avaliacao.valorProposto || '-'}</p>
                 </Card>
             </div>
 
             {parsedDetails ? (
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Dados detalhados</p>
-                    <pre className="max-h-[420px] overflow-auto rounded-lg bg-gray-900 p-4 text-xs text-green-300">
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Dados detalhados</p>
+                    <pre className="max-h-[420px] overflow-auto rounded-lg bg-neutral-900 p-4 text-xs text-green-300">
                         {parsedDetails}
                     </pre>
                 </Card>
             ) : null}
 
             <Card>
-                <p className="mb-3 text-xs uppercase text-gray-500">Historico de Acoes</p>
+                <p className="mb-3 text-xs uppercase text-muted-foreground">Historico de Acoes</p>
                 {!canViewLogs ? (
-                    <p className="text-sm text-gray-500">Role sem permissao para visualizar logs.</p>
+                    <p className="text-sm text-muted-foreground">Role sem permissao para visualizar logs.</p>
                 ) : logs.length === 0 ? (
-                    <p className="text-sm text-gray-500">Nenhum log correlato encontrado.</p>
+                    <p className="text-sm text-muted-foreground">Nenhum log correlato encontrado.</p>
                 ) : (
                     <div className="space-y-2">
                         {logs.map((entry) => (
-                            <div key={entry.id} className="rounded-lg border border-gray-100 p-3">
+                            <div key={entry.id} className="rounded-lg border border-border p-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                         <Badge variant={LOG_TYPE_BADGE[entry.type] || 'default'}>{entry.type}</Badge>
-                                        <span className="text-xs font-mono text-gray-600">{entry.action}</span>
+                                        <span className="text-xs font-mono text-foreground">{entry.action}</span>
                                     </div>
-                                    <span className="text-xs text-gray-500">{safeFormatDate(entry.createdAt)}</span>
+                                    <span className="text-xs text-muted-foreground">{safeFormatDate(entry.createdAt)}</span>
                                 </div>
-                                <p className="mt-2 text-sm text-gray-700">{entry.message}</p>
-                                <Link href={`/admin/logs/${entry.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
+                                <p className="mt-2 text-sm text-foreground">{entry.message}</p>
+                                <Link href={`/admin/logs/${entry.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
                                     Open log detail
                                 </Link>
                             </div>
@@ -882,13 +882,13 @@ export default function AvaliacaoDetailPage() {
                         }}
                         aria-label="Fechar modal"
                     />
-                    <div className="relative z-10 w-full max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-2xl">
+                    <div className="relative z-10 w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-2xl">
                         <div className="mb-4 flex items-start justify-between gap-3">
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900">
+                                <h3 className="text-lg font-semibold text-foreground">
                                     Configurar envio de {documentModalKind === 'proposta' ? 'proposta' : 'contrato'}
                                 </h3>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                     Ajuste as opcoes antes de enfileirar o documento no WhatsApp.
                                 </p>
                             </div>
@@ -906,7 +906,7 @@ export default function AvaliacaoDetailPage() {
 
                         <div className="space-y-3">
                             <label className="block text-sm">
-                                <span className="mb-1 block font-medium text-gray-700">Orcamento</span>
+                                <span className="mb-1 block font-medium text-foreground">Orcamento</span>
                                 <select
                                     value={documentOptions.orcamentoId}
                                     onChange={(event) => {
@@ -928,7 +928,7 @@ export default function AvaliacaoDetailPage() {
                                             void fetchDocumentPreview(documentModalKind, next);
                                         }
                                     }}
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                 >
                                     <option value="">Mais recente do paciente</option>
                                     {(avaliacao?.paciente?.orcamentos || []).map((item) => (
@@ -941,14 +941,14 @@ export default function AvaliacaoDetailPage() {
 
                             <div className="grid gap-3 md:grid-cols-2">
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Cenario</span>
+                                    <span className="mb-1 block font-medium text-foreground">Cenario</span>
                                     <select
                                         value={documentOptions.cenarioSelecionado}
                                         onChange={(event) => setDocumentOptions((prev) => ({
                                             ...prev,
                                             cenarioSelecionado: sanitizeScenarioKey(event.target.value),
                                         }))}
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     >
                                         <option value="economico">Economico</option>
                                         <option value="recomendado">Recomendado</option>
@@ -957,7 +957,7 @@ export default function AvaliacaoDetailPage() {
                                 </label>
 
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Desconto manual (%)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Desconto manual (%)</span>
                                     <input
                                         value={documentOptions.descontoManualPercent}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, descontoManualPercent: event.target.value }))}
@@ -965,164 +965,164 @@ export default function AvaliacaoDetailPage() {
                                         min={0}
                                         max={100}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-3">
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Valor do periodo (R$)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Valor do periodo (R$)</span>
                                     <input
                                         value={documentOptions.valorPeriodo}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorPeriodo: event.target.value }))}
                                         type="number"
                                         min={0}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Data vencimento</span>
+                                    <span className="mb-1 block font-medium text-foreground">Data vencimento</span>
                                     <input
                                         type="date"
                                         value={documentOptions.dataVencimento}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, dataVencimento: event.target.value }))}
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Valor final (R$/semana)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Valor final (R$/semana)</span>
                                     <input
                                         value={documentOptions.valorFinal}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorFinal: event.target.value }))}
                                         type="number"
                                         min={0}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-3">
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Descontos (R$)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Descontos (R$)</span>
                                     <input
                                         value={documentOptions.descontoValor}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, descontoValor: event.target.value }))}
                                         type="number"
                                         min={0}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Acrescimos (R$)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Acrescimos (R$)</span>
                                     <input
                                         value={documentOptions.acrescimosValor}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, acrescimosValor: event.target.value }))}
                                         type="number"
                                         min={0}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Parcelas</span>
+                                    <span className="mb-1 block font-medium text-foreground">Parcelas</span>
                                     <input
                                         value={documentOptions.parcelas}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, parcelas: event.target.value }))}
                                         type="number"
                                         min={1}
                                         max={24}
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-3">
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Entrada (R$)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Entrada (R$)</span>
                                     <input
                                         value={documentOptions.entrada}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, entrada: event.target.value }))}
                                         type="number"
                                         min={0}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Valor da parcela (R$)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Valor da parcela (R$)</span>
                                     <input
                                         value={documentOptions.valorParcela}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorParcela: event.target.value }))}
                                         type="number"
                                         min={0}
                                         step="0.01"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Minicustos desativados</span>
+                                    <span className="mb-1 block font-medium text-foreground">Minicustos desativados</span>
                                     <input
                                         value={documentOptions.minicustosDesativados}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, minicustosDesativados: event.target.value }))}
                                         placeholder="RESERVA_TECNICA, VISITA_SUPERVISAO"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Metodos (csv)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Metodos (csv)</span>
                                     <input
                                         value={documentOptions.metodosPagamento}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, metodosPagamento: event.target.value }))}
                                         placeholder="PIX, CARTAO DE CREDITO"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                                 <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Forma de pagamento (csv)</span>
+                                    <span className="mb-1 block font-medium text-foreground">Forma de pagamento (csv)</span>
                                     <input
                                         value={documentOptions.opcoesParcelamento}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, opcoesParcelamento: event.target.value }))}
                                         placeholder="1x sem juros, 2x sem juros, 3x sem juros, 4x sem juros"
-                                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
-                            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                <p className="mb-2 text-sm font-medium text-gray-700">Planejamento 360 (datas e alocacao)</p>
+                            <div className="rounded-lg border border-border bg-background p-3">
+                                <p className="mb-2 text-sm font-medium text-foreground">Planejamento 360 (datas e alocacao)</p>
 
                                 <div className="grid gap-3 md:grid-cols-3">
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Inicio</span>
+                                        <span className="mb-1 block font-medium text-foreground">Inicio</span>
                                         <input
                                             type="date"
                                             value={documentOptions.dataInicioCuidado}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, dataInicioCuidado: event.target.value }))}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Fim</span>
+                                        <span className="mb-1 block font-medium text-foreground">Fim</span>
                                         <input
                                             type="date"
                                             value={documentOptions.dataFimCuidado}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, dataFimCuidado: event.target.value }))}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Periodicidade</span>
+                                        <span className="mb-1 block font-medium text-foreground">Periodicidade</span>
                                         <select
                                             value={documentOptions.periodicidade}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, periodicidade: event.target.value }))}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         >
                                             <option value="DIARIO">Diario</option>
                                             <option value="SEMANAL">Semanal</option>
@@ -1134,29 +1134,29 @@ export default function AvaliacaoDetailPage() {
 
                                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Semanas</span>
+                                        <span className="mb-1 block font-medium text-foreground">Semanas</span>
                                         <input
                                             value={documentOptions.semanasPlanejadas}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, semanasPlanejadas: event.target.value }))}
                                             placeholder="4"
                                             type="number"
                                             min={1}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Meses</span>
+                                        <span className="mb-1 block font-medium text-foreground">Meses</span>
                                         <input
                                             value={documentOptions.mesesPlanejados}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, mesesPlanejados: event.target.value }))}
                                             placeholder="1"
                                             type="number"
                                             min={1}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Horas/dia</span>
+                                        <span className="mb-1 block font-medium text-foreground">Horas/dia</span>
                                         <input
                                             value={documentOptions.horasCuidadoDia}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, horasCuidadoDia: event.target.value }))}
@@ -1164,46 +1164,46 @@ export default function AvaliacaoDetailPage() {
                                             type="number"
                                             min={1}
                                             max={24}
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                 </div>
 
                                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Dias (csv)</span>
+                                        <span className="mb-1 block font-medium text-foreground">Dias (csv)</span>
                                         <input
                                             value={documentOptions.diasAtendimento}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, diasAtendimento: event.target.value }))}
                                             placeholder="seg,ter,qua,qui,sex"
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-gray-700">Tempo de cuidado</span>
+                                        <span className="mb-1 block font-medium text-foreground">Tempo de cuidado</span>
                                         <input
                                             value={documentOptions.tempoCuidadoDescricao}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, tempoCuidadoDescricao: event.target.value }))}
                                             placeholder="12h/dia por 3 meses"
-                                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                 </div>
 
                                 <label className="mt-3 block text-sm">
-                                    <span className="mb-1 block font-medium text-gray-700">Resumo de alocacao</span>
+                                    <span className="mb-1 block font-medium text-foreground">Resumo de alocacao</span>
                                     <textarea
                                         value={documentOptions.alocacaoResumo}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, alocacaoResumo: event.target.value }))}
                                         placeholder="Escala, cobertura, substituicoes..."
-                                        className="h-20 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                        className="h-20 w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
-                            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <div className="rounded-lg border border-border bg-background p-3">
                                 <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium text-gray-700">Template da mensagem</p>
+                                    <p className="text-sm font-medium text-foreground">Template da mensagem</p>
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -1220,19 +1220,19 @@ export default function AvaliacaoDetailPage() {
                                 <textarea
                                     value={documentOptions.mensagemTemplate}
                                     onChange={(event) => setDocumentOptions((prev) => ({ ...prev, mensagemTemplate: event.target.value }))}
-                                    className="h-44 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+                                    className="h-44 w-full rounded-lg border border-border-hover px-3 py-2 text-sm font-mono"
                                     placeholder="Edite o template com placeholders, ex.: {{nome}}, {{investimentoTotal}}"
                                 />
                                 {documentPreview?.missingVariables?.length ? (
-                                    <p className="mt-2 text-xs text-amber-700">
+                                    <p className="mt-2 text-xs text-warning-600">
                                         Variaveis ausentes no template: {documentPreview.missingVariables.join(', ')}
                                     </p>
                                 ) : null}
                             </div>
 
-                            <div className="rounded-lg border border-gray-200 p-3">
+                            <div className="rounded-lg border border-border p-3">
                                 <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium text-gray-700">Preview da mensagem final</p>
+                                    <p className="text-sm font-medium text-foreground">Preview da mensagem final</p>
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -1243,7 +1243,7 @@ export default function AvaliacaoDetailPage() {
                                         Abrir preview PDF
                                     </Button>
                                 </div>
-                                <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-gray-900 p-3 text-xs text-green-300">
+                                <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-neutral-900 p-3 text-xs text-green-300">
                                     {documentPreview?.previewMessage || 'Clique em "Atualizar preview" para visualizar a mensagem.'}
                                 </pre>
                             </div>

@@ -13,15 +13,15 @@ export default async function FormulariosPage() {
 
     return (
         <div className="p-8">
-            <h1 className="text-2xl font-bold mb-6">📝 Submissões de Formulários</h1>
+            <h1 className="text-2xl font-bold mb-6">Submissoes de Formularios</h1>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-card rounded-lg shadow overflow-hidden">
                 {submissions.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
+                    <div className="p-8 text-center text-muted-foreground">
                         Nenhum formulário recebido ainda.
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200">
+                    <div className="divide-y divide-border">
                         {submissions.map((sub: any) => {
                             let parsedData: FormDados = {};
                             try {
@@ -31,24 +31,24 @@ export default async function FormulariosPage() {
                             }
 
                             return (
-                                <div key={sub.id} className="p-6 hover:bg-gray-50 transition">
+                                <div key={sub.id} className="p-6 hover:bg-background transition">
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-info-100 text-primary">
                                                 {sub.tipo}
                                             </span>
-                                            <h3 className="text-lg font-medium text-gray-900 mt-1">
+                                            <h3 className="text-lg font-medium text-foreground mt-1">
                                                 {parsedData.nome || 'Sem nome'}
                                             </h3>
                                         </div>
-                                        <span className="text-sm text-gray-500">
+                                        <span className="text-sm text-muted-foreground">
                                             {new Date(sub.createdAt).toLocaleString('pt-BR')}
                                         </span>
                                     </div>
 
-                                    <div className="mt-2 text-sm text-gray-600">
+                                    <div className="mt-2 text-sm text-foreground">
                                         <p><strong>Telefone:</strong> {sub.telefone || parsedData.telefone || 'N/A'}</p>
-                                        <div className="mt-2 bg-gray-50 p-3 rounded text-xs font-mono overflow-x-auto">
+                                        <div className="mt-2 bg-background p-3 rounded text-xs font-mono overflow-x-auto">
                                             {JSON.stringify(parsedData, null, 2)}
                                         </div>
                                     </div>

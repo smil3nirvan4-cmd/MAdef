@@ -143,8 +143,8 @@ function PacientesPageContent() {
             sortable: true,
             accessor: (row) => (
                 <div className="space-y-1">
-                    <p className="font-medium text-gray-900">{row.nome || 'Sem nome'}</p>
-                    <p className="text-xs text-gray-500">{row.tipo}</p>
+                    <p className="font-medium text-foreground">{row.nome || 'Sem nome'}</p>
+                    <p className="text-xs text-muted-foreground">{row.tipo}</p>
                 </div>
             ),
         },
@@ -181,14 +181,14 @@ function PacientesPageContent() {
             width: '160px',
             accessor: (row) => (
                 <div className="flex items-center gap-2">
-                    <Link href={`/admin/pacientes/${row.id}`} className="text-sm text-blue-600 hover:underline">
+                    <Link href={`/admin/pacientes/${row.id}`} className="text-sm text-primary hover:underline">
                         Detail
                     </Link>
                     <a
                         href={`https://wa.me/${String(row.telefone || '').replace(/\D/g, '')}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm text-green-600 hover:underline"
+                        className="text-sm text-secondary-600 hover:underline"
                     >
                         WhatsApp
                     </a>
@@ -246,7 +246,7 @@ function PacientesPageContent() {
 
 export default function PacientesPage() {
     return (
-        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-gray-500">Loading pacientes...</div>}>
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading pacientes...</div>}>
             <PacientesPageContent />
         </Suspense>
     );
@@ -254,9 +254,9 @@ export default function PacientesPage() {
 
 function CardStat({ label, value }: { label: string; value: number }) {
     return (
-        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">{value}</p>
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
         </div>
     );
 }

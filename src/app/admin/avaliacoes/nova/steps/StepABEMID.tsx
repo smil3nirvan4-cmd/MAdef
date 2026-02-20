@@ -117,14 +117,14 @@ export default function StepABEMID({ data, onUpdate, onNext, onBack }: StepABEMI
     return (
         <div className="max-w-5xl mx-auto p-4 space-y-8">
             <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Etapa 4/9: ABEMID Expandido</h1>
-                <p className="text-gray-500">Avaliação Detalhada de Dependência (Triplicada)</p>
+                <h1 className="text-3xl font-bold text-foreground">Etapa 4/9: ABEMID Expandido</h1>
+                <p className="text-muted-foreground">Avaliação Detalhada de Dependência (Triplicada)</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
                 {SECTIONS.map((section) => (
-                    <div key={section.key} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <div key={section.key} className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                             {section.title}
                         </h3>
                         <div className="flex flex-wrap gap-2">
@@ -132,9 +132,9 @@ export default function StepABEMID({ data, onUpdate, onNext, onBack }: StepABEMI
                                 <button
                                     key={opt.val}
                                     onClick={() => handleSelect(section.key as any, opt.val)}
-                                    className={`px-3 py-2 rounded-lg text-xs font-medium border text-left transition flex-grow ${(data as any)[section.key] === opt.val
-                                            ? (opt.alert ? 'bg-red-100 text-red-700 border-red-300 ring-2 ring-red-300' : 'bg-blue-100 text-blue-700 border-blue-300 ring-2 ring-blue-300')
-                                            : 'hover:bg-gray-50 bg-white text-gray-600'
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium border text-left transition-all active:scale-[0.98] flex-grow ${(data as any)[section.key] === opt.val
+                                        ? (opt.alert ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 shadow-sm' : 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm')
+                                        : 'hover:bg-background hover:border-primary/30 bg-card text-foreground'
                                         }`}
                                 >
                                     {opt.label}
@@ -145,20 +145,20 @@ export default function StepABEMID({ data, onUpdate, onNext, onBack }: StepABEMI
                 ))}
             </div>
 
-            <div className="bg-white p-4 rounded-xl border">
-                <label className="font-bold text-sm text-gray-700">Observações Gerais do ABEMID</label>
+            <div className="bg-card p-4 rounded-xl border">
+                <label className="font-bold text-sm text-foreground">Observações Gerais do ABEMID</label>
                 <textarea
-                    className="w-full border p-2 rounded mt-2 h-20"
+                    className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all mt-2 h-20"
                     value={data.observacoes || ''}
                     onChange={e => onUpdate({ observacoes: e.target.value })}
                 />
             </div>
 
             <div className="flex justify-between pt-6 border-t pb-12">
-                <button onClick={onBack} className="text-gray-500 hover:text-gray-700">← Voltar</button>
+                <button onClick={onBack} className="text-muted-foreground hover:text-foreground">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-blue-700"
+                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
                 >
                     Próxima: Escala Katz →
                 </button>

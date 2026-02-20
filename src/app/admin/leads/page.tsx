@@ -100,24 +100,24 @@ export default function LeadsPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('LEAD')}>
-                    <p className="text-2xl font-bold text-gray-600">{stats?.leads || 0}</p>
-                    <p className="text-xs text-gray-500">Novos Leads</p>
+                    <p className="text-2xl font-bold text-foreground">{stats?.leads || 0}</p>
+                    <p className="text-xs text-muted-foreground">Novos Leads</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('AVALIACAO')}>
-                    <p className="text-2xl font-bold text-blue-600">{stats?.avaliacao || 0}</p>
-                    <p className="text-xs text-gray-500">Em Avaliação</p>
+                    <p className="text-2xl font-bold text-primary">{stats?.avaliacao || 0}</p>
+                    <p className="text-xs text-muted-foreground">Em Avaliação</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('PROPOSTA_ENVIADA')}>
-                    <p className="text-2xl font-bold text-purple-600">{stats?.proposta || 0}</p>
-                    <p className="text-xs text-gray-500">Proposta Enviada</p>
+                    <p className="text-2xl font-bold text-accent-600">{stats?.proposta || 0}</p>
+                    <p className="text-xs text-muted-foreground">Proposta Enviada</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('CONTRATO_ENVIADO')}>
-                    <p className="text-2xl font-bold text-yellow-600">{stats?.contrato || 0}</p>
-                    <p className="text-xs text-gray-500">Aguardando Assinatura</p>
+                    <p className="text-2xl font-bold text-warning-600">{stats?.contrato || 0}</p>
+                    <p className="text-xs text-muted-foreground">Aguardando Assinatura</p>
                 </Card>
                 <Card className="!p-4 cursor-pointer hover:shadow-md" onClick={() => setFilterStatus('ALL')}>
-                    <p className="text-2xl font-bold text-gray-900">{stats?.total || 0}</p>
-                    <p className="text-xs text-gray-500">Total</p>
+                    <p className="text-2xl font-bold text-foreground">{stats?.total || 0}</p>
+                    <p className="text-xs text-muted-foreground">Total</p>
                 </Card>
             </div>
 
@@ -129,7 +129,7 @@ export default function LeadsPage() {
                         <option value="ALL">Todos</option>
                         {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
-                    <span className="ml-auto text-sm text-gray-500"><strong>{leads.length}</strong> leads</span>
+                    <span className="ml-auto text-sm text-muted-foreground"><strong>{leads.length}</strong> leads</span>
                 </div>
             </Card>
 
@@ -137,30 +137,41 @@ export default function LeadsPage() {
             <Card noPadding>
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
+                        <thead className="bg-background border-b">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Lead</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Localização</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Atividade</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
-                                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Lead</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Localização</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Atividade</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Data</th>
+                                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {loading ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Carregando...</td></tr> :
-                                leads.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-500">Nenhum lead</td></tr> :
+                        <tbody className="divide-y divide-border">
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={i}>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-32" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-40" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-6 w-24 rounded-full" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-32" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-4 w-24" /></td>
+                                        <td className="px-4 py-4"><div className="skeleton h-8 w-24 rounded-md" /></td>
+                                    </tr>
+                                ))
+                            ) :
+                                leads.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum lead</td></tr> :
                                     leads.map((lead) => {
                                         const st = STATUS_CONFIG[lead.status] || { label: lead.status, variant: 'default' };
                                         const pr = PRIORIDADE_CONFIG[lead.prioridade];
                                         return (
-                                            <tr key={lead.id} className="hover:bg-gray-50">
+                                            <tr key={lead.id} className="hover:bg-background">
                                                 <td className="px-4 py-3">
-                                                    <div className="font-medium text-gray-900">{lead.nome || 'Sem nome'}</div>
-                                                    <div className="text-sm text-gray-500 flex items-center gap-1"><Phone className="w-3 h-3" />{lead.telefone}</div>
+                                                    <div className="font-medium text-foreground">{lead.nome || 'Sem nome'}</div>
+                                                    <div className="text-sm text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{lead.telefone}</div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <div className="text-sm text-gray-600 flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" />{lead.cidade || 'N/A'}{lead.bairro && `, ${lead.bairro}`}</div>
+                                                    <div className="text-sm text-foreground flex items-center gap-1"><MapPin className="w-3 h-3 text-muted-foreground" />{lead.cidade || 'N/A'}{lead.bairro && `, ${lead.bairro}`}</div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex flex-col gap-1">
@@ -168,26 +179,26 @@ export default function LeadsPage() {
                                                         {lead.prioridade !== 'NORMAL' && <Badge variant={pr?.variant || 'default'}>{pr?.label}</Badge>}
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-xs text-gray-500">
+                                                <td className="px-4 py-3 text-xs text-muted-foreground">
                                                     <div>{lead._count?.avaliacoes || 0} avaliações</div>
                                                     <div>{lead._count?.mensagens || 0} mensagens</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500">{new Date(lead.createdAt).toLocaleDateString('pt-BR')}</td>
+                                                <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(lead.createdAt).toLocaleDateString('pt-BR')}</td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center justify-center gap-1">
-                                                        <Button size="sm" variant="ghost" onClick={() => handleAction(lead.id, 'whatsapp')}><MessageCircle className="w-4 h-4 text-green-600" /></Button>
-                                                        <Link href={`/admin/leads/${lead.id}`}><Button size="sm" variant="ghost"><Eye className="w-4 h-4 text-blue-600" /></Button></Link>
+                                                        <Button size="sm" variant="ghost" onClick={() => handleAction(lead.id, 'whatsapp')}><MessageCircle className="w-4 h-4 text-secondary-600" /></Button>
+                                                        <Link href={`/admin/leads/${lead.id}`}><Button size="sm" variant="ghost"><Eye className="w-4 h-4 text-primary" /></Button></Link>
                                                         <div className="relative">
                                                             <Button size="sm" variant="ghost" onClick={() => setOpenMenu(openMenu === lead.id ? null : lead.id)}><MoreHorizontal className="w-4 h-4" /></Button>
                                                             {openMenu === lead.id && (
-                                                                <div className="absolute right-0 top-8 z-50 bg-white border rounded-lg shadow-lg py-1 w-48">
-                                                                    <button onClick={() => handleAction(lead.id, 'enviar_proposta')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <Send className="w-4 h-4 text-purple-600" />Enviar Proposta
+                                                                <div className="absolute right-0 top-8 z-50 bg-card border rounded-lg shadow-lg py-1 w-48">
+                                                                    <button onClick={() => handleAction(lead.id, 'enviar_proposta')} className="w-full px-4 py-2 text-left text-sm hover:bg-background flex items-center gap-2">
+                                                                        <Send className="w-4 h-4 text-accent-600" />Enviar Proposta
                                                                     </button>
-                                                                    <button onClick={() => handleAction(lead.id, 'enviar_contrato')} className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2">
-                                                                        <FileText className="w-4 h-4 text-yellow-600" />Enviar Contrato
+                                                                    <button onClick={() => handleAction(lead.id, 'enviar_contrato')} className="w-full px-4 py-2 text-left text-sm hover:bg-background flex items-center gap-2">
+                                                                        <FileText className="w-4 h-4 text-warning-600" />Enviar Contrato
                                                                     </button>
-                                                                    <button onClick={() => handleAction(lead.id, 'converter')} className="w-full px-4 py-2 text-left text-sm hover:bg-green-50 text-green-600 flex items-center gap-2">
+                                                                    <button onClick={() => handleAction(lead.id, 'converter')} className="w-full px-4 py-2 text-left text-sm hover:bg-success-50 text-secondary-600 flex items-center gap-2">
                                                                         <ArrowRight className="w-4 h-4" />Converter em Paciente
                                                                     </button>
                                                                 </div>

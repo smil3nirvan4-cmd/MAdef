@@ -138,10 +138,10 @@ export default function QueueItemDetailsPage() {
                             <h3 className="mb-3 font-semibold">Timeline</h3>
                             <div className="space-y-2 text-sm">
                                 {timeline.map((entry, index) => (
-                                    <div key={`${entry.event}-${index}`} className="rounded border border-slate-200 p-2">
+                                    <div key={`${entry.event}-${index}`} className="rounded border border-border p-2">
                                         <p className="font-medium">{entry.event}</p>
-                                        <p className="text-xs text-slate-500">{entry.status}</p>
-                                        <p className="text-xs text-slate-500">{new Date(entry.at).toLocaleString('pt-BR')}</p>
+                                        <p className="text-xs text-muted-foreground">{entry.status}</p>
+                                        <p className="text-xs text-muted-foreground">{new Date(entry.at).toLocaleString('pt-BR')}</p>
                                     </div>
                                 ))}
                             </div>
@@ -177,13 +177,13 @@ export default function QueueItemDetailsPage() {
                         <h3 className="mb-3 font-semibold">Logs Correlatos</h3>
                         <div className="space-y-3">
                             {logs.length === 0 ? (
-                                <p className="text-sm text-slate-500">Nenhum log correlato encontrado.</p>
+                                <p className="text-sm text-muted-foreground">Nenhum log correlato encontrado.</p>
                             ) : (
                                 logs.map((log) => (
-                                    <div key={log.id} className="rounded border border-slate-200 p-3">
+                                    <div key={log.id} className="rounded border border-border p-3">
                                         <div className="mb-1 flex items-center justify-between">
                                             <Badge>{log.type}</Badge>
-                                            <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleString('pt-BR')}</span>
+                                            <span className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString('pt-BR')}</span>
                                         </div>
                                         <p className="font-mono text-xs">{log.action}</p>
                                         <p className="text-sm">{log.message}</p>
@@ -200,7 +200,7 @@ export default function QueueItemDetailsPage() {
                 </>
             ) : (
                 <Card>
-                    <p className="text-sm text-slate-500">{loading ? 'Carregando...' : 'Queue item nao encontrado.'}</p>
+                    <p className="text-sm text-muted-foreground">{loading ? 'Carregando...' : 'Queue item nao encontrado.'}</p>
                 </Card>
             )}
         </div>

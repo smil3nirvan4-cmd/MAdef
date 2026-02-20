@@ -26,12 +26,12 @@ export interface ABEMIDEvaluation {
 }
 
 export interface KATZEvaluation {
-    banho: 'independente' | 'dependente';
-    vestir: 'independente' | 'dependente';
-    higiene: 'independente' | 'dependente';
-    transferencia: 'independente' | 'dependente';
-    continencia: 'independente' | 'dependente';
-    alimentacao: 'independente' | 'dependente';
+    banho: 'independente' | 'parcial' | 'dependente';
+    vestir: 'independente' | 'parcial' | 'dependente';
+    higiene: 'independente' | 'parcial' | 'dependente';
+    transferencia: 'independente' | 'parcial' | 'dependente';
+    continencia: 'independente' | 'parcial' | 'dependente';
+    alimentacao: 'independente' | 'parcial' | 'dependente';
 }
 
 export interface LawtonEvaluation {

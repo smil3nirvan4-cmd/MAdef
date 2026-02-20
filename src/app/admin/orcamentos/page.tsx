@@ -131,49 +131,49 @@ export default function OrcamentosPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <Card>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                            <DollarSign className="w-5 h-5 text-gray-600" />
+                        <div className="p-2 bg-surface-subtle rounded-lg">
+                            <DollarSign className="w-5 h-5 text-foreground" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold">{orcamentos.length}</p>
-                            <p className="text-sm text-gray-500">Total</p>
+                            <p className="text-sm text-muted-foreground">Total</p>
                         </div>
                     </div>
                 </Card>
                 <Card>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-yellow-100 rounded-lg">
-                            <Send className="w-5 h-5 text-yellow-600" />
+                        <div className="p-2 bg-warning-100 rounded-lg">
+                            <Send className="w-5 h-5 text-warning-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold">
                                 {orcamentos.filter(o => ['ENVIADO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'].includes(o.status)).length}
                             </p>
-                            <p className="text-sm text-gray-500">Enviados</p>
+                            <p className="text-sm text-muted-foreground">Enviados</p>
                         </div>
                     </div>
                 </Card>
                 <Card>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
+                        <div className="p-2 bg-success-100 rounded-lg">
+                            <CheckCircle className="w-5 h-5 text-secondary-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold">{orcamentos.filter(o => o.status === 'ACEITO').length}</p>
-                            <p className="text-sm text-gray-500">Aceitos</p>
+                            <p className="text-sm text-muted-foreground">Aceitos</p>
                         </div>
                     </div>
                 </Card>
                 <Card>
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <DollarSign className="w-5 h-5 text-blue-600" />
+                        <div className="p-2 bg-info-100 rounded-lg">
+                            <DollarSign className="w-5 h-5 text-primary" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold">
                                 {formatCurrency(orcamentos.filter(o => o.status === 'ACEITO').reduce((sum, o) => sum + (o.valorFinal || 0), 0))}
                             </p>
-                            <p className="text-sm text-gray-500">Receita</p>
+                            <p className="text-sm text-muted-foreground">Receita</p>
                         </div>
                     </div>
                 </Card>
@@ -190,8 +190,8 @@ export default function OrcamentosPage() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="ml-auto text-sm text-gray-500">
-                        <span className="font-medium text-gray-900">{filteredOrcamentos.length}</span> orçamentos
+                    <div className="ml-auto text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{filteredOrcamentos.length}</span> orçamentos
                     </div>
                 </div>
             </Card>
@@ -200,26 +200,26 @@ export default function OrcamentosPage() {
             <Card noPadding>
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-100">
+                        <thead className="bg-background border-b border-border">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Paciente</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Cenário</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Valor Final</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Data</th>
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Ações</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Paciente</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Cenário</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Valor Final</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Data</th>
+                                <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                                         Carregando...
                                     </td>
                                 </tr>
                             ) : filteredOrcamentos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                                         Nenhum orçamento encontrado
                                     </td>
                                 </tr>
@@ -227,25 +227,25 @@ export default function OrcamentosPage() {
                                 filteredOrcamentos.map((orc) => {
                                     const statusConfig = STATUS_CONFIG[orc.status] || { label: orc.status, variant: 'default' };
                                     return (
-                                        <tr key={orc.id} className="hover:bg-gray-50 transition-colors">
+                                        <tr key={orc.id} className="hover:bg-background transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">{orc.paciente?.nome || 'N/A'}</div>
-                                                <div className="text-sm text-gray-500">{orc.paciente?.telefone}</div>
+                                                <div className="font-medium text-foreground">{orc.paciente?.nome || 'N/A'}</div>
+                                                <div className="text-sm text-muted-foreground">{orc.paciente?.telefone}</div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-sm text-gray-700">
+                                                <span className="text-sm text-foreground">
                                                     {orc.cenarioSelecionado || 'Não definido'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="font-medium text-gray-900">
+                                                <span className="font-medium text-foreground">
                                                     {formatCurrency(orc.valorFinal)}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                            <td className="px-6 py-4 text-sm text-muted-foreground">
                                                 {formatDate(orc.createdAt)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -264,7 +264,7 @@ export default function OrcamentosPage() {
                                                         <>
                                                             <Button
                                                                 size="sm"
-                                                                className="bg-green-600 hover:bg-green-700"
+                                                                className="bg-secondary-600 hover:bg-secondary-700"
                                                                 onClick={() => handleAction(orc.id, 'aceitar')}
                                                                 isLoading={actionLoading === orc.id}
                                                             >

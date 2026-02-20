@@ -35,6 +35,7 @@ const DEFAULT_PROPOSTA_TEMPLATE = [
     '',
     'Investimento final: {{investimentoTotal}}',
     '(Entrada: {{entrada}} + {{parcelas}}x de {{valorParcela}})',
+    '{{tipoCobertura}}',
     '',
     'Documento PDF estruturado em anexo.',
     'Validade da proposta: {{validadeHoras}}h.',
@@ -65,6 +66,7 @@ const DEFAULT_CONTRATO_TEMPLATE = [
     '',
     'Investimento final: {{investimentoTotal}}',
     '(Entrada: {{entrada}} + {{parcelas}}x de {{valorParcela}})',
+    '{{tipoCobertura}}',
     '',
     'Documento PDF estruturado em anexo.',
     'Ref.: {{referencia}}',
@@ -183,7 +185,7 @@ export function buildCommercialMessageVariables(args: {
     const descontoPercentCalculado = round2((valorPeriodo * descontoPercentNumero) / 100);
     const totalLiquido = round2(
         sendOptions?.valorFinal
-            ?? Math.max(0, valorPeriodo - descontoPercentCalculado - descontoValor + acrescimosValor),
+        ?? Math.max(0, valorPeriodo - descontoPercentCalculado - descontoValor + acrescimosValor),
     );
 
     const parcelas = Math.max(1, Math.round(sendOptions?.parcelas ?? 1));
@@ -222,6 +224,7 @@ export function buildCommercialMessageVariables(args: {
         valorParcela: brl(valorParcela),
         validadeHoras,
         referencia: pdfData.referencia,
+        tipoCobertura: pdfData.presetCoberturaLabel || '',
     };
 }
 

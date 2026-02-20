@@ -49,7 +49,7 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
 };
 
 const FILTER_FIELDS: FilterField[] = [
-    { key: 'search', label: 'Search', type: 'text', placeholder: 'Patient name or phone...' },
+    { key: 'search', label: 'Buscar', type: 'text', placeholder: 'Buscar por paciente, status...' },
     {
         key: 'status',
         label: 'Status',
@@ -155,8 +155,8 @@ function AvaliacoesPageContent() {
             header: 'Paciente',
             accessor: (row) => (
                 <div className="space-y-1">
-                    <p className="font-medium text-gray-900">{row.paciente?.nome || 'Sem nome'}</p>
-                    <p className="text-xs text-gray-500">{row.paciente?.telefone || '-'}</p>
+                    <p className="font-medium text-foreground">{row.paciente?.nome || 'Sem nome'}</p>
+                    <p className="text-xs text-muted-foreground">{row.paciente?.telefone || '-'}</p>
                 </div>
             ),
         },
@@ -178,10 +178,10 @@ function AvaliacoesPageContent() {
             header: 'WhatsApp',
             accessor: (row) => (
                 row.whatsappEnviado
-                    ? <Badge variant="success">sent</Badge>
+                    ? <Badge variant="success">Enviado</Badge>
                     : row.whatsappErro
-                        ? <Badge variant="error">error</Badge>
-                        : <Badge variant="warning">pending</Badge>
+                        ? <span title={row.whatsappErro}><Badge variant="error">Falha</Badge></span>
+                        : <Badge variant="warning">Pendente</Badge>
             ),
         },
         {
@@ -192,7 +192,7 @@ function AvaliacoesPageContent() {
         },
         {
             key: 'acoes',
-            header: 'Acoes',
+            header: 'Ações',
             width: '290px',
             accessor: (row) => {
                 const canSendProposta = hasCapability('SEND_PROPOSTA');
@@ -200,22 +200,22 @@ function AvaliacoesPageContent() {
 
                 return (
                     <div className="flex flex-wrap items-center gap-2">
-                        <Link href={`/admin/avaliacoes/${row.id}`} className="text-sm text-blue-600 hover:underline">
-                            Details
+                        <Link href={`/admin/avaliacoes/${row.id}`} className="text-sm font-semibold text-primary hover:underline active:scale-[0.98] transition-all">
+                            Ver Detalhes
                         </Link>
                         {canSendProposta ? (
                             <Link href={`/admin/avaliacoes/${row.id}`}>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" className="border-border hover:bg-background text-foreground transition-all">
                                     <FileText className="h-3 w-3" />
-                                    Configurar proposta
+                                    Proposta
                                 </Button>
                             </Link>
                         ) : null}
                         {canSendContrato ? (
                             <Link href={`/admin/avaliacoes/${row.id}`}>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" className="border-border hover:bg-background text-foreground transition-all">
                                     <FileText className="h-3 w-3" />
-                                    Configurar contrato
+                                    Contrato
                                 </Button>
                             </Link>
                         ) : null}
@@ -228,22 +228,22 @@ function AvaliacoesPageContent() {
     return (
         <div className="p-6 lg:p-8 space-y-4">
             <PageHeader
-                title="Avaliacoes"
-                description="Track clinical evaluations and enqueue proposta/contrato deliveries."
+                title="Avaliações"
+                description="Gestão centralizada de avaliações clínicas e configuração de propostas/contratos."
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
-                    { label: 'Avaliacoes' },
+                    { label: 'Avaliações' },
                 ]}
                 actions={(
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={fetchRows} isLoading={loading}>
+                        <Button variant="outline" size="sm" onClick={fetchRows} isLoading={loading} className="border-border hover:bg-background text-foreground active:scale-[0.98] transition-all">
                             <RefreshCw className="h-4 w-4" />
-                            Refresh
+                            Atualizar
                         </Button>
                         <Link href="/admin/avaliacoes/nova">
-                            <Button size="sm">
-                                New
-                                <ExternalLink className="h-4 w-4" />
+                            <Button size="sm" className="bg-primary hover:bg-primary text-white shadow-md active:scale-[0.98] transition-all">
+                                Nova Avaliação
+                                <ExternalLink className="h-4 w-4 ml-1" />
                             </Button>
                         </Link>
                     </div>
@@ -275,7 +275,7 @@ function AvaliacoesPageContent() {
 
 export default function AvaliacoesPage() {
     return (
-        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-gray-500">Loading avaliacoes...</div>}>
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading avaliacoes...</div>}>
             <AvaliacoesPageContent />
         </Suspense>
     );

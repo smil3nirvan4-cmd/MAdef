@@ -12,7 +12,8 @@ import {
     Users,
     MessageCircle,
     ArrowRight,
-    Loader2
+    Loader2,
+    Sparkles
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -70,8 +71,8 @@ const menuCards = [
 ];
 
 const colorStyles = {
-    purple: { bg: 'bg-purple-50', icon: 'text-purple-600', hover: 'group-hover:bg-purple-100', title: 'text-purple-700' },
-    blue: { bg: 'bg-blue-50', icon: 'text-blue-600', hover: 'group-hover:bg-blue-100', title: 'text-blue-700' },
+    purple: { bg: 'bg-primary/10', icon: 'text-primary', hover: 'group-hover:bg-primary/20', title: 'text-primary' },
+    blue: { bg: 'bg-info-50', icon: 'text-info-600', hover: 'group-hover:bg-info-100', title: 'text-info-700' },
     green: { bg: 'bg-green-50', icon: 'text-green-600', hover: 'group-hover:bg-green-100', title: 'text-green-700' },
     orange: { bg: 'bg-orange-50', icon: 'text-orange-600', hover: 'group-hover:bg-orange-100', title: 'text-orange-700' },
 };
@@ -134,10 +135,19 @@ export default function AdminDashboard() {
 
     return (
         <div className="p-6 lg:p-8">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Painel Administrativo</h1>
-                <p className="text-gray-500 mt-1">Gerencie candidatos, avaliações, escalas e comunicação via WhatsApp.</p>
+            {/* Hero Header */}
+            <div className="mb-8 rounded-xl bg-primary p-6 lg:p-8 text-primary-foreground shadow-md relative overflow-hidden">
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDJ2LTJoMzR6bTAtMzBWNkgyVjRoMzR6TTIgMzRoMzR2Mkgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-20" />
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-5 h-5 opacity-80" />
+                        <span className="text-sm font-medium opacity-80">
+                            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </span>
+                    </div>
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Painel Administrativo</h1>
+                    <p className="mt-1 text-sm opacity-90">Gerencie candidatos, avaliações, escalas e comunicação via WhatsApp.</p>
+                </div>
             </div>
 
             {/* Stats Row - Clickable */}
@@ -145,24 +155,26 @@ export default function AdminDashboard() {
                 {statCards.map((stat) => {
                     const colors = colorStyles[stat.color as keyof typeof colorStyles];
                     return (
-                        <Link key={stat.label} href={stat.href} className="group">
-                            <Card className="hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-                                        {loading ? (
-                                            <Loader2 className="w-5 h-5 animate-spin text-gray-400 mt-2" />
-                                        ) : (
-                                            <h3 className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</h3>
-                                        )}
+                        <Link key={stat.label} href={stat.href} className="group block outline-none rounded-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all">
+                            <Card className="h-full rounded-xl border border-transparent hover:border-primary/30 hover:shadow-md hover:bg-surface-subtle active:scale-[0.98] transition-all duration-200">
+                                <div className="p-4 lg:p-5 flex flex-col h-full justify-between gap-4">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground line-clamp-1">{stat.label}</p>
+                                            {loading ? (
+                                                <div className="skeleton h-8 w-16 mt-2" />
+                                            ) : (
+                                                <h3 className="text-2xl font-bold text-foreground mt-1 tabular-nums">{stat.value}</h3>
+                                            )}
+                                        </div>
+                                        <div className={`p-2.5 rounded-md ${colors.bg} ${colors.hover} transition-colors`}>
+                                            <stat.icon className={`w-5 h-5 ${colors.icon}`} />
+                                        </div>
                                     </div>
-                                    <div className={`p-3 rounded-xl ${colors.bg} ${colors.hover} transition-colors`}>
-                                        <stat.icon className={`w-6 h-6 ${colors.icon}`} />
+                                    <div className="flex items-center text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors mt-auto">
+                                        <span>Ver detalhes</span>
+                                        <ArrowRight className="w-3.5 h-3.5 ml-1 group-hover:translate-x-1 transition-transform" />
                                     </div>
-                                </div>
-                                <div className="mt-3 flex items-center text-xs text-gray-400 group-hover:text-blue-600 transition-colors">
-                                    <span>Ver detalhes</span>
-                                    <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
                                 </div>
                             </Card>
                         </Link>
@@ -171,26 +183,26 @@ export default function AdminDashboard() {
             </div>
 
             {/* Menu Cards */}
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Módulos do Sistema</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4 px-1">Módulos do Sistema</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {menuCards.map((card) => {
                     const colors = colorStyles[card.color];
                     return (
-                        <Link key={card.href} href={card.href} className="group">
-                            <Card className="h-full hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+                        <Link key={card.href} href={card.href} className="group block outline-none rounded-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all">
+                            <Card className="h-full rounded-xl p-5 border border-transparent hover:border-primary/30 hover:shadow-md hover:bg-surface-subtle active:scale-[0.98] transition-all duration-200">
                                 <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-xl transition-colors ${colors.bg} ${colors.hover}`}>
+                                    <div className={`p-3 rounded-md transition-colors ${colors.bg} ${colors.hover}`}>
                                         <card.icon className={`w-6 h-6 ${colors.icon}`} />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className={`font-semibold text-lg mb-1 ${colors.title}`}>
+                                        <h3 className={`font-semibold text-[15px] mb-1 ${colors.title}`}>
                                             {card.title}
                                         </h3>
-                                        <p className="text-sm text-gray-500 leading-relaxed">
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
                                             {card.description}
                                         </p>
                                     </div>
-                                    <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                                    <ArrowRight className="w-5 h-5 text-muted-foreground/50 group-hover:text-muted-foreground group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
                                 </div>
                             </Card>
                         </Link>

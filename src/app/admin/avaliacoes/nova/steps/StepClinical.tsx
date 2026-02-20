@@ -64,29 +64,29 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
     return (
         <div className="max-w-5xl mx-auto p-4 space-y-8">
             <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Etapa 3/9: Mapeamento Clínico</h1>
-                <p className="text-gray-500">Inventário completo de saúde, riscos e dispositivos.</p>
+                <h1 className="text-3xl font-bold text-foreground">Etapa 3/9: Mapeamento Clínico</h1>
+                <p className="text-muted-foreground">Inventário completo de saúde, riscos e dispositivos.</p>
             </div>
 
             {/* DIAGNÓSTICOS GRID */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-6 border-b pb-2">1. Diagnósticos e Condições</h3>
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="text-lg font-bold text-foreground mb-6 border-b pb-2">1. Diagnósticos e Condições</h3>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Object.entries(CONDITIONS).map(([key, items]) => (
                         <div key={key}>
-                            <h4 className="text-xs font-black text-gray-400 uppercase mb-2 tracking-wider flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-blue-400"></span> {key}
+                            <h4 className="text-xs font-black text-muted-foreground uppercase mb-2 tracking-wider flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-primary-400"></span> {key}
                             </h4>
                             <div className="space-y-1">
                                 {items.map(item => (
-                                    <label key={item} className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded transition">
+                                    <label key={item} className="flex items-start gap-2 cursor-pointer hover:bg-background p-1.5 rounded transition-all active:scale-[0.98]">
                                         <input
                                             type="checkbox"
-                                            className="w-4 h-4 text-blue-600 rounded mt-0.5"
+                                            className="w-4 h-4 text-primary rounded mt-0.5 accent-primary-600"
                                             checked={(data.condicoes[key as keyof typeof CONDITIONS] as string[])?.includes(item)}
                                             onChange={() => toggleCondition(key as keyof typeof CONDITIONS, item)}
                                         />
-                                        <span className="text-xs md:text-sm text-gray-700 leading-tight">{item}</span>
+                                        <span className="text-xs md:text-sm text-foreground leading-tight">{item}</span>
                                     </label>
                                 ))}
                             </div>
@@ -94,9 +94,9 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
                     ))}
                 </div>
                 <div className="mt-6 pt-4 border-t">
-                    <label className="text-xs font-bold text-gray-400 uppercase">Outras Observações Clínicas</label>
+                    <label className="text-xs font-bold text-muted-foreground uppercase">Outras Observações Clínicas</label>
                     <textarea
-                        className="w-full border p-2 rounded text-sm h-20"
+                        className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all h-20"
                         placeholder="Ex: Histórico de câncer, cirurgias antigas relevante..."
                         value={data.condicoes.outros}
                         onChange={e => onUpdate({ condicoes: { ...data.condicoes, outros: e.target.value } })}
@@ -106,16 +106,16 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
 
             {/* RISCOS E DISPOSITIVOS */}
             <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-800 mb-4">2. Histórico de Quedas</h3>
+                <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                    <h3 className="font-bold text-foreground mb-4">2. Histórico de Quedas</h3>
                     <div className="flex flex-col gap-2">
                         {['Nenhuma queda relatada', 'Queda < 1 mês (Alto Risco)', 'Queda 1-3 meses', 'Queda 3-6 meses', 'Queda > 1 ano', 'Quedas frequentes/recorrentes', 'Queda com fratura grave', 'Medo excessivo de cair'].map(opt => (
                             <button
                                 key={opt}
                                 onClick={() => onUpdate({ quedas: data.quedas === opt ? '' : opt })}
-                                className={`p-3 rounded-lg text-sm font-medium border text-left transition ${data.quedas === opt
-                                        ? (opt.includes('Alto') || opt.includes('frequentes') ? 'bg-red-100 text-red-700 border-red-300' : 'bg-green-100 text-green-700 border-green-300')
-                                        : 'hover:bg-gray-50'
+                                className={`p-3 rounded-lg text-sm font-medium border text-left transition-all active:scale-[0.98] ${data.quedas === opt
+                                    ? (opt.includes('Alto') || opt.includes('frequentes') ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 shadow-sm' : 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm')
+                                    : 'hover:bg-background hover:border-primary/30'
                                     }`}
                             >
                                 {opt}
@@ -124,14 +124,14 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-800 mb-4">3. Dispositivos de Auxílio</h3>
+                <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                    <h3 className="font-bold text-foreground mb-4">3. Dispositivos de Auxílio</h3>
                     <div className="grid grid-cols-2 gap-2">
                         {DISPOSITIVOS.map(d => (
                             <button
                                 key={d}
                                 onClick={() => toggleDispositivo(d)}
-                                className={`p-2 rounded border text-xs text-left transition ${data.dispositivos?.includes(d) ? 'bg-purple-100 text-purple-700 border-purple-300' : 'hover:bg-gray-50'}`}
+                                className={`p-2 rounded-lg border font-medium text-sm text-left transition-all active:scale-[0.98] ${data.dispositivos?.includes(d) ? 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm' : 'hover:bg-background hover:border-primary/30'}`}
                             >
                                 {d}
                             </button>
@@ -141,22 +141,22 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
             </div>
 
             {/* FARMÁCIA */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
-                <h3 className="font-bold text-gray-800 border-b pb-2">4. Farmácia e Restrições</h3>
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border space-y-6">
+                <h3 className="font-bold text-foreground border-b pb-2">4. Farmácia e Restrições</h3>
 
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Volume de Medicamentos</label>
+                    <label className="block text-sm font-bold text-foreground mb-2">Volume de Medicamentos</label>
                     <div className="grid grid-cols-4 gap-2">
                         {[
-                            { label: 'Nenhum', val: '0', color: 'bg-gray-100 text-gray-600' },
-                            { label: '1-3 (Baixo)', val: '1-3', color: 'bg-green-50 text-green-700' },
-                            { label: '4-7 (Médio)', val: '4-7', color: 'bg-yellow-50 text-yellow-700' },
-                            { label: '8+ (Polifarmácia)', val: '8+', color: 'bg-red-50 text-red-700' }
+                            { label: 'Nenhum', val: '0', color: 'bg-surface-subtle text-foreground' },
+                            { label: '1-3 (Baixo)', val: '1-3', color: 'bg-success-50 text-secondary-700' },
+                            { label: '4-7 (Médio)', val: '4-7', color: 'bg-warning-50 text-warning-600' },
+                            { label: '8+ (Polifarmácia)', val: '8+', color: 'bg-error-50 text-error-700' }
                         ].map(opt => (
                             <button
                                 key={opt.val}
                                 onClick={() => onUpdate({ medicamentos: { ...data.medicamentos, total: data.medicamentos.total === opt.val ? '' : opt.val } })}
-                                className={`py-2 px-1 text-xs rounded-lg border font-medium ${data.medicamentos.total === opt.val ? `border-current ${opt.color} ring-1 ring-black/5` : 'border-gray-200 text-gray-500'}`}
+                                className={`py-2 px-1 text-xs rounded-lg border font-medium transition-all active:scale-[0.98] ${data.medicamentos.total === opt.val ? `border-primary-500 ring-1 ring-ring ${opt.color} shadow-sm` : 'border-border text-muted-foreground hover:bg-background hover:border-primary/30'}`}
                             >
                                 {opt.label}
                             </button>
@@ -166,18 +166,18 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
 
                 <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">Lista de Medicamentos (Foto/Texto)</label>
+                        <label className="block text-sm font-bold text-foreground mb-1">Lista de Medicamentos (Foto/Texto)</label>
                         <textarea
-                            className="w-full border p-3 rounded" rows={4}
+                            className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" rows={4}
                             placeholder="Insira os principais medicamentos..."
                             value={data.medicamentos.lista}
                             onChange={e => onUpdate({ medicamentos: { ...data.medicamentos, lista: e.target.value } })}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1 text-red-600">Alergias e Restrições ⚠️</label>
+                        <label className="block text-sm font-bold text-foreground mb-1 text-error-600">Alergias e Restricoes</label>
                         <textarea
-                            className="w-full border p-3 rounded border-red-100 bg-red-50" rows={4}
+                            className="w-full border border-error-300 p-3 rounded-lg text-sm bg-error-50 focus:bg-card focus:ring-2 focus:ring-error-200 focus:border-error-500 outline-none transition-all placeholder:text-error-300 text-error-800" rows={4}
                             placeholder="ALERGIAS A DIPIRONA, JANTAR CEDO, NÃO GOSTA DE..."
                             value={data.medicamentos.alergias}
                             onChange={e => onUpdate({ medicamentos: { ...data.medicamentos, alergias: e.target.value } })}
@@ -187,10 +187,10 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
             </div>
 
             <div className="flex justify-between pt-6 border-t pb-12">
-                <button onClick={onBack} className="text-gray-500 hover:text-gray-700 font-medium">← Voltar</button>
+                <button onClick={onBack} className="text-muted-foreground hover:text-foreground font-medium">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-blue-700"
+                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
                 >
                     Próxima: ABEMID →
                 </button>

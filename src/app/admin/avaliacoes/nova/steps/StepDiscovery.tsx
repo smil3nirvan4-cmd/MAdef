@@ -4,8 +4,10 @@ export interface DiscoveryData {
     gatilho: string;
     gatilhoDescricao: string;
     urgencia: 'BAIXA' | 'MODERADA' | 'ALTA' | 'CRITICA';
+    motivoUrgencia: string;
     situacaoAtual: string;
     sobrecargaFamiliar: number; // 1-10
+    oQueTiraOSono: string;
     preocupacoes: string[];
     experienciaAnterior: string;
 }
@@ -70,14 +72,14 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
     return (
         <div className="max-w-5xl mx-auto p-4 space-y-8">
             <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Etapa 1/9: Descoberta Detalhada</h1>
-                <p className="text-gray-500">Mapeamento profundo do contexto familiar e gatilhos.</p>
+                <h1 className="text-3xl font-bold text-foreground">Etapa 1/9: Descoberta Detalhada</h1>
+                <p className="text-muted-foreground">Mapeamento profundo do contexto familiar e gatilhos.</p>
             </div>
 
             {/* 1. O GATILHO */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <span className="bg-info-100 text-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">1</span>
                     O Evento Gatilho
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
@@ -85,7 +87,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={g}
                             onClick={() => toggleGatilho(g)}
-                            className={`p-3 rounded-lg border text-xs text-left transition ${data.gatilho === g ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}`}
+                            className={`p-3 rounded-lg border text-sm text-left transition-all active:scale-[0.98] ${data.gatilho === g ? 'bg-primary text-white border-primary shadow-sm' : 'hover:bg-background hover:border-primary/30'}`}
                         >
                             {g}
                         </button>
@@ -93,7 +95,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                 </div>
                 <textarea
                     placeholder="Descreva com detalhes o que a família relatou..."
-                    className="w-full border p-3 rounded-lg text-sm bg-gray-50 focus:bg-white transition"
+                    className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all"
                     rows={3}
                     value={data.gatilhoDescricao}
                     onChange={e => onUpdate({ gatilhoDescricao: e.target.value })}
@@ -101,9 +103,9 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
             </div>
 
             {/* 2. SITUAÇÃO ATUAL */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <span className="bg-info-100 text-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
                     Cenário Atual de Cuidado
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
@@ -111,36 +113,76 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={s}
                             onClick={() => toggleSituacao(s)}
-                            className={`p-3 rounded-lg border text-left text-xs transition ${data.situacaoAtual === s ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 text-blue-700' : 'hover:bg-gray-50'}`}
+                            className={`p-3 rounded-lg border text-left text-sm transition-all active:scale-[0.98] ${data.situacaoAtual === s ? 'bg-info-50 border-primary-500 ring-1 ring-ring text-primary shadow-sm' : 'hover:bg-background hover:border-primary/30'}`}
                         >
                             {s}
                         </button>
                     ))}
                 </div>
 
-                <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-                    <label className="text-sm font-bold text-gray-700 flex justify-between">
+                <div className="space-y-4 bg-background p-4 rounded-lg mt-4">
+                    <label className="text-sm font-bold text-foreground flex justify-between">
                         <span>Nível de Sobrecarga / Estresse Familiar</span>
-                        <span className={`font-bold ${data.sobrecargaFamiliar >= 8 ? 'text-red-600' : 'text-blue-600'}`}>{data.sobrecargaFamiliar}/10</span>
+                        <span className={`font-bold ${data.sobrecargaFamiliar >= 8 ? 'text-error-600' : 'text-primary'}`}>{data.sobrecargaFamiliar}/10</span>
                     </label>
                     <input
                         type="range" min="1" max="10"
                         value={data.sobrecargaFamiliar}
                         onChange={e => onUpdate({ sobrecargaFamiliar: parseInt(e.target.value) })}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        className="w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-primary-600 transition-all"
                     />
-                    <div className="flex justify-between text-xs text-gray-400 font-bold px-1">
-                        <span>😌 Leve</span>
-                        <span>😐 Moderada</span>
-                        <span>😫 Crítica</span>
+                    <div className="flex justify-between text-xs text-muted-foreground font-bold px-1 mt-1">
+                        <span>Leve</span>
+                        <span>Moderada</span>
+                        <span>Critica</span>
                     </div>
+                </div>
+
+                <div className="mt-4">
+                    <label className="block text-sm font-bold text-foreground mb-1">O que tira o sono da família hoje?</label>
+                    <textarea
+                        className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all"
+                        rows={2}
+                        placeholder="Ex: Medo do paciente cair de madrugada e ninguém ver..."
+                        value={data.oQueTiraOSono || ''}
+                        onChange={e => onUpdate({ oQueTiraOSono: e.target.value })}
+                    />
                 </div>
             </div>
 
-            {/* 3. PREOCUPAÇÕES */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+            {/* URGÊNCIA */}
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <span className="bg-info-100 text-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">3</span>
+                    Sentimento de Urgência
+                </h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    {['BAIXA', 'MODERADA', 'ALTA', 'CRITICA'].map(level => (
+                        <button
+                            key={level}
+                            onClick={() => onUpdate({ urgencia: level as DiscoveryData['urgencia'] })}
+                            className={`p-3 rounded-lg border text-sm font-bold transition-all active:scale-[0.98] ${data.urgencia === level ? (level === 'CRITICA' || level === 'ALTA' ? 'bg-error-500 text-white border-error-600 shadow-sm' : 'bg-primary text-white border-primary shadow-sm') : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
+                        >
+                            {level}
+                        </button>
+                    ))}
+                </div>
+                <div className="mt-4">
+                    <label className="block text-sm font-bold text-foreground mb-1">Motivo da Urgência</label>
+                    <textarea
+                        className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all"
+                        rows={2}
+                        placeholder="Por que precisam para agora? Ex: Alta amanhã do hospital..."
+                        value={data.motivoUrgencia || ''}
+                        onChange={e => onUpdate({ motivoUrgencia: e.target.value })}
+                    />
+                </div>
+            </div>
+
+            {/* PREOCUPAÇÕES */}
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <span className="bg-info-100 text-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">4</span>
                     Medos e Objeções (Multiseleção)
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -148,19 +190,19 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={p}
                             onClick={() => handleTogglePreocupacao(p)}
-                            className={`px-3 py-2 rounded-lg border text-xs text-left transition flex items-center gap-2 ${data.preocupacoes?.includes(p) ? 'bg-red-50 text-red-700 border-red-200 font-bold' : 'hover:bg-gray-50 text-gray-600'}`}
+                            className={`px-3 py-2 rounded-lg border text-sm text-left transition-all active:scale-[0.98] flex items-center gap-2 ${data.preocupacoes?.includes(p) ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 font-bold shadow-sm' : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
                         >
-                            <div className={`w-3 h-3 rounded-full border ${data.preocupacoes?.includes(p) ? 'bg-red-500 border-red-500' : 'border-gray-300'}`} />
+                            <div className={`w-3 h-3 rounded-full border ${data.preocupacoes?.includes(p) ? 'bg-error-500 border-error-500' : 'border-border-hover'}`} />
                             {p}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* 4. EXPERIÊNCIAS */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-sm">4</span>
+            {/* 5. EXPERIÊNCIAS */}
+            <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                    <span className="bg-info-100 text-primary w-8 h-8 rounded-full flex items-center justify-center text-sm">5</span>
                     Histórico com Cuidadores
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -172,7 +214,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={e}
                             onClick={() => toggleExperiencia(e)}
-                            className={`p-3 rounded-lg border text-xs font-medium transition ${data.experienciaAnterior === e ? 'bg-gray-800 text-white' : 'hover:bg-gray-50'}`}
+                            className={`p-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.98] ${data.experienciaAnterior === e ? 'bg-neutral-800 text-white border-neutral-800 shadow-sm' : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
                         >
                             {e}
                         </button>
@@ -181,11 +223,11 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
             </div>
 
             <div className="flex justify-between pt-6 border-t pb-12">
-                <button onClick={onBack} className="text-gray-500 hover:text-gray-700 font-medium">← Voltar para Início</button>
+                <button onClick={onBack} className="text-muted-foreground hover:text-foreground font-medium">← Voltar para Início</button>
                 <button
                     onClick={onNext}
                     disabled={!data.gatilho}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition transform disabled:opacity-50 disabled:scale-100"
+                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-primary hover:scale-105 transition transform disabled:opacity-50 disabled:scale-100"
                 >
                     Próxima: Dados Pessoais →
                 </button>

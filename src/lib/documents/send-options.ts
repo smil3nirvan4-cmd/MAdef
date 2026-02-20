@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const cenarioSelecionadoSchema = z.enum(['economico', 'recomendado', 'premium']);
+export const presetCoberturaSchema = z.enum(['1_DIA_12H', '1_DIA_24H', '1_SEMANA', '15_DIAS', 'MENSAL']);
+export const horasCoberturaSchema = z.union([z.literal(12), z.literal(24)]);
 
 function emptyToUndefined(value: unknown): unknown {
     if (value === '' || value === null) return undefined;
@@ -51,6 +53,8 @@ const sendOptionsInputSchema = z.object({
     horasCuidadoDia: z.preprocess(emptyToUndefined, z.coerce.number().min(1).max(24)).optional(),
     tempoCuidadoDescricao: z.preprocess(emptyToUndefined, z.string()).optional(),
     alocacaoResumo: z.preprocess(emptyToUndefined, z.string()).optional(),
+    presetCobertura: z.preprocess(emptyToUndefined, presetCoberturaSchema).optional(),
+    horasCoberturaOverride: z.preprocess(emptyToUndefined, z.coerce.number().pipe(horasCoberturaSchema)).optional(),
 }).passthrough();
 
 export interface OrcamentoSendOptions {
@@ -78,6 +82,8 @@ export interface OrcamentoSendOptions {
     horasCuidadoDia?: number;
     tempoCuidadoDescricao?: string;
     alocacaoResumo?: string;
+    presetCobertura?: z.infer<typeof presetCoberturaSchema>;
+    horasCoberturaOverride?: 12 | 24;
 }
 
 function normalizeCenarioSelecionado(value: unknown): OrcamentoSendOptions['cenarioSelecionado'] {
@@ -142,6 +148,8 @@ export function parseOrcamentoSendOptions(value: unknown): OrcamentoSendOptions 
     const horasCuidadoDia = parsed.data.horasCuidadoDia;
     const tempoCuidadoDescricao = parsed.data.tempoCuidadoDescricao;
     const alocacaoResumo = parsed.data.alocacaoResumo;
+    const presetCobertura = parsed.data.presetCobertura as OrcamentoSendOptions['presetCobertura'];
+    const horasCoberturaOverride = parsed.data.horasCoberturaOverride as OrcamentoSendOptions['horasCoberturaOverride'];
 
     if (
         cenarioSelecionado === undefined
@@ -168,6 +176,8 @@ export function parseOrcamentoSendOptions(value: unknown): OrcamentoSendOptions 
         && horasCuidadoDia === undefined
         && tempoCuidadoDescricao === undefined
         && alocacaoResumo === undefined
+        && presetCobertura === undefined
+        && horasCoberturaOverride === undefined
     ) {
         return undefined;
     }
@@ -197,6 +207,8 @@ export function parseOrcamentoSendOptions(value: unknown): OrcamentoSendOptions 
         horasCuidadoDia,
         tempoCuidadoDescricao,
         alocacaoResumo,
+        presetCobertura,
+        horasCoberturaOverride,
     };
 }
 

@@ -155,7 +155,7 @@ export default function WhatsAppQueuePage() {
             accessorKey: 'id',
             header: 'Queue Item',
             cell: ({ row }) => (
-                <Link href={`/admin/whatsapp/queue/${row.original.id}`} className="font-mono text-xs text-blue-600 hover:underline">
+                <Link href={`/admin/whatsapp/queue/${row.original.id}`} className="font-mono text-xs text-primary hover:underline">
                     {row.original.id}
                 </Link>
             ),
@@ -202,7 +202,7 @@ export default function WhatsAppQueuePage() {
             accessorKey: 'error',
             header: 'Erro',
             cell: ({ row }) => (
-                <span className="line-clamp-2 max-w-sm text-xs text-red-600">
+                <span className="line-clamp-2 max-w-sm text-xs text-error-600">
                     {row.original.error || '-'}
                 </span>
             ),
@@ -236,7 +236,7 @@ export default function WhatsAppQueuePage() {
                 {statusCards.map(({ label, value }) => (
                     <Card key={label} className="!p-3 cursor-pointer" onClick={() => setFilterStatus(label)}>
                         <p className="text-xl font-semibold">{value}</p>
-                        <p className="text-xs uppercase text-slate-500">{label}</p>
+                        <p className="text-xs uppercase text-muted-foreground">{label}</p>
                     </Card>
                 ))}
             </div>
@@ -247,18 +247,18 @@ export default function WhatsAppQueuePage() {
                         value={filterPhone}
                         onChange={(event) => setFilterPhone(event.target.value)}
                         placeholder="Filtro telefone"
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         value={filterIdempotencyKey}
                         onChange={(event) => setFilterIdempotencyKey(event.target.value)}
                         placeholder="Filtro idempotencyKey"
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <select
                         value={filterIntent}
                         onChange={(event) => setFilterIntent(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     >
                         <option value="all">Todos intents</option>
                         <option value="SEND_TEXT">SEND_TEXT</option>
@@ -270,7 +270,7 @@ export default function WhatsAppQueuePage() {
                     <select
                         value={filterStatus}
                         onChange={(event) => setFilterStatus(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     >
                         <option value="all">Todos status</option>
                         <option value="pending">pending</option>
@@ -284,49 +284,49 @@ export default function WhatsAppQueuePage() {
                         value={filterRetriesMin}
                         onChange={(event) => setFilterRetriesMin(event.target.value)}
                         placeholder="Retries min"
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         value={filterRetriesMax}
                         onChange={(event) => setFilterRetriesMax(event.target.value)}
                         placeholder="Retries max"
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         type="datetime-local"
                         value={filterCreatedFrom}
                         onChange={(event) => setFilterCreatedFrom(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         type="datetime-local"
                         value={filterCreatedTo}
                         onChange={(event) => setFilterCreatedTo(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         type="datetime-local"
                         value={filterScheduledFrom}
                         onChange={(event) => setFilterScheduledFrom(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         type="datetime-local"
                         value={filterScheduledTo}
                         onChange={(event) => setFilterScheduledTo(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         type="datetime-local"
                         value={filterLastAttemptFrom}
                         onChange={(event) => setFilterLastAttemptFrom(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                     <input
                         type="datetime-local"
                         value={filterLastAttemptTo}
                         onChange={(event) => setFilterLastAttemptTo(event.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        className="h-9 rounded-md border border-border-hover px-3 text-sm"
                     />
                 </div>
             </Card>

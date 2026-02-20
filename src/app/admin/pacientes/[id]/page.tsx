@@ -147,7 +147,7 @@ export default function PacienteDetalhePage() {
     );
 
     if (loading) {
-        return <div className="p-6 lg:p-8 text-sm text-gray-500">Loading paciente...</div>;
+        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading paciente...</div>;
     }
 
     if (error || !data) {
@@ -164,7 +164,7 @@ export default function PacienteDetalhePage() {
                 />
                 <Card>
                     <div className="flex items-center justify-between">
-                        <p className="text-sm text-red-600">{error || 'Paciente nao encontrado'}</p>
+                        <p className="text-sm text-error-600">{error || 'Paciente nao encontrado'}</p>
                         <Link href="/admin/pacientes">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4" />
@@ -209,84 +209,84 @@ export default function PacienteDetalhePage() {
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Status</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Status</p>
                     <Badge variant={STATUS_BADGE[data.status] || 'default'}>{data.status}</Badge>
-                    <p className="mt-2 text-sm text-gray-600">Prioridade: {data.prioridade || '-'}</p>
-                    <p className="text-sm text-gray-600">Tipo: {data.tipo}</p>
+                    <p className="mt-2 text-sm text-foreground">Prioridade: {data.prioridade || '-'}</p>
+                    <p className="text-sm text-foreground">Tipo: {data.tipo}</p>
                 </Card>
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Local</p>
-                    <p className="text-sm text-gray-700">{data.cidade || '-'} {data.bairro ? `- ${data.bairro}` : ''}</p>
-                    {data.hospital ? <p className="text-sm text-gray-700">Hospital: {data.hospital}</p> : null}
-                    {data.quarto ? <p className="text-sm text-gray-700">Quarto: {data.quarto}</p> : null}
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Local</p>
+                    <p className="text-sm text-foreground">{data.cidade || '-'} {data.bairro ? `- ${data.bairro}` : ''}</p>
+                    {data.hospital ? <p className="text-sm text-foreground">Hospital: {data.hospital}</p> : null}
+                    {data.quarto ? <p className="text-sm text-foreground">Quarto: {data.quarto}</p> : null}
                 </Card>
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-gray-500">Criado</p>
-                    <p className="text-sm text-gray-700">{formatDate(data.createdAt)}</p>
-                    <p className="mt-2 text-sm text-gray-600">Avaliacoes: {data.avaliacoes?.length || 0}</p>
-                    <p className="text-sm text-gray-600">Orcamentos: {data.orcamentos?.length || 0}</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Criado</p>
+                    <p className="text-sm text-foreground">{formatDate(data.createdAt)}</p>
+                    <p className="mt-2 text-sm text-foreground">Avaliacoes: {data.avaliacoes?.length || 0}</p>
+                    <p className="text-sm text-foreground">Orcamentos: {data.orcamentos?.length || 0}</p>
                 </Card>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
-                    <p className="mb-3 text-xs uppercase text-gray-500">Avaliacoes</p>
+                    <p className="mb-3 text-xs uppercase text-muted-foreground">Avaliacoes</p>
                     {data.avaliacoes?.length ? (
                         <div className="space-y-2">
                             {data.avaliacoes.map((avaliacao) => (
-                                <div key={avaliacao.id} className="rounded-lg border border-gray-100 p-3">
+                                <div key={avaliacao.id} className="rounded-lg border border-border p-3">
                                     <div className="flex items-center justify-between">
                                         <Badge variant={STATUS_BADGE[avaliacao.status] || 'default'}>{avaliacao.status}</Badge>
-                                        <span className="text-xs text-gray-500">{formatDate(avaliacao.createdAt)}</span>
+                                        <span className="text-xs text-muted-foreground">{formatDate(avaliacao.createdAt)}</span>
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">WhatsApp: {avaliacao.whatsappEnviado ? 'sent' : 'pending'}</p>
-                                    <Link href={`/admin/avaliacoes/${avaliacao.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
+                                    <p className="mt-1 text-xs text-muted-foreground">WhatsApp: {avaliacao.whatsappEnviado ? 'sent' : 'pending'}</p>
+                                    <Link href={`/admin/avaliacoes/${avaliacao.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
                                         Open avaliacao
                                     </Link>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-500">Sem avaliacoes.</p>
+                        <p className="text-sm text-muted-foreground">Sem avaliacoes.</p>
                     )}
                 </Card>
 
                 <Card>
-                    <p className="mb-3 text-xs uppercase text-gray-500">Mensagens WhatsApp</p>
+                    <p className="mb-3 text-xs uppercase text-muted-foreground">Mensagens WhatsApp</p>
                     <div className="max-h-[360px] space-y-2 overflow-auto">
                         {data.mensagens?.length ? (
                             data.mensagens.slice(0, 50).map((msg) => (
-                                <div key={msg.id} className={`rounded-lg p-3 ${msg.direcao === 'OUT' ? 'bg-blue-50' : 'bg-gray-50'}`}>
-                                    <p className="text-sm text-gray-800">{msg.conteudo}</p>
-                                    <p className="mt-1 text-xs text-gray-500">{formatDate(msg.timestamp)}</p>
+                                <div key={msg.id} className={`rounded-lg p-3 ${msg.direcao === 'OUT' ? 'bg-info-50' : 'bg-background'}`}>
+                                    <p className="text-sm text-foreground">{msg.conteudo}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">{formatDate(msg.timestamp)}</p>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-sm text-gray-500">Sem mensagens.</p>
+                            <p className="text-sm text-muted-foreground">Sem mensagens.</p>
                         )}
                     </div>
                 </Card>
             </div>
 
             <Card>
-                <p className="mb-3 flex items-center gap-2 text-xs uppercase text-gray-500">
+                <p className="mb-3 flex items-center gap-2 text-xs uppercase text-muted-foreground">
                     <MessageCircle className="h-4 w-4" />
                     Historico de Logs WhatsApp (filtrado por telefone)
                 </p>
                 {!canViewLogs ? (
-                    <p className="text-sm text-gray-500">Role sem permissao para visualizar logs.</p>
+                    <p className="text-sm text-muted-foreground">Role sem permissao para visualizar logs.</p>
                 ) : logs.length === 0 ? (
-                    <p className="text-sm text-gray-500">Nenhum log correlato encontrado.</p>
+                    <p className="text-sm text-muted-foreground">Nenhum log correlato encontrado.</p>
                 ) : (
                     <div className="space-y-2">
                         {logs.map((entry) => (
-                            <div key={entry.id} className="rounded-lg border border-gray-100 p-3">
+                            <div key={entry.id} className="rounded-lg border border-border p-3">
                                 <div className="flex items-center justify-between gap-2">
-                                    <span className="text-xs font-mono text-gray-700">{entry.action}</span>
-                                    <span className="text-xs text-gray-500">{formatDate(entry.createdAt)}</span>
+                                    <span className="text-xs font-mono text-foreground">{entry.action}</span>
+                                    <span className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</span>
                                 </div>
-                                <p className="mt-1 text-sm text-gray-700">{entry.message}</p>
-                                <Link href={`/admin/logs/${entry.id}`} className="mt-2 inline-block text-xs text-blue-600 hover:underline">
+                                <p className="mt-1 text-sm text-foreground">{entry.message}</p>
+                                <Link href={`/admin/logs/${entry.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
                                     Open log detail
                                 </Link>
                             </div>
