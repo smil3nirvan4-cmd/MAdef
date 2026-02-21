@@ -106,7 +106,7 @@ export default function LeadDetailPage() {
 
         try {
             if (action === 'whatsapp') {
-                window.open(`https://wa.me/${lead.telefone.replace(/\D/g, '')}`, '_blank');
+                window.open(`https://wa.me/${lead.telefone.replace(/\D/g, '')}`, '_blank', 'noopener,noreferrer');
             } else if (action === 'avaliar') {
                 router.push(`/admin/avaliacoes/nova?pacienteId=${lead.id}`);
             } else if (newStatus) {

@@ -9,8 +9,8 @@ interface BadgeProps {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-    default: 'bg-surface-subtle text-foreground border border-border',
-    success: 'bg-success-100 text-success-800 border border-success-200',
+    default: 'bg-neutral-100 text-neutral-700 border border-neutral-200',
+    success: 'bg-success-50 text-success-700 border border-success-200',
     warning: 'bg-warning-50 text-warning-700 border border-warning-200',
     error: 'bg-error-50 text-error-700 border border-error-200',
     info: 'bg-info-50 text-info-700 border border-info-200',

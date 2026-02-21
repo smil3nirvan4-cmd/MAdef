@@ -13,7 +13,7 @@ export function Skeleton({ className, lines = 1 }: SkeletonProps) {
                     <div
                         key={i}
                         className={cn(
-                            'h-4 rounded-sm bg-neutral-200 animate-pulse',
+                            'h-4 rounded-md bg-neutral-200/80 animate-pulse',
                             i === lines - 1 && 'w-3/4',
                             className
                         )}
@@ -26,7 +26,7 @@ export function Skeleton({ className, lines = 1 }: SkeletonProps) {
     return (
         <div
             className={cn(
-                'h-4 rounded-sm bg-neutral-200 animate-pulse',
+                'h-4 rounded-md bg-neutral-200/80 animate-pulse',
                 className
             )}
         />

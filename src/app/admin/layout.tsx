@@ -232,7 +232,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
         <div className="flex min-h-screen w-full flex-col bg-background text-foreground font-sans">
             {/* ── Topbar ── */}
-            <header className="fixed inset-x-0 top-0 z-30 h-14 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 shadow-sm">
+            <header className="fixed inset-x-0 top-0 z-30 h-14 border-b border-border glass shadow-xs">
                 <div className="flex h-full items-center justify-between px-4 lg:px-6">
                     <div className="flex items-center gap-3">
                         <button
@@ -262,7 +262,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     placeholder="Buscar modulo..."
                                     aria-label="Buscar módulo"
                                     role="searchbox"
-                                    className="h-9 w-full rounded-md border border-border bg-input pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all placeholder:text-muted-foreground"
+                                    className="h-9 w-full rounded-lg border border-border bg-surface-subtle pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-primary-300 focus:bg-card transition-all placeholder:text-muted-foreground/60"
                                 />
                             </div>
                         </div>
@@ -283,9 +283,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 <div className="text-sm font-medium text-foreground">Admin User</div>
                                 <div className="text-xs text-muted-foreground">Gestor</div>
                             </div>
-                            <button className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20 focus:ring-2 focus:ring-ring focus:outline-none transition-shadow">
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                                 AD
-                            </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -294,7 +294,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* ── Sidebar Overlay ── */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+                    className="fixed inset-0 z-40 bg-navy-900/50 backdrop-blur-sm lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                     aria-hidden="true"
                 />
@@ -303,7 +303,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* ── Sidebar (Enterprise Navy) ── */}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-72 border-r border-navy-800 bg-navy-900 shadow-xl transition-transform duration-200 ease-in-out lg:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 w-72 border-r border-navy-800 bg-navy-900 shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
                 role="navigation"
@@ -345,10 +345,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     onClick={() => setSidebarOpen(false)}
                                     aria-current={isActive ? 'page' : undefined}
                                     className={cn(
-                                        'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200 group',
+                                        'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 group',
                                         isActive
-                                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary-900/20'
-                                            : 'text-navy-200 hover:bg-card/10 hover:text-white'
+                                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary-900/30'
+                                            : 'text-navy-300 hover:bg-white/[0.06] hover:text-white'
                                     )}
                                 >
                                     <Icon className={cn('h-[18px] w-[18px] transition-colors', isActive ? 'text-primary-foreground' : 'text-navy-400 group-hover:text-white')} />

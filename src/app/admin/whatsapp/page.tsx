@@ -398,7 +398,7 @@ function ContactsTab() {
                                 <td className="px-4 py-3 tabular-nums">{c.totalMessages} <span className="text-muted-foreground">({c.messagesIn}↓ {c.messagesOut}↑)</span></td>
                                 <td className="px-4 py-3 text-muted-foreground tabular-nums">{c.lastMessage ? new Date(c.lastMessage).toLocaleString('pt-BR') : '-'}</td>
                                 <td className="px-4 py-3 text-right">
-                                    <a href={`https://wa.me/${c.phone}`} target="_blank" className="text-secondary-600 mr-2 hover:underline">WA</a>
+                                    <a href={`https://wa.me/${c.phone}`} target="_blank" rel="noopener noreferrer" className="text-secondary-600 mr-2 hover:underline">WA</a>
                                     {c.entityId && <a href={`/admin/${c.type === 'cuidador' ? 'cuidadores' : 'pacientes'}/${c.entityId}`} className="text-primary hover:underline">Perfil</a>}
                                 </td>
                             </tr>

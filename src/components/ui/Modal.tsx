@@ -85,7 +85,7 @@ export function Modal({
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="presentation">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-navy-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+                className="absolute inset-0 bg-navy-900/50 backdrop-blur-sm"
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -98,7 +98,7 @@ export function Modal({
                 aria-labelledby={title ? 'modal-title' : undefined}
                 aria-describedby={description ? 'modal-desc' : undefined}
                 className={cn(
-                    'relative z-[70] w-full rounded-xl bg-card shadow-2xl shadow-navy-900/20 animate-in zoom-in-95 fade-in duration-200 border border-border',
+                    'relative z-[70] w-full rounded-2xl bg-card shadow-xl border border-border',
                     'max-h-[90vh] flex flex-col',
                     sizeStyles[size],
                     className

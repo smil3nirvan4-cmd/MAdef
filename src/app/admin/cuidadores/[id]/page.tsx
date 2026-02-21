@@ -127,7 +127,7 @@ export default function CuidadorDetailPage() {
                         </>
                     )}
                     <hr className="my-4" />
-                    <Button className="w-full bg-secondary-500 hover:bg-secondary-600" onClick={() => window.open(`https://wa.me/${cuidador.telefone.replace(/\D/g, '')}`, '_blank')}>
+                    <Button className="w-full bg-secondary-500 hover:bg-secondary-600" onClick={() => window.open(`https://wa.me/${cuidador.telefone.replace(/\D/g, '')}`, '_blank', 'noopener,noreferrer')}>
                         <MessageCircle className="w-4 h-4" />Abrir WhatsApp
                     </Button>
                 </Card>

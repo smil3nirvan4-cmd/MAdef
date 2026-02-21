@@ -32,7 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
                     if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-                        console.error('ADMIN_EMAIL e ADMIN_PASSWORD devem ser configurados nas variáveis de ambiente');
+                        console.error('[AUTH] Credenciais de administrador nao configuradas nas variaveis de ambiente');
                         return null;
                     }
 

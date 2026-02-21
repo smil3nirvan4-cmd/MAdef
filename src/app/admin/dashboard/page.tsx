@@ -71,10 +71,10 @@ const menuCards = [
 ];
 
 const colorStyles = {
-    purple: { bg: 'bg-primary/10', icon: 'text-primary', hover: 'group-hover:bg-primary/20', title: 'text-primary' },
+    purple: { bg: 'bg-primary-50', icon: 'text-primary-600', hover: 'group-hover:bg-primary-100', title: 'text-primary-700' },
     blue: { bg: 'bg-info-50', icon: 'text-info-600', hover: 'group-hover:bg-info-100', title: 'text-info-700' },
-    green: { bg: 'bg-green-50', icon: 'text-green-600', hover: 'group-hover:bg-green-100', title: 'text-green-700' },
-    orange: { bg: 'bg-orange-50', icon: 'text-orange-600', hover: 'group-hover:bg-orange-100', title: 'text-orange-700' },
+    green: { bg: 'bg-secondary-50', icon: 'text-secondary-600', hover: 'group-hover:bg-secondary-100', title: 'text-secondary-700' },
+    orange: { bg: 'bg-accent-50', icon: 'text-accent-600', hover: 'group-hover:bg-accent-100', title: 'text-accent-700' },
 };
 
 export default function AdminDashboard() {
@@ -136,8 +136,9 @@ export default function AdminDashboard() {
     return (
         <div className="p-6 lg:p-8">
             {/* Hero Header */}
-            <div className="mb-8 rounded-xl bg-primary p-6 lg:p-8 text-primary-foreground shadow-md relative overflow-hidden">
+            <div className="mb-8 rounded-2xl bg-gradient-to-br from-primary-700 via-primary-800 to-primary-900 p-6 lg:p-8 text-primary-foreground shadow-lg relative overflow-hidden">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDJ2LTJoMzR6bTAtMzBWNkgyVjRoMzR6TTIgMzRoMzR2Mkgydi0yeiIvPjwvZz48L2c+PC9zdmc+')] opacity-20" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary-400/10 rounded-full blur-3xl" />
                 <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="w-5 h-5 opacity-80" />
@@ -155,8 +156,8 @@ export default function AdminDashboard() {
                 {statCards.map((stat) => {
                     const colors = colorStyles[stat.color as keyof typeof colorStyles];
                     return (
-                        <Link key={stat.label} href={stat.href} className="group block outline-none rounded-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all">
-                            <Card className="h-full rounded-xl border border-transparent hover:border-primary/30 hover:shadow-md hover:bg-surface-subtle active:scale-[0.98] transition-all duration-200">
+                        <Link key={stat.label} href={stat.href} className="group block outline-none rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all">
+                            <Card className="h-full rounded-xl border border-border hover:border-primary-200 hover:shadow-md active:scale-[0.98] transition-all duration-200">
                                 <div className="p-4 lg:p-5 flex flex-col h-full justify-between gap-4">
                                     <div className="flex items-start justify-between">
                                         <div>
@@ -167,7 +168,7 @@ export default function AdminDashboard() {
                                                 <h3 className="text-2xl font-bold text-foreground mt-1 tabular-nums">{stat.value}</h3>
                                             )}
                                         </div>
-                                        <div className={`p-2.5 rounded-md ${colors.bg} ${colors.hover} transition-colors`}>
+                                        <div className={`p-2.5 rounded-lg ${colors.bg} ${colors.hover} transition-colors`}>
                                             <stat.icon className={`w-5 h-5 ${colors.icon}`} />
                                         </div>
                                     </div>
@@ -188,10 +189,10 @@ export default function AdminDashboard() {
                 {menuCards.map((card) => {
                     const colors = colorStyles[card.color];
                     return (
-                        <Link key={card.href} href={card.href} className="group block outline-none rounded-xl focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all">
-                            <Card className="h-full rounded-xl p-5 border border-transparent hover:border-primary/30 hover:shadow-md hover:bg-surface-subtle active:scale-[0.98] transition-all duration-200">
+                        <Link key={card.href} href={card.href} className="group block outline-none rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all">
+                            <Card className="h-full rounded-xl p-5 border border-border hover:border-primary-200 hover:shadow-md active:scale-[0.98] transition-all duration-200">
                                 <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-md transition-colors ${colors.bg} ${colors.hover}`}>
+                                    <div className={`p-3 rounded-xl transition-colors ${colors.bg} ${colors.hover}`}>
                                         <card.icon className={`w-6 h-6 ${colors.icon}`} />
                                     </div>
                                     <div className="flex-1">

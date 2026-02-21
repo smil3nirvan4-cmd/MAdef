@@ -42,7 +42,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined}
                         aria-invalid={error ? true : undefined}
                         className={cn(
-                            'flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-150',
+                            'flex h-9 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary-300 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-150 hover:border-border-hover',
                             Icon && 'pl-10',
                             error && 'border-error-500 focus:ring-error-500',
                             className

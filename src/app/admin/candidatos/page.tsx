@@ -81,7 +81,7 @@ export default function CandidatosPage() {
         try {
             if (action === 'whatsapp') {
                 const c = cuidadores.find(x => x.id === id);
-                if (c) window.open(`https://wa.me/${c.telefone.replace(/\D/g, '')}`, '_blank');
+                if (c) window.open(`https://wa.me/${c.telefone.replace(/\D/g, '')}`, '_blank', 'noopener,noreferrer');
             } else if (action === 'delete') {
                 if (confirm('Excluir candidato e todo histórico?')) {
                     await fetch(`/api/admin/candidatos/${id}`, { method: 'DELETE' });

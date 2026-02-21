@@ -57,7 +57,7 @@ export default function CandidatoDetailPage() {
         setActionLoading(action);
         try {
             if (action === 'whatsapp') {
-                window.open(`https://wa.me/${cuidador?.telefone.replace(/\D/g, '')}`, '_blank');
+                window.open(`https://wa.me/${cuidador?.telefone.replace(/\D/g, '')}`, '_blank', 'noopener,noreferrer');
             } else if (action === 'delete') {
                 if (confirm('Excluir candidato?')) {
                     await fetch(`/api/admin/candidatos/${params.id}`, { method: 'DELETE' });

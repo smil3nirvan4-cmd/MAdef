@@ -154,7 +154,7 @@ export default function RelatorioPrecificacaoPage() {
                         if (filters.dateFrom) params.set('date_from', filters.dateFrom);
                         if (filters.dateTo) params.set('date_to', filters.dateTo);
                         params.set('format', 'csv');
-                        window.open(`/api/admin/relatorios/precificacao?${params.toString()}`, '_blank');
+                        window.open(`/api/admin/relatorios/precificacao?${params.toString()}`, '_blank', 'noopener,noreferrer');
                     }}
                 >
                     Exportar CSV

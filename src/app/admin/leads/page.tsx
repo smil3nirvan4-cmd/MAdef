@@ -84,7 +84,7 @@ export default function LeadsPage() {
         setOpenMenu(null);
         if (action === 'whatsapp') {
             const lead = leads.find(x => x.id === id);
-            if (lead) window.open(`https://wa.me/${lead.telefone.replace(/\D/g, '')}`, '_blank');
+            if (lead) window.open(`https://wa.me/${lead.telefone.replace(/\D/g, '')}`, '_blank', 'noopener,noreferrer');
         } else {
             await fetch(`/api/admin/pacientes/${id}`, {
                 method: 'PATCH', headers: { 'Content-Type': 'application/json' },
