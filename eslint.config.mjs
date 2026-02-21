@@ -30,18 +30,18 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
     rules: {
-      // TypeScript rules - downgrade to warnings or off
+      // TypeScript rules
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/no-empty-function": "off",
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/no-require-imports": "warn",
       "@typescript-eslint/ban-ts-comment": "warn",
       "@typescript-eslint/no-empty-object-type": "warn",
 
-      // React rules - downgrade to warnings
+      // React rules - hooks must be errors (safety-critical)
       "react-hooks/exhaustive-deps": "warn",
-      "react-hooks/rules-of-hooks": "warn",
+      "react-hooks/rules-of-hooks": "error",
       "react/react-in-jsx-scope": "off",
       "react/no-unescaped-entities": "warn",
       "react/prop-types": "off",

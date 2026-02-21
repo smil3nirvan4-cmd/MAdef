@@ -1,8 +1,20 @@
+import crypto from 'crypto';
 import NextAuth from 'next-auth';
 import { authConfig } from './auth.config';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
-import { resolveUserRole } from '@/lib/auth/roles';
+import { resolveUserRole, type AdminRole } from '@/lib/auth/roles';
+
+function timingSafeCompare(a: string, b: string): boolean {
+    const bufA = Buffer.from(a, 'utf8');
+    const bufB = Buffer.from(b, 'utf8');
+    if (bufA.length !== bufB.length) {
+        // Compare against self to avoid timing leaks on length mismatch
+        crypto.timingSafeEqual(bufA, bufA);
+        return false;
+    }
+    return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
@@ -24,7 +36,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         return null;
                     }
 
-                    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+                    const emailMatch = timingSafeCompare(email, ADMIN_EMAIL);
+                    const passwordMatch = timingSafeCompare(password, ADMIN_PASSWORD);
+
+                    if (emailMatch && passwordMatch) {
                         const role = resolveUserRole(email);
                         return {
                             id: '1',
@@ -51,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
         async session({ session, token }) {
             if (session.user) {
-                session.user.role = (token.role as any) || resolveUserRole(session.user.email || null);
+                session.user.role = (token.role as AdminRole) || resolveUserRole(session.user.email || null);
             }
             return session;
         },

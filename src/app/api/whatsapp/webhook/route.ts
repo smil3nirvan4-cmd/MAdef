@@ -7,28 +7,13 @@ import {
     validateWebhookSecurity,
 } from '@/lib/whatsapp/webhook-security';
 import { withRequestContext } from '@/lib/api/with-request-context';
+import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
 import { E, fail, ok } from '@/lib/api/response';
 
 const ALLOWED_ORIGINS = process.env.WHATSAPP_ALLOWED_ORIGINS?.split(',').filter(Boolean) || [];
 const WEBHOOK_MAX_AGE_SECONDS = Number(process.env.WHATSAPP_WEBHOOK_MAX_AGE_SECONDS || 300);
-
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 100;
-
-function checkRateLimit(ip: string): boolean {
-    const now = Date.now();
-    const record = rateLimitMap.get(ip);
-
-    if (!record || now > record.resetTime) {
-        rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-        return true;
-    }
-
-    if (record.count >= RATE_LIMIT_MAX_REQUESTS) return false;
-    record.count += 1;
-    return true;
-}
 
 function validateOrigin(request: NextRequest): boolean {
     if (ALLOWED_ORIGINS.length === 0) return true;
@@ -50,12 +35,10 @@ function mapWebhookSecurityCode(code: string): string {
 
 const postHandler = async (request: NextRequest) => {
     try {
-        const ip =
-            request.headers.get('x-forwarded-for') ||
-            request.headers.get('x-real-ip') ||
-            'unknown';
+        const ip = getClientIp(request);
 
-        if (!checkRateLimit(ip)) {
+        const rateResult = checkRateLimit(`webhook:${ip}`, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
+        if (!rateResult.allowed) {
             return fail(E.CONFLICT, 'Rate limit exceeded', { status: 429 });
         }
 
@@ -80,19 +63,24 @@ const postHandler = async (request: NextRequest) => {
             });
         }
 
-        let body: any;
+        let body: Record<string, unknown>;
         try {
-            body = JSON.parse(bodyText);
+            const parsed = JSON.parse(bodyText);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                return fail(E.VALIDATION_ERROR, 'Payload must be a JSON object', { status: 400 });
+            }
+            body = parsed as Record<string, unknown>;
         } catch {
             return fail(E.VALIDATION_ERROR, 'Invalid JSON payload', { status: 400 });
         }
 
-        const remoteJid = body?.key?.remoteJid;
+        const key = body.key as Record<string, unknown> | undefined;
+        const remoteJid = key?.remoteJid;
         if (!remoteJid) {
             return ok({ skipped: true });
         }
 
-        if (body?.key?.fromMe) {
+        if (key?.fromMe) {
             return ok({ skipped: true });
         }
 
