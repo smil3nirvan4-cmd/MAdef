@@ -37,6 +37,7 @@ localhost-*.log
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,4 +46,23 @@ localhost-*.log
 *.tsbuildinfo
 next-env.d.ts
 
+# database
 prisma/dev.db
+prisma/*.db
+prisma/*.db-journal
+
+# build artifacts and logs (should never be committed)
+build-full.log
+build-log.txt
+build-output.txt
+lint_output.txt
+tsc-errors.txt
+ui_output.html
+inspect-db.ts
+
+# WhatsApp session files (contain auth secrets)
+auth_info/
+.wa-session.json
+.wa-state.json
+.wa-automation-settings.json
+.wa-bridge-port

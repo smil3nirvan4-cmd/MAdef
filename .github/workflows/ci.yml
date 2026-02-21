@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
@@ -21,6 +25,9 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Prisma Generate
+        run: npx prisma generate
 
       - name: Type Check
         run: npx tsc --noEmit
@@ -40,3 +47,6 @@ jobs:
           NEXTAUTH_SECRET: ci-secret-placeholder
           DATABASE_URL: file:./test.db
 
+      - name: Security Audit
+        run: npm audit --omit=dev --audit-level=high || true
+        continue-on-error: true
