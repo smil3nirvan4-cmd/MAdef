@@ -79,9 +79,25 @@ function parseIsoDate(value: string | undefined, field: string): Date {
     }
 
     const [year, month, day] = value.split('-').map((item) => Number(item));
+
+    if (year < 1900 || year > 2100) {
+        throw new Error(`${field}: ano fora do intervalo válido (1900-2100)`);
+    }
+    if (month < 1 || month > 12) {
+        throw new Error(`${field}: mês inválido (1-12)`);
+    }
+    if (day < 1 || day > 31) {
+        throw new Error(`${field}: dia inválido (1-31)`);
+    }
+
     const parsed = new Date(Date.UTC(year, month - 1, day));
     if (Number.isNaN(parsed.getTime())) {
         throw new Error(`${field} invalida`);
+    }
+
+    // Detect month overflow (e.g. Feb 30 → Mar 2)
+    if (parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
+        throw new Error(`${field}: data inexistente (${value})`);
     }
 
     return parsed;

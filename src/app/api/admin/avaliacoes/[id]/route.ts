@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import logger from '@/lib/logger';
+import logger from '@/lib/observability/logger';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
-import { E, fail } from '@/lib/api/response';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok } from '@/lib/api/response';
 
 function isMissingColumnError(error: unknown): boolean {
     return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === 'P2022');
@@ -20,10 +23,28 @@ function resolveMissingColumn(error: unknown): { table: string; column: string }
     };
 }
 
-export async function GET(
+const VALID_ACTIONS = ['aprovar', 'rejeitar', 'concluir'] as const;
+
+const AvaliacaoPatchSchema = z.union([
+    z.object({
+        action: z.enum(VALID_ACTIONS),
+    }),
+    z.object({
+        action: z.literal('enviar_proposta'),
+    }),
+    z.object({
+        action: z.literal('enviar_contrato'),
+    }),
+    z.record(z.unknown()),
+]);
+
+const getHandler = async (
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
+    const guard = await guardCapability('VIEW_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const schemaCapabilities = await getDbSchemaCapabilities();
@@ -58,10 +79,10 @@ export async function GET(
         });
 
         if (!avaliacao) {
-            return NextResponse.json({ error: 'Avaliacao nao encontrada' }, { status: 404 });
+            return fail(E.NOT_FOUND, 'Avaliação não encontrada', { status: 404 });
         }
 
-        return NextResponse.json({ avaliacao });
+        return ok({ avaliacao });
     } catch (error) {
         if (isMissingColumnError(error)) {
             const resolved = resolveMissingColumn(error);
@@ -69,48 +90,39 @@ export async function GET(
                 table: resolved.table,
                 column: resolved.column,
             });
-            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
+            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado. Aplique as migrations pendentes.', {
                 status: 503,
-                details: {
-                    action: 'db_schema_drift',
-                    table: resolved.table,
-                    column: resolved.column,
-                },
+                details: { action: 'db_schema_drift', table: resolved.table, column: resolved.column },
             });
         }
 
-        return NextResponse.json({ error: 'Erro ao buscar avaliacao' }, { status: 500 });
+        await logger.error('avaliacao_get', 'Erro ao buscar avaliacao', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao buscar avaliação', { status: 500 });
     }
-}
+};
 
-export async function PATCH(
+const patchHandler = async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
+    const guard = await guardCapability('MANAGE_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();
         const { action } = body;
 
-        let updateData: any = {};
+        if (action === 'enviar_proposta') {
+            return fail(E.VALIDATION_ERROR, 'Use POST /api/admin/avaliacoes/[id]/send-proposta para enfileirar envio.', { status: 400 });
+        }
+        if (action === 'enviar_contrato') {
+            return fail(E.VALIDATION_ERROR, 'Use POST /api/admin/avaliacoes/[id]/send-contrato para enfileirar envio.', { status: 400 });
+        }
+
+        let updateData: Record<string, unknown> = {};
 
         switch (action) {
-            case 'enviar_proposta':
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: 'Use POST /api/admin/avaliacoes/[id]/send-proposta para enfileirar envio.',
-                    },
-                    { status: 400 }
-                );
-            case 'enviar_contrato':
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: 'Use POST /api/admin/avaliacoes/[id]/send-contrato para enfileirar envio.',
-                    },
-                    { status: 400 }
-                );
             case 'aprovar':
                 updateData = { status: 'APROVADA', validadoEm: new Date() };
                 break;
@@ -130,21 +142,38 @@ export async function PATCH(
             include: { paciente: true },
         });
 
-        return NextResponse.json({ success: true, avaliacao });
-    } catch {
-        return NextResponse.json({ error: 'Erro ao atualizar avaliacao' }, { status: 500 });
-    }
-}
+        await logger.info('avaliacao_update', `Avaliação ${id} atualizada: ${action || 'campos'}`, {
+            avaliacaoId: id,
+            action: action || 'direct_update',
+        });
 
-export async function DELETE(
+        return ok({ avaliacao });
+    } catch (error) {
+        await logger.error('avaliacao_update', 'Erro ao atualizar avaliação', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao atualizar avaliação', { status: 500 });
+    }
+};
+
+const deleteHandler = async (
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
+    const guard = await guardCapability('MANAGE_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         await prisma.avaliacao.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch {
-        return NextResponse.json({ error: 'Erro ao excluir avaliacao' }, { status: 500 });
+
+        await logger.info('avaliacao_delete', `Avaliação ${id} excluída`, { avaliacaoId: id });
+
+        return ok({ deleted: true });
+    } catch (error) {
+        await logger.error('avaliacao_delete', 'Erro ao excluir avaliação', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao excluir avaliação', { status: 500 });
     }
-}
+};
+
+export const GET = withRequestContext(getHandler as any);
+export const PATCH = withRequestContext(patchHandler as any);
+export const DELETE = withRequestContext(deleteHandler as any);

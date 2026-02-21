@@ -1,16 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok } from '@/lib/api/response';
+import logger from '@/lib/observability/logger';
 
-export async function PATCH(
+const VALID_ACTIONS = ['confirmar', 'confirmar_t24', 'confirmar_t2', 'concluir', 'cancelar'] as const;
+
+const AlocacaoPatchSchema = z.object({
+    action: z.enum(VALID_ACTIONS),
+});
+
+const patchHandler = async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) {
+) => {
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();
-        const { action } = body;
 
-        let updateData: any = {};
+        const parsed = AlocacaoPatchSchema.safeParse(body);
+        if (!parsed.success) {
+            return fail(E.VALIDATION_ERROR, 'Ação inválida. Valores aceitos: ' + VALID_ACTIONS.join(', '), {
+                status: 400,
+                details: parsed.error.issues,
+            });
+        }
+
+        const { action } = parsed.data;
+        let updateData: Record<string, unknown> = {};
 
         switch (action) {
             case 'confirmar':
@@ -28,18 +50,24 @@ export async function PATCH(
             case 'cancelar':
                 updateData = { status: 'CANCELADO' };
                 break;
-            default:
-                updateData = body;
         }
 
         const alocacao = await prisma.alocacao.update({
             where: { id },
             data: updateData,
-            include: { cuidador: true, paciente: true }
+            include: { cuidador: true, paciente: true },
         });
 
-        return NextResponse.json({ success: true, alocacao });
+        await logger.info('alocacao_update', `Alocação ${id}: ${action}`, {
+            alocacaoId: id,
+            action,
+        });
+
+        return ok({ alocacao });
     } catch (error) {
-        return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
+        await logger.error('alocacao_update', 'Erro ao atualizar alocação', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao atualizar alocação', { status: 500 });
     }
-}
+};
+
+export const PATCH = withRequestContext(patchHandler as any);

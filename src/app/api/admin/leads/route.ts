@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok } from '@/lib/api/response';
+import logger from '@/lib/observability/logger';
 
-export async function GET(request: NextRequest) {
+const LEAD_STATUSES = ['LEAD', 'AVALIACAO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'] as const;
+
+const getHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('VIEW_PACIENTES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search');
         const status = searchParams.get('status');
 
-        const where: any = {
-            // Leads = not yet patients (before contract signed)
-            status: { in: ['LEAD', 'AVALIACAO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'] }
+        const where: Record<string, unknown> = {
+            status: { in: [...LEAD_STATUSES] },
         };
 
         if (status && status !== 'ALL') {
@@ -26,23 +34,25 @@ export async function GET(request: NextRequest) {
         const leads = await prisma.paciente.findMany({
             where,
             include: {
-                _count: { select: { avaliacoes: true, mensagens: true } }
+                _count: { select: { avaliacoes: true, mensagens: true } },
             },
             orderBy: { createdAt: 'desc' },
-            take: 200
+            take: 200,
         });
 
         const stats = {
-            total: await prisma.paciente.count({ where: { status: { in: ['LEAD', 'AVALIACAO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'] } } }),
+            total: await prisma.paciente.count({ where: { status: { in: [...LEAD_STATUSES] } } }),
             leads: await prisma.paciente.count({ where: { status: 'LEAD' } }),
             avaliacao: await prisma.paciente.count({ where: { status: 'AVALIACAO' } }),
             proposta: await prisma.paciente.count({ where: { status: 'PROPOSTA_ENVIADA' } }),
             contrato: await prisma.paciente.count({ where: { status: 'CONTRATO_ENVIADO' } }),
         };
 
-        return NextResponse.json({ leads, stats });
+        return ok({ leads, stats });
     } catch (error) {
-        console.error('Error fetching leads:', error);
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+        await logger.error('leads_get', 'Erro ao buscar leads', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao buscar leads', { status: 500 });
     }
-}
+};
+
+export const GET = withRequestContext(getHandler);

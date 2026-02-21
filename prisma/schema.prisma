@@ -21,6 +21,8 @@ model Cuidador {
   updatedAt    DateTime   @updatedAt
   alocacoes    Alocacao[]
   mensagens    Mensagem[]
+
+  @@index([status])
 }
 
 model Paciente {
@@ -56,6 +58,9 @@ model Mensagem {
   pacienteId String?
   paciente   Paciente? @relation(fields: [pacienteId], references: [id])
   cuidador   Cuidador? @relation(fields: [cuidadorId], references: [id])
+
+  @@index([telefone, timestamp])
+  @@index([pacienteId, timestamp])
 }
 
 model Avaliacao {
@@ -75,6 +80,9 @@ model Avaliacao {
   createdAt       DateTime  @default(now())
   paciente        Paciente  @relation(fields: [pacienteId], references: [id])
   dadosDetalhados String? // JSON com discovery, patient, clinical, abemid, etc
+
+  @@index([pacienteId, status])
+  @@index([status, createdAt])
 
   // Campos de rastreamento WhatsApp
   whatsappEnviado    Boolean              @default(false)
@@ -148,6 +156,10 @@ model Alocacao {
   createdAt     DateTime  @default(now())
   paciente      Paciente? @relation(fields: [pacienteId], references: [id])
   cuidador      Cuidador  @relation(fields: [cuidadorId], references: [id])
+
+  @@index([status, dataInicio])
+  @@index([cuidadorId, status])
+  @@index([pacienteId])
 }
 
 model FormSubmission {

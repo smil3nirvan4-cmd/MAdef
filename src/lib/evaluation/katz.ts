@@ -5,21 +5,40 @@ export interface KATZResult {
     classificacao: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G';
     descricao: string;
     atividadesDependentes: string[];
+    atividadesParciais: string[];
+}
+
+type KatzStatus = KATZEvaluation['banho'];
+
+const KATZ_ACTIVITIES = ['banho', 'vestir', 'higiene', 'transferencia', 'continencia', 'alimentacao'] as const;
+const KATZ_LABELS: Record<typeof KATZ_ACTIVITIES[number], string> = {
+    banho: 'Banho',
+    vestir: 'Vestir',
+    higiene: 'Higiene',
+    transferencia: 'Transferência',
+    continencia: 'Continência',
+    alimentacao: 'Alimentação',
+};
+
+const VALID_VALUES = new Set<string>(['independente', 'parcial', 'dependente']);
+
+function normalizeStatus(value: unknown): KatzStatus {
+    const str = String(value || '').trim().toLowerCase();
+    if (VALID_VALUES.has(str)) return str as KatzStatus;
+    return 'dependente';
 }
 
 export function calcularKATZ(avaliacao: KATZEvaluation): KATZResult {
-    const atividades = [
-        { nome: 'Banho', valor: avaliacao.banho },
-        { nome: 'Vestir', valor: avaliacao.vestir },
-        { nome: 'Higiene', valor: avaliacao.higiene },
-        { nome: 'Transferência', valor: avaliacao.transferencia },
-        { nome: 'Continência', valor: avaliacao.continencia },
-        { nome: 'Alimentação', valor: avaliacao.alimentacao },
-    ];
+    const atividades = KATZ_ACTIVITIES.map((key) => ({
+        nome: KATZ_LABELS[key],
+        valor: normalizeStatus(avaliacao[key]),
+    }));
 
-    const independentes = atividades.filter(a => a.valor === 'independente');
-    const dependentes = atividades.filter(a => a.valor === 'dependente');
+    const independentes = atividades.filter((a) => a.valor === 'independente');
+    const parciais = atividades.filter((a) => a.valor === 'parcial');
+    const dependentes = atividades.filter((a) => a.valor === 'dependente');
 
+    // Katz original: 'parcial' counts as dependent
     const pontuacao = independentes.length;
 
     let classificacao: KATZResult['classificacao'];
@@ -59,6 +78,7 @@ export function calcularKATZ(avaliacao: KATZEvaluation): KATZResult {
         pontuacao,
         classificacao,
         descricao,
-        atividadesDependentes: dependentes.map(a => a.nome),
+        atividadesDependentes: dependentes.map((a) => a.nome),
+        atividadesParciais: parciais.map((a) => a.nome),
     };
 }

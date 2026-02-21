@@ -1,14 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withRequestContext } from '@/lib/api/with-request-context';
+import { E, fail, ok } from '@/lib/api/response';
+import logger from '@/lib/observability/logger';
 
-export async function GET(request: NextRequest) {
+const AlocacaoCreateSchema = z.object({
+    cuidadorId: z.string().min(1, 'cuidadorId é obrigatório'),
+    pacienteId: z.string().optional(),
+    slotId: z.string().min(1, 'slotId é obrigatório'),
+    turno: z.enum(['DIURNO', 'NOTURNO', '24H']).default('DIURNO'),
+    diaSemana: z.number().int().min(0).max(6).default(0),
+    dataInicio: z.string().optional(),
+    hospital: z.string().optional(),
+    quarto: z.string().optional(),
+});
+
+const getHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const cuidadorId = searchParams.get('cuidadorId');
         const pacienteId = searchParams.get('pacienteId');
 
-        const where: any = {};
+        const where: Record<string, unknown> = {};
 
         if (status && status !== 'ALL') {
             where.status = status;
@@ -29,7 +48,7 @@ export async function GET(request: NextRequest) {
                         nome: true,
                         telefone: true,
                         area: true,
-                    }
+                    },
                 },
                 paciente: {
                     select: {
@@ -38,14 +57,13 @@ export async function GET(request: NextRequest) {
                         telefone: true,
                         hospital: true,
                         quarto: true,
-                    }
-                }
+                    },
+                },
             },
             orderBy: { dataInicio: 'desc' },
-            take: 200
+            take: 200,
         });
 
-        // Stats
         const stats = {
             total: await prisma.alocacao.count(),
             pendentes: await prisma.alocacao.count({ where: { status: 'PENDENTE_FEEDBACK' } }),
@@ -54,29 +72,37 @@ export async function GET(request: NextRequest) {
             concluidas: await prisma.alocacao.count({ where: { status: 'CONCLUIDO' } }),
         };
 
-        return NextResponse.json({ alocacoes, stats });
+        return ok({ alocacoes, stats });
     } catch (error) {
-        console.error('Error fetching alocacoes:', error);
-        return NextResponse.json({ error: 'Erro ao buscar alocações' }, { status: 500 });
+        await logger.error('alocacoes_get', 'Erro ao buscar alocações', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao buscar alocações', { status: 500 });
     }
-}
+};
 
-export async function POST(request: NextRequest) {
+const postHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
-        const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = body;
+        const parsed = AlocacaoCreateSchema.safeParse(body);
 
-        if (!cuidadorId || !slotId) {
-            return NextResponse.json({ error: 'Cuidador e slot são obrigatórios' }, { status: 400 });
+        if (!parsed.success) {
+            return fail(E.VALIDATION_ERROR, 'Dados inválidos', {
+                status: 400,
+                details: parsed.error.issues,
+            });
         }
+
+        const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = parsed.data;
 
         const alocacao = await prisma.alocacao.create({
             data: {
                 cuidadorId,
                 pacienteId,
                 slotId,
-                turno: turno || 'DIURNO',
-                diaSemana: diaSemana || 0,
+                turno,
+                diaSemana,
                 dataInicio: dataInicio ? new Date(dataInicio) : new Date(),
                 hospital,
                 quarto,
@@ -85,12 +111,21 @@ export async function POST(request: NextRequest) {
             include: {
                 cuidador: true,
                 paciente: true,
-            }
+            },
         });
 
-        return NextResponse.json({ success: true, alocacao });
+        await logger.info('alocacao_create', `Alocação criada: ${alocacao.id}`, {
+            alocacaoId: alocacao.id,
+            cuidadorId,
+            pacienteId,
+        });
+
+        return ok({ alocacao }, 201);
     } catch (error) {
-        console.error('Error creating alocacao:', error);
-        return NextResponse.json({ error: 'Erro ao criar alocação' }, { status: 500 });
+        await logger.error('alocacao_create', 'Erro ao criar alocação', error instanceof Error ? error : undefined);
+        return fail(E.INTERNAL_ERROR, 'Erro ao criar alocação', { status: 500 });
     }
-}
+};
+
+export const GET = withRequestContext(getHandler);
+export const POST = withRequestContext(postHandler);

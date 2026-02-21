@@ -6,8 +6,25 @@ export interface LawtonResult {
     descricao: string;
 }
 
+const LAWTON_FIELDS: (keyof LawtonEvaluation)[] = [
+    'telefone',
+    'compras',
+    'cozinhar',
+    'tarefasDomesticas',
+    'lavanderia',
+    'transporte',
+    'medicacao',
+    'financas',
+];
+
+function clampScore(value: unknown): number {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 1;
+    return Math.max(1, Math.min(3, Math.round(num)));
+}
+
 export function calcularLawton(avaliacao: LawtonEvaluation): LawtonResult {
-    const pontuacao = Object.values(avaliacao).reduce((sum, val) => sum + val, 0);
+    const pontuacao = LAWTON_FIELDS.reduce((sum, field) => sum + clampScore(avaliacao[field]), 0);
 
     let nivel: LawtonResult['nivel'];
     let descricao: string;
