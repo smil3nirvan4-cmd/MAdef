@@ -260,6 +260,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         }
                                     }}
                                     placeholder="Buscar modulo..."
+                                    aria-label="Buscar módulo"
+                                    role="searchbox"
                                     className="h-9 w-full rounded-md border border-border bg-input pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all placeholder:text-muted-foreground"
                                 />
                             </div>

@@ -75,20 +75,22 @@ export default function LeadDetailPage() {
     const router = useRouter();
     const [lead, setLead] = useState<Lead | null>(null);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        setFetchError(null);
         try {
             const res = await fetch(`/api/admin/pacientes/${params.id}`);
             if (res.ok) {
                 const data = await res.json();
-                setLead(data.paciente);
+                setLead(data.data?.paciente ?? data.paciente);
             } else {
-                console.error('Failed to fetch lead');
+                setFetchError(`Erro ao carregar lead (HTTP ${res.status})`);
             }
         } catch (error) {
-            console.error('Error fetching lead:', error);
+            setFetchError(error instanceof Error ? error.message : 'Erro de conexão ao carregar lead');
         } finally {
             setLoading(false);
         }
@@ -124,6 +126,12 @@ export default function LeadDetailPage() {
     };
 
     if (loading) return <div className="p-8 text-center text-muted-foreground">Carregando detalhes do lead...</div>;
+    if (fetchError) return (
+        <div className="p-8 text-center">
+            <p className="text-error-500 mb-4">{fetchError}</p>
+            <button onClick={fetchData} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Tentar novamente</button>
+        </div>
+    );
     if (!lead) return <div className="p-8 text-center text-error-500">Lead não encontrado</div>;
 
     const st = STATUS_CONFIG[lead.status] || { label: lead.status, variant: 'default', stage: 'PENDENTE' };

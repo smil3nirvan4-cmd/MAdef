@@ -384,6 +384,7 @@ export default function NewEvaluationPage() {
         tipoProfissional: null,
     });
     const [sending, setSending] = useState(false);
+    const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [proposal, setProposal] = useState({
         valorTotal: 0,
         entrada: 0,
@@ -921,7 +922,7 @@ export default function NewEvaluationPage() {
 
     const handleSendProposal = async () => {
         if (!selectedScenario) {
-            alert('Calcule o orcamento antes de enviar a proposta.');
+            setFormMessage({ type: 'error', text: 'Calcule o orçamento antes de enviar a proposta.' });
             return;
         }
 
@@ -1001,13 +1002,13 @@ export default function NewEvaluationPage() {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.success) {
-                alert('Proposta enviada e avaliacao salva com sucesso.');
-                window.location.href = '/admin/avaliacoes';
+                setFormMessage({ type: 'success', text: 'Proposta enviada e avaliação salva com sucesso. Redirecionando...' });
+                setTimeout(() => { window.location.href = '/admin/avaliacoes'; }, 2000);
             } else {
-                alert(`Erro: ${data.error || 'Falha ao enviar proposta.'}`);
+                setFormMessage({ type: 'error', text: data.error || 'Falha ao enviar proposta.' });
             }
         } catch {
-            alert('Erro de conexao ao enviar proposta.');
+            setFormMessage({ type: 'error', text: 'Erro de conexão ao enviar proposta.' });
         } finally {
             setSending(false);
         }
@@ -1053,7 +1054,7 @@ export default function NewEvaluationPage() {
                 }, 2000);
             }
         } catch {
-            alert('Falha ao acionar plantao hospitalar.');
+            setFormMessage({ type: 'error', text: 'Falha ao acionar plantão hospitalar.' });
         } finally {
             setLoading(false);
         }
@@ -1840,6 +1841,21 @@ export default function NewEvaluationPage() {
                                 >
                                     {sending ? 'Enviando...' : 'Enviar via WhatsApp'}
                                 </button>
+                                {formMessage && (
+                                    <div
+                                        role="alert"
+                                        className={`mt-4 rounded-lg px-4 py-3 text-sm font-medium ${formMessage.type === 'success' ? 'bg-success-50 text-success-700 border border-success-200' : 'bg-error-50 text-error-700 border border-error-200'}`}
+                                    >
+                                        {formMessage.text}
+                                        <button
+                                            onClick={() => setFormMessage(null)}
+                                            className="ml-2 font-bold hover:opacity-70"
+                                            aria-label="Fechar mensagem"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="mt-4 text-center">
                                     <button onClick={() => setStep('responsibilities')} className="text-sm text-muted-foreground underline hover:text-white">
                                         Voltar para revisao

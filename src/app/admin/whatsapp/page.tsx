@@ -31,7 +31,7 @@ function normalizeContactPhone(value: unknown): string {
         .replace(/\D/g, '');
 }
 
-function dedupeContacts<T extends { phone?: string; telefone?: string }>(rows: T[]): T[] {
+function dedupeContacts<T extends { phone?: string; telefone?: string; totalMessages?: number }>(rows: T[]): T[] {
     const map = new Map<string, T>();
     const fallback: T[] = [];
 
@@ -47,8 +47,8 @@ function dedupeContacts<T extends { phone?: string; telefone?: string }>(rows: T
         }
 
         const existing = map.get(phone)!;
-        const existingTotal = Number((existing as any).totalMessages || 0);
-        const nextTotal = Number((row as any).totalMessages || 0);
+        const existingTotal = Number(existing.totalMessages || 0);
+        const nextTotal = Number(row.totalMessages || 0);
         map.set(phone, nextTotal >= existingTotal ? ({ ...row, phone } as T) : existing);
     }
 
@@ -165,7 +165,7 @@ export default function WhatsAppAdminPage() {
 
 // CONNECTION TAB
 function ConnectionTab() {
-    const [waStatus, setWaStatus] = useState<any>(null);
+    const [waStatus, setWaStatus] = useState<Record<string, unknown> | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
     const fetchStatus = useCallback(async () => {

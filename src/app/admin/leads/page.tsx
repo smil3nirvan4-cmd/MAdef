@@ -47,14 +47,16 @@ const PRIORIDADE_CONFIG: Record<string, { label: string; variant: 'default' | 'w
 
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
-    const [stats, setStats] = useState<any>(null);
+    const [stats, setStats] = useState<{ leads: number; avaliacao: number; proposta: number; contrato: number; total: number } | null>(null);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [openMenu, setOpenMenu] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        setFetchError(null);
         try {
             // Leads = not yet patients (LEAD, AVALIACAO, PROPOSTA_ENVIADA, CONTRATO_ENVIADO)
             const params = new URLSearchParams({
@@ -64,9 +66,13 @@ export default function LeadsPage() {
             const res = await fetch(`/api/admin/leads?${params}`);
             if (res.ok) {
                 const data = await res.json();
-                setLeads(data.leads || []);
-                setStats(data.stats);
+                setLeads(data.data?.leads ?? data.leads ?? []);
+                setStats(data.data?.stats ?? data.stats ?? null);
+            } else {
+                setFetchError(`Erro ao carregar leads (HTTP ${res.status})`);
             }
+        } catch (error) {
+            setFetchError(error instanceof Error ? error.message : 'Erro de conexão');
         } finally {
             setLoading(false);
         }
@@ -150,7 +156,7 @@ export default function LeadsPage() {
                         <tbody className="divide-y divide-border">
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
-                                    <tr key={i}>
+                                    <tr key={i} aria-busy="true">
                                         <td className="px-4 py-4"><div className="skeleton h-4 w-32" /></td>
                                         <td className="px-4 py-4"><div className="skeleton h-4 w-40" /></td>
                                         <td className="px-4 py-4"><div className="skeleton h-6 w-24 rounded-full" /></td>
@@ -159,6 +165,8 @@ export default function LeadsPage() {
                                         <td className="px-4 py-4"><div className="skeleton h-8 w-24 rounded-md" /></td>
                                     </tr>
                                 ))
+                            ) : fetchError ? (
+                                <tr><td colSpan={6} className="p-8 text-center"><span className="text-error-500">{fetchError}</span><button onClick={fetchData} className="ml-3 text-sm text-primary underline">Tentar novamente</button></td></tr>
                             ) :
                                 leads.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum lead</td></tr> :
                                     leads.map((lead) => {
