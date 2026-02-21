@@ -35,7 +35,7 @@ const AvaliacaoPatchSchema = z.union([
     z.object({
         action: z.literal('enviar_contrato'),
     }),
-    z.record(z.unknown()),
+    z.record(z.string(), z.unknown()),
 ]);
 
 const getHandler = async (

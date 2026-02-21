@@ -230,7 +230,7 @@ function ConnectionTab() {
                                             : waStatus?.status === 'PAIRING_CODE' ? 'Aguardando pareamento'
                                                 : 'Desconectado'}
                             </p>
-                            {waStatus?.connectedAt && isConnected && <p className="text-sm text-muted-foreground">Desde {new Date(waStatus.connectedAt).toLocaleString('pt-BR')}</p>}
+                            {waStatus?.connectedAt && isConnected ? <p className="text-sm text-muted-foreground">Desde {new Date(waStatus.connectedAt as string).toLocaleString('pt-BR')}</p> : null}
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -241,27 +241,27 @@ function ConnectionTab() {
                         </Button>
                     </div>
                 </div>
-                {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
-                    <div className="flex flex-col items-center py-6 border-t"><p className="text-foreground mb-4">Escaneie o QR Code:</p><img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" /></div>
-                )}
-                {waStatus?.status === 'PAIRING_CODE' && waStatus?.pairingCode && (
+                {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode ? (
+                    <div className="flex flex-col items-center py-6 border-t"><p className="text-foreground mb-4">Escaneie o QR Code:</p><img src={waStatus.qrCode as string} alt="QR" className="w-56 h-56 border rounded-lg" /></div>
+                ) : null}
+                {waStatus?.status === 'PAIRING_CODE' && waStatus?.pairingCode ? (
                     <div className="p-4 bg-info-50 rounded-lg border border-indigo-200">
                         <p className="font-semibold text-indigo-900 mb-1">Codigo de pareamento</p>
                         <p className="text-info-600 text-sm mb-3">No WhatsApp: Dispositivos conectados, depois Conectar dispositivo com numero.</p>
-                        <code className="bg-neutral-900 text-success-500 px-3 py-2 rounded text-lg tracking-widest">{waStatus.pairingCode}</code>
+                        <code className="bg-neutral-900 text-success-500 px-3 py-2 rounded text-lg tracking-widest">{String(waStatus.pairingCode)}</code>
                     </div>
-                )}
+                ) : null}
                 {isConnected && <div className="p-4 bg-success-50 rounded-lg">WhatsApp conectado e operacional.</div>}
                 {waStatus?.status === 'DISCONNECTED' && !isBridgeOffline && <div className="p-4 bg-info-50 rounded-lg"><p className="font-semibold text-primary mb-2">Bridge online. Clique em <strong>Conectar</strong> para gerar QR.</p></div>}
-                {isBridgeOffline && <div className="p-4 bg-warning-50 rounded-lg"><p className="font-semibold text-warning-600 mb-2">Comando recomendado: <code className="bg-neutral-900 text-success-500 px-2 py-1 rounded">{recommendedCommand}</code></p></div>}
+                {isBridgeOffline && <div className="p-4 bg-warning-50 rounded-lg"><p className="font-semibold text-warning-600 mb-2">Comando recomendado: <code className="bg-neutral-900 text-success-500 px-2 py-1 rounded">{String(recommendedCommand)}</code></p></div>}
             </Card>
             <Card>
                 <h3 className="font-semibold mb-4">Informações do Sistema</h3>
                 <div className="space-y-3 text-sm">
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Número Conectado</span><span className="font-mono">{waStatus?.phone || '-'}</span></div>
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Versão WA</span><span>{waStatus?.version || '-'}</span></div>
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Bateria</span><span>{waStatus?.battery || '-'}%</span></div>
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Plataforma</span><span>{waStatus?.platform || '-'}</span></div>
+                    <div className="flex justify-between p-3 bg-background rounded"><span>Número Conectado</span><span className="font-mono">{String(waStatus?.phone || '-')}</span></div>
+                    <div className="flex justify-between p-3 bg-background rounded"><span>Versão WA</span><span>{String(waStatus?.version || '-')}</span></div>
+                    <div className="flex justify-between p-3 bg-background rounded"><span>Bateria</span><span>{String(waStatus?.battery || '-')}%</span></div>
+                    <div className="flex justify-between p-3 bg-background rounded"><span>Plataforma</span><span>{String(waStatus?.platform || '-')}</span></div>
                 </div>
             </Card>
         </div>
