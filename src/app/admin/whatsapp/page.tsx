@@ -170,18 +170,21 @@ function ConnectionTab() {
 
     const fetchStatus = useCallback(async () => {
         try {
-            const res = await fetch('/api/whatsapp/status');
+            const res = await fetch('/api/whatsapp/status', { cache: 'no-store' });
             setWaStatus(await res.json());
         } catch (_e) {
             // ignore polling errors
         }
     }, []);
 
+    // Poll faster (2s) when waiting for QR scan, normal (5s) otherwise
+    const pollInterval = waStatus?.status === 'QR_PENDING' || waStatus?.status === 'PAIRING_CODE' ? 2000 : 5000;
+
     useEffect(() => {
         fetchStatus();
-        const interval = setInterval(fetchStatus, 5000);
+        const interval = setInterval(fetchStatus, pollInterval);
         return () => clearInterval(interval);
-    }, [fetchStatus]);
+    }, [fetchStatus, pollInterval]);
 
     const handleAction = async (action: string) => {
         if (actionLoading) return;
@@ -242,7 +245,14 @@ function ConnectionTab() {
                     </div>
                 </div>
                 {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
-                    <div className="flex flex-col items-center py-6 border-t"><p className="text-foreground mb-4">Escaneie o QR Code:</p><img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" /></div>
+                    <div className="flex flex-col items-center py-6 border-t">
+                        <p className="text-foreground mb-2">Escaneie o QR Code:</p>
+                        <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
+                            <span className="inline-block w-2 h-2 bg-success-500 rounded-full animate-pulse" />
+                            Atualizando automaticamente
+                        </p>
+                        <img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" />
+                    </div>
                 )}
                 {waStatus?.status === 'PAIRING_CODE' && waStatus?.pairingCode && (
                     <div className="p-4 bg-info-50 rounded-lg border border-indigo-200">

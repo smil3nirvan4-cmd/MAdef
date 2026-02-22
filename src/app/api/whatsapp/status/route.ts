@@ -3,6 +3,9 @@ import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const SESSION_FILE = path.resolve(
     process.cwd(),
     process.env.WA_SESSION_FILE || '.wa-session.json'
@@ -13,7 +16,8 @@ async function getBridgeStatus() {
 
     try {
         const response = await fetch(`${bridgeConfig.bridgeUrl}/status`, {
-            signal: AbortSignal.timeout(3000)
+            signal: AbortSignal.timeout(3000),
+            cache: 'no-store',
         });
 
         const payload: any = await response.json().catch(() => null);
@@ -81,5 +85,7 @@ async function getBridgeStatus() {
 
 export async function GET() {
     const status = await getBridgeStatus();
-    return NextResponse.json(status);
+    return NextResponse.json(status, {
+        headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' },
+    });
 }
