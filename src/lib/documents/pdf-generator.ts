@@ -138,7 +138,8 @@ interface DocContext {
 }
 
 function ensureSpace(ctx: DocContext, needed: number): void {
-    if (ctx.y + needed > ctx.doc.page.height - 70) {
+    const usable = ctx.doc.page.height - 60;
+    if (ctx.y + needed > usable) {
         ctx.doc.addPage();
         ctx.y = PAGE_MARGIN + 10;
     }
@@ -207,11 +208,12 @@ function drawHighlightBox(ctx: DocContext, lines: Array<{ label: string; value: 
     ctx.y += boxHeight + 8;
 }
 
-function drawFooter(doc: PDFKit.PDFDocument, pageWidth: number): void {
+function drawFooter(doc: PDFKit.PDFDocument, pageWidth: number, totalContentPages: number): void {
     const pages = doc.bufferedPageRange();
     const contentWidth = pageWidth - PAGE_MARGIN * 2;
+    const totalPages = Math.min(pages.count, totalContentPages);
 
-    for (let i = 0; i < pages.count; i++) {
+    for (let i = 0; i < totalPages; i++) {
         doc.switchToPage(i);
         const bottom = doc.page.height - 35;
 
@@ -226,7 +228,7 @@ function drawFooter(doc: PDFKit.PDFDocument, pageWidth: number): void {
             { width: contentWidth, align: 'center' },
         );
         doc.text(
-            `Pagina ${i + 1} de ${pages.count}`,
+            `Pagina ${i + 1} de ${totalPages}`,
             PAGE_MARGIN, bottom + 6,
             { width: contentWidth, align: 'center' },
         );
@@ -240,40 +242,50 @@ function drawCoverPage(doc: PDFKit.PDFDocument, data: OrcamentoPDFData): void {
     const pageH = doc.page.height;
     const contentWidth = pageW - PAGE_MARGIN * 2;
 
-    doc.rect(0, 0, pageW, 180).fill(TABLE_HEADER_BG);
-    doc.rect(0, 180, pageW, 4).fill(BRAND_PRIMARY);
+    // ── White header area for logo (no dark background behind logo) ──
+    doc.rect(0, 0, pageW, 130).fill(WHITE);
 
     const logoPath = path.join(process.cwd(), 'src/assets/logo.png');
     if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, PAGE_MARGIN, 40, { height: 50 });
+        doc.image(logoPath, PAGE_MARGIN, 30, { height: 55 });
     } else {
-        doc.fontSize(28).fillColor(WHITE).font(PDF_FONT_BOLD_NAME).text('MAOS AMIGAS', PAGE_MARGIN, 45);
+        doc.fontSize(24).fillColor(BRAND_PRIMARY).font(PDF_FONT_BOLD_NAME).text('MAOS AMIGAS', PAGE_MARGIN, 40);
     }
 
-    doc.fontSize(8).fillColor('#94A3B8').font(PDF_FONT_REGULAR_NAME)
-        .text('Cuidadores de Idosos  |  Toledo - PR', PAGE_MARGIN, 100);
-    doc.text('(45) 9 8825-0695  |  contato@maosamigas.com', PAGE_MARGIN, 112);
+    // Company info aligned right next to logo
+    doc.fontSize(8).fillColor(TEXT_MUTED).font(PDF_FONT_REGULAR_NAME)
+        .text('Cuidadores de Idosos  |  Toledo - PR', PAGE_MARGIN, 95, { width: contentWidth, align: 'left' });
+    doc.text('(45) 9 8825-0695  |  contato@maosamigas.com', PAGE_MARGIN, 107, { width: contentWidth, align: 'left' });
+
+    // ── Brand accent stripe ──
+    doc.rect(0, 125, pageW, 4).fill(BRAND_PRIMARY);
+
+    // ── Teal gradient banner for document title ──
+    doc.rect(0, 129, pageW, 90).fill(BRAND_PRIMARY);
+    doc.rect(0, 219, pageW, 3).fill(BRAND_DARK);
 
     const titulo = data.tipo === 'PROPOSTA' ? 'PROPOSTA COMERCIAL' : 'CONTRATO DE SERVICOS';
-    const centerY = 260;
 
-    doc.fontSize(32).fillColor(TEXT_PRIMARY).font(PDF_FONT_BOLD_NAME)
-        .text(titulo, PAGE_MARGIN, centerY, { width: contentWidth, align: 'center' });
+    doc.fontSize(28).fillColor(WHITE).font(PDF_FONT_BOLD_NAME)
+        .text(titulo, PAGE_MARGIN, 148, { width: contentWidth, align: 'center' });
 
-    doc.fontSize(11).fillColor(TEXT_SECONDARY).font(PDF_FONT_REGULAR_NAME)
-        .text('Servicos de Cuidado Domiciliar Especializado', PAGE_MARGIN, centerY + 50, { width: contentWidth, align: 'center' });
+    doc.fontSize(10).fillColor('#B2F0F3').font(PDF_FONT_REGULAR_NAME)
+        .text('Servicos de Cuidado Domiciliar Especializado', PAGE_MARGIN, 185, { width: contentWidth, align: 'center' });
 
-    doc.moveTo(pageW / 2 - 40, centerY + 80)
-        .lineTo(pageW / 2 + 40, centerY + 80)
-        .strokeColor(BRAND_PRIMARY).lineWidth(2).stroke();
-
-    const infoY = centerY + 110;
-    doc.fontSize(10).fillColor(TEXT_PRIMARY).font(PDF_FONT_BOLD_NAME)
+    // ── Content section on white background ──
+    const infoY = 260;
+    doc.fontSize(10).fillColor(TEXT_SECONDARY).font(PDF_FONT_REGULAR_NAME)
         .text('Preparado para:', PAGE_MARGIN, infoY, { width: contentWidth, align: 'center' });
-    doc.fontSize(16).fillColor(BRAND_DARK).font(PDF_FONT_BOLD_NAME)
+    doc.fontSize(18).fillColor(BRAND_DARK).font(PDF_FONT_BOLD_NAME)
         .text(data.pacienteNome || 'Paciente', PAGE_MARGIN, infoY + 20, { width: contentWidth, align: 'center' });
 
-    const detailsY = infoY + 60;
+    // ── Decorative line ──
+    doc.moveTo(pageW / 2 - 40, infoY + 55)
+        .lineTo(pageW / 2 + 40, infoY + 55)
+        .strokeColor(BRAND_PRIMARY).lineWidth(2).stroke();
+
+    // ── Detail boxes ──
+    const detailsY = infoY + 75;
     const detailBoxW = 150;
     const gap = 20;
     const totalW = detailBoxW * 3 + gap * 2;
@@ -288,21 +300,25 @@ function drawCoverPage(doc: PDFKit.PDFDocument, data: OrcamentoPDFData): void {
     for (let i = 0; i < details.length; i++) {
         const x = startX + i * (detailBoxW + gap);
         doc.roundedRect(x, detailsY, detailBoxW, 50, 4).fill(BG_SECTION);
+        doc.rect(x, detailsY, 3, 50).fill(BRAND_PRIMARY);
         doc.fontSize(7.5).fillColor(TEXT_MUTED).font(PDF_FONT_REGULAR_NAME)
-            .text(details[i].label.toUpperCase(), x, detailsY + 10, { width: detailBoxW, align: 'center' });
+            .text(details[i].label.toUpperCase(), x + 8, detailsY + 10, { width: detailBoxW - 12, align: 'center' });
         doc.fontSize(10).fillColor(TEXT_PRIMARY).font(PDF_FONT_BOLD_NAME)
-            .text(details[i].value, x, detailsY + 26, { width: detailBoxW, align: 'center' });
+            .text(details[i].value, x + 8, detailsY + 26, { width: detailBoxW - 12, align: 'center' });
     }
 
+    // ── Confidentiality notice ──
     const confidentialY = pageH - 100;
+    doc.moveTo(PAGE_MARGIN + 40, confidentialY - 8)
+        .lineTo(PAGE_MARGIN + contentWidth - 40, confidentialY - 8)
+        .strokeColor(BORDER_LIGHT).lineWidth(0.5).stroke();
+
     doc.fontSize(7).fillColor(TEXT_MUTED).font(PDF_FONT_REGULAR_NAME)
         .text(
             'DOCUMENTO CONFIDENCIAL - Este documento contem informacoes comerciais reservadas e destina-se exclusivamente ao destinatario acima indicado.',
             PAGE_MARGIN + 30, confidentialY,
             { width: contentWidth - 60, align: 'center' },
         );
-
-    doc.rect(PAGE_MARGIN + 30, confidentialY - 8, contentWidth - 60, 0.5).fill(BORDER_LIGHT);
 }
 
 /* ── Content Header (pages 2+) ───────────────────────────────────── */
@@ -310,25 +326,26 @@ function drawCoverPage(doc: PDFKit.PDFDocument, data: OrcamentoPDFData): void {
 function drawContentHeader(doc: PDFKit.PDFDocument, data: OrcamentoPDFData): number {
     const contentWidth = doc.page.width - PAGE_MARGIN * 2;
 
+    // White background for logo - safe for non-transparent PNGs
     const logoPath = path.join(process.cwd(), 'src/assets/logo.png');
     if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, PAGE_MARGIN, PAGE_MARGIN - 5, { height: 22 });
+        doc.image(logoPath, PAGE_MARGIN, PAGE_MARGIN - 5, { height: 20 });
     } else {
-        doc.fontSize(11).fillColor(BRAND_PRIMARY).font(PDF_FONT_BOLD_NAME)
-            .text('MAOS AMIGAS', PAGE_MARGIN, PAGE_MARGIN - 2);
+        doc.fontSize(10).fillColor(BRAND_PRIMARY).font(PDF_FONT_BOLD_NAME)
+            .text('Maos Amigas', PAGE_MARGIN, PAGE_MARGIN - 2);
     }
 
     const titulo = data.tipo === 'PROPOSTA' ? 'Proposta Comercial' : 'Contrato de Servicos';
-    doc.fontSize(8).fillColor(TEXT_MUTED).font(PDF_FONT_REGULAR_NAME)
-        .text(`${titulo}  |  Ref. ${data.referencia}  |  ${data.dataEmissao}`, PAGE_MARGIN, PAGE_MARGIN - 2, {
+    doc.fontSize(7.5).fillColor(TEXT_MUTED).font(PDF_FONT_REGULAR_NAME)
+        .text(`${titulo}  |  Ref. ${data.referencia}  |  ${data.dataEmissao}`, PAGE_MARGIN, PAGE_MARGIN, {
             width: contentWidth, align: 'right',
         });
 
-    const lineY = PAGE_MARGIN + 20;
+    const lineY = PAGE_MARGIN + 18;
     doc.moveTo(PAGE_MARGIN, lineY).lineTo(PAGE_MARGIN + contentWidth, lineY)
-        .strokeColor(BRAND_PRIMARY).lineWidth(1).stroke();
+        .strokeColor(BRAND_PRIMARY).lineWidth(0.75).stroke();
 
-    return lineY + 14;
+    return lineY + 12;
 }
 
 /* ── Main PDF Generation ─────────────────────────────────────────── */
@@ -517,7 +534,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         ctx.y += 25;
 
         /* ── 04 RESUMO FINANCEIRO ─────────────────────────────── */
-        ensureSpace(ctx, 120);
+        ensureSpace(ctx, 60);
         drawSectionTitle(ctx, '04', 'RESUMO FINANCEIRO');
 
         drawHighlightBox(ctx, [
@@ -581,7 +598,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         }
 
         /* ── 05 COMPOSICAO DO PRECO ───────────────────────────── */
-        ensureSpace(ctx, 100);
+        ensureSpace(ctx, 50);
         drawSectionTitle(ctx, '05', 'COMPOSICAO DO PRECO POR PLANTAO');
 
         const { r0, a2p, an, afds } = data.cenario.parametros;
@@ -634,7 +651,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
 
         /* ── 06 CONDICOES GERAIS (Contrato only) ─────────────── */
         if (data.tipo === 'CONTRATO') {
-            ensureSpace(ctx, 120);
+            ensureSpace(ctx, 50);
             drawSectionTitle(ctx, '06', 'CONDICOES GERAIS');
 
             const condicoes = [
@@ -657,7 +674,7 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         }
 
         /* ── VALIDADE & ACEITE ────────────────────────────────── */
-        ensureSpace(ctx, 100);
+        ensureSpace(ctx, 60);
         drawDivider(ctx, BRAND_PRIMARY);
 
         const validadeBoxH = 44;
@@ -699,8 +716,12 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         doc.text('Maos Amigas Home Care', CONTENT_LEFT + sigW + 40, sigY + 4, { width: sigW, align: 'center' });
         doc.text('CNPJ 52.724.250/0001-78', CONTENT_LEFT + sigW + 40, sigY + 14, { width: sigW, align: 'center' });
 
-        /* ── Footer on all pages ──────────────────────────────── */
-        drawFooter(doc, doc.page.width);
+        /* ── Footer on content pages only ─────────────────────── */
+        // Calculate the actual number of pages with content
+        // Page index is 0-based; current page after signatures is the last real page
+        const pages = doc.bufferedPageRange();
+        const currentPageIndex = pages.count; // pages buffered so far
+        drawFooter(doc, doc.page.width, currentPageIndex);
 
         doc.flushPages();
         doc.end();
@@ -738,36 +759,38 @@ export async function generateContractTextPDF(title: string, content: string): P
         const contentWidth = doc.page.width - PAGE_MARGIN * 2;
         let y = PAGE_MARGIN;
 
+        // Logo on white background (safe for non-transparent PNGs)
         const logoPath = path.join(process.cwd(), 'src/assets/logo.png');
         if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, PAGE_MARGIN, y, { height: 40 });
+            doc.image(logoPath, PAGE_MARGIN, y, { height: 35 });
         } else {
-            doc.fontSize(18).fillColor(BRAND_PRIMARY).font(PDF_FONT_BOLD_NAME).text('MAOS AMIGAS', PAGE_MARGIN, y);
+            doc.fontSize(16).fillColor(BRAND_PRIMARY).font(PDF_FONT_BOLD_NAME).text('Maos Amigas', PAGE_MARGIN, y);
         }
 
-        doc.fontSize(12).fillColor(TEXT_PRIMARY).font(PDF_FONT_BOLD_NAME)
-            .text(title, 250, y, { align: 'right', width: contentWidth - 200 });
+        doc.fontSize(11).fillColor(TEXT_PRIMARY).font(PDF_FONT_BOLD_NAME)
+            .text(title, PAGE_MARGIN + 150, y + 4, { align: 'right', width: contentWidth - 150 });
         doc.fontSize(8).fillColor(TEXT_MUTED).font(PDF_FONT_REGULAR_NAME)
-            .text('(45) 9 8825-0695  |  contato@maosamigas.com', 250, y + 16, { align: 'right', width: contentWidth - 200 })
-            .text('Toledo - PR', 250, y + 26, { align: 'right', width: contentWidth - 200 });
+            .text('(45) 9 8825-0695  |  contato@maosamigas.com  |  Toledo - PR', PAGE_MARGIN + 150, y + 20, { align: 'right', width: contentWidth - 150 });
 
-        y += 55;
+        y += 45;
         doc.moveTo(PAGE_MARGIN, y).lineTo(PAGE_MARGIN + contentWidth, y)
-            .strokeColor(BRAND_PRIMARY).lineWidth(1).stroke();
+            .strokeColor(BRAND_PRIMARY).lineWidth(0.75).stroke();
 
-        doc.y = y + 15;
+        doc.y = y + 12;
         doc.font(PDF_FONT_REGULAR_NAME).fontSize(9).fillColor(TEXT_PRIMARY);
 
+        let pageCount = 1;
         const lines = String(content || '').split(/\r?\n/);
         for (const line of lines) {
-            if (doc.y > doc.page.height - 70) {
+            if (doc.y > doc.page.height - 60) {
                 doc.addPage();
                 doc.font(PDF_FONT_REGULAR_NAME).fontSize(9).fillColor(TEXT_PRIMARY);
+                pageCount++;
             }
             doc.text(line || ' ', { width: contentWidth, align: 'left' });
         }
 
-        drawFooter(doc, doc.page.width);
+        drawFooter(doc, doc.page.width, pageCount);
 
         doc.flushPages();
         doc.end();

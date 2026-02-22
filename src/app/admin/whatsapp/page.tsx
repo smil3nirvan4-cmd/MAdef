@@ -11,7 +11,7 @@ import {
     Wifi, WifiOff, QrCode, MessageCircle, Settings, Send, Zap, RotateCcw,
     Trash2, Power, Clock, Users, RefreshCw, BarChart3, FileText,
     Calendar, MessageSquare, Search, X, Plus, ExternalLink, ChevronRight,
-    Tag, Ban, Bot, ListOrdered, Webhook, Download
+    Tag, Ban, Bot, ListOrdered, Webhook, Download, Layout, Radio, Megaphone, Shield
 } from 'lucide-react';
 import { LabelsTab, BlacklistTab, AutoRepliesTab, QueueTab, WebhooksTab, ExportImportTab } from './AdvancedTabs';
 import { FlowBuilderTab } from './FlowBuilder';
@@ -55,34 +55,61 @@ function dedupeContacts<T extends { phone?: string; telefone?: string }>(rows: T
     return [...map.values(), ...fallback];
 }
 
+const TAB_GROUPS = [
+    {
+        label: 'Principal',
+        icon: Layout,
+        items: [
+            { id: 'connection' as TabType, label: 'Conexao', icon: Wifi, description: 'Status e QR Code' },
+            { id: 'chats' as TabType, label: 'Conversas', icon: MessageCircle, description: 'Chat em tempo real' },
+            { id: 'contacts' as TabType, label: 'Contatos', icon: Users, description: 'Gestao de contatos' },
+            { id: 'analytics' as TabType, label: 'Relatorios', icon: BarChart3, description: 'Metricas e dados' },
+        ],
+    },
+    {
+        label: 'Automacao',
+        icon: Zap,
+        items: [
+            { id: 'flows' as TabType, label: 'Fluxos', icon: Zap, description: 'Construtor de fluxos' },
+            { id: 'templates' as TabType, label: 'Templates', icon: FileText, description: 'Modelos de mensagem' },
+            { id: 'quickreplies' as TabType, label: 'Respostas Rapidas', icon: MessageSquare, description: 'Atalhos de resposta' },
+            { id: 'autoreplies' as TabType, label: 'Auto-Resposta', icon: Bot, description: 'Regras automaticas' },
+            { id: 'automation' as TabType, label: 'Configuracoes', icon: Settings, description: 'Rate limit e horarios' },
+        ],
+    },
+    {
+        label: 'Envio',
+        icon: Megaphone,
+        items: [
+            { id: 'broadcast' as TabType, label: 'Broadcast', icon: Send, description: 'Envio em massa' },
+            { id: 'scheduled' as TabType, label: 'Agendados', icon: Calendar, description: 'Mensagens futuras' },
+            { id: 'queue' as TabType, label: 'Fila de Envio', icon: ListOrdered, description: 'Pendentes e falhas' },
+        ],
+    },
+    {
+        label: 'Gestao',
+        icon: Shield,
+        items: [
+            { id: 'labels' as TabType, label: 'Etiquetas', icon: Tag, description: 'Tags de contato' },
+            { id: 'blacklist' as TabType, label: 'Bloqueados', icon: Ban, description: 'Lista negra' },
+            { id: 'webhooks' as TabType, label: 'Webhooks', icon: Webhook, description: 'Integracoes externas' },
+            { id: 'config' as TabType, label: 'Backup', icon: Download, description: 'Exportar/Importar' },
+        ],
+    },
+];
+
 export default function WhatsAppAdminPage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<TabType>('connection');
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [dbSchemaStatus, setDbSchemaStatus] = useState<{ ok: boolean; missingColumns: string[] }>({
         ok: true,
         missingColumns: [],
     });
 
-    const tabs = [
-        { id: 'connection', label: 'Conexão', icon: Wifi },
-        { id: 'chats', label: 'Conversas', icon: MessageCircle },
-        { id: 'contacts', label: 'Contatos', icon: Users },
-        { id: 'flows', label: 'Fluxos', icon: Zap },
-        { id: 'templates', label: 'Templates', icon: FileText },
-        { id: 'quickreplies', label: 'Respostas', icon: MessageSquare },
-        { id: 'autoreplies', label: 'Auto-Resposta', icon: Bot },
-        { id: 'scheduled', label: 'Agendados', icon: Calendar },
-        { id: 'broadcast', label: 'Broadcast', icon: Send },
-        { id: 'queue', label: 'Fila', icon: ListOrdered },
-        { id: 'labels', label: 'Etiquetas', icon: Tag },
-        { id: 'blacklist', label: 'Bloqueados', icon: Ban },
-        { id: 'webhooks', label: 'Webhooks', icon: Webhook },
-        { id: 'analytics', label: 'Relatórios', icon: BarChart3 },
-        { id: 'automation', label: 'Automação', icon: Settings },
-        { id: 'config', label: 'Backup', icon: Download },
-    ];
+    const allTabs = TAB_GROUPS.flatMap((g) => g.items);
 
     useEffect(() => {
         const tabFromQuery = searchParams.get('tab');
@@ -92,13 +119,12 @@ export default function WhatsAppAdminPage() {
         const tabFromUrl = tabFromQuery || pathSegment;
         if (!tabFromUrl) return;
         const normalized = tabFromUrl === 'settings' ? 'automation' : tabFromUrl;
-        const exists = tabs.some((tab) => tab.id === normalized);
+        const exists = allTabs.some((tab) => tab.id === normalized);
         if (exists) setActiveTab(normalized as TabType);
     }, [pathname, searchParams]);
 
     useEffect(() => {
         let active = true;
-
         async function loadSchemaStatus() {
             try {
                 const response = await fetch('/api/admin/capabilities', { cache: 'no-store' });
@@ -112,11 +138,8 @@ export default function WhatsAppAdminPage() {
                 // keep previous state
             }
         }
-
         loadSchemaStatus();
-        return () => {
-            active = false;
-        };
+        return () => { active = false; };
     }, []);
 
     const handleTabChange = (nextTab: TabType) => {
@@ -124,41 +147,87 @@ export default function WhatsAppAdminPage() {
         router.replace(`/admin/whatsapp/${nextTab}`);
     };
 
+    const activeTabMeta = allTabs.find((t) => t.id === activeTab);
+
     return (
-        <div className="p-6 lg:p-8">
-            <PageHeader title="Central WhatsApp Enterprise" description="Gestão completa de comunicação, automação e análises" breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'WhatsApp' }]} />
+        <div className="p-4 lg:p-6">
+            <PageHeader title="Central WhatsApp" description="Comunicacao, automacao e gestao completa" breadcrumbs={[{ label: 'Dashboard', href: '/admin/dashboard' }, { label: 'WhatsApp' }]} />
 
             {!dbSchemaStatus.ok && (
                 <div className="mb-4 rounded-md border border-error-100 bg-error-50 px-4 py-3 text-sm text-error-700">
                     <p className="font-medium">Database schema drift detectado.</p>
-                    <p className="mt-1">Missing columns: {dbSchemaStatus.missingColumns.join(', ') || 'nao informado'}.</p>
+                    <p className="mt-1">Colunas ausentes: {dbSchemaStatus.missingColumns.join(', ') || 'nao informado'}.</p>
                 </div>
             )}
-            <div className="flex gap-1 mb-6 bg-surface-subtle p-1 rounded-lg overflow-x-auto">
-                {tabs.map((tab) => (
-                    <button key={tab.id} onClick={() => handleTabChange(tab.id as TabType)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 whitespace-nowrap ${activeTab === tab.id ? 'bg-card shadow-sm text-primary' : 'text-foreground hover:text-foreground'}`}>
-                        <tab.icon className="w-4 h-4" /><span className="hidden lg:inline">{tab.label}</span>
-                    </button>
-                ))}
-            </div>
 
-            {activeTab === 'connection' && <ConnectionTab />}
-            {activeTab === 'chats' && <ChatsTab />}
-            {activeTab === 'contacts' && <ContactsTab />}
-            {activeTab === 'flows' && <FlowBuilderTab />}
-            {activeTab === 'templates' && <TemplatesTab />}
-            {activeTab === 'quickreplies' && <QuickRepliesTab />}
-            {activeTab === 'scheduled' && <ScheduledTab />}
-            {activeTab === 'broadcast' && <BroadcastTab />}
-            {activeTab === 'analytics' && <AnalyticsTab />}
-            {activeTab === 'automation' && <AutomationTab />}
-            {activeTab === 'labels' && <LabelsTab />}
-            {activeTab === 'blacklist' && <BlacklistTab />}
-            {activeTab === 'autoreplies' && <AutoRepliesTab />}
-            {activeTab === 'queue' && <QueueTab />}
-            {activeTab === 'webhooks' && <WebhooksTab />}
-            {activeTab === 'config' && <ExportImportTab />}
+            <div className="flex gap-4">
+                {/* Sidebar Navigation */}
+                <nav className={`flex-shrink-0 ${sidebarCollapsed ? 'w-14' : 'w-56'} transition-all duration-200`}>
+                    <div className="sticky top-4 space-y-1">
+                        <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            className="w-full flex items-center justify-center p-2 mb-2 rounded-md text-muted-foreground hover:bg-surface-subtle text-xs">
+                            {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <span>Recolher</span>}
+                        </button>
+
+                        {TAB_GROUPS.map((group) => (
+                            <div key={group.label}>
+                                {!sidebarCollapsed && (
+                                    <div className="flex items-center gap-2 px-3 py-1.5 mt-3 first:mt-0">
+                                        <group.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{group.label}</span>
+                                    </div>
+                                )}
+                                {sidebarCollapsed && <div className="border-t border-border my-2" />}
+                                {group.items.map((tab) => (
+                                    <button key={tab.id} onClick={() => handleTabChange(tab.id)}
+                                        title={sidebarCollapsed ? tab.label : undefined}
+                                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
+                                            activeTab === tab.id
+                                                ? 'bg-primary/10 text-primary font-medium shadow-sm border border-primary/20'
+                                                : 'text-foreground hover:bg-surface-subtle hover:text-foreground'
+                                        } ${sidebarCollapsed ? 'justify-center' : ''}`}>
+                                        <tab.icon className="w-4 h-4 flex-shrink-0" />
+                                        {!sidebarCollapsed && <span className="truncate">{tab.label}</span>}
+                                    </button>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </nav>
+
+                {/* Main Content */}
+                <div className="flex-1 min-w-0">
+                    {/* Active tab header */}
+                    {activeTabMeta && (
+                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-border">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                                <activeTabMeta.icon className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-semibold text-foreground">{activeTabMeta.label}</h2>
+                                <p className="text-xs text-muted-foreground">{activeTabMeta.description}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'connection' && <ConnectionTab />}
+                    {activeTab === 'chats' && <ChatsTab />}
+                    {activeTab === 'contacts' && <ContactsTab />}
+                    {activeTab === 'flows' && <FlowBuilderTab />}
+                    {activeTab === 'templates' && <TemplatesTab />}
+                    {activeTab === 'quickreplies' && <QuickRepliesTab />}
+                    {activeTab === 'scheduled' && <ScheduledTab />}
+                    {activeTab === 'broadcast' && <BroadcastTab />}
+                    {activeTab === 'analytics' && <AnalyticsTab />}
+                    {activeTab === 'automation' && <AutomationTab />}
+                    {activeTab === 'labels' && <LabelsTab />}
+                    {activeTab === 'blacklist' && <BlacklistTab />}
+                    {activeTab === 'autoreplies' && <AutoRepliesTab />}
+                    {activeTab === 'queue' && <QueueTab />}
+                    {activeTab === 'webhooks' && <WebhooksTab />}
+                    {activeTab === 'config' && <ExportImportTab />}
+                </div>
+            </div>
         </div>
     );
 }
@@ -177,7 +246,6 @@ function ConnectionTab() {
         }
     }, []);
 
-    // Poll faster (2s) when waiting for QR scan, normal (5s) otherwise
     const pollInterval = waStatus?.status === 'QR_PENDING' || waStatus?.status === 'PAIRING_CODE' ? 2000 : 5000;
 
     useEffect(() => {
@@ -188,7 +256,6 @@ function ConnectionTab() {
 
     const handleAction = async (action: string) => {
         if (actionLoading) return;
-
         setActionLoading(true);
         try {
             await fetch(`/api/whatsapp/${action}`, { method: 'POST' });
@@ -200,8 +267,7 @@ function ConnectionTab() {
 
     const handleResetSession = async () => {
         if (actionLoading) return;
-        if (!confirm('Isso vai encerrar a sessão atual e gerar um novo QR. Deseja continuar?')) return;
-
+        if (!confirm('Isso vai encerrar a sessao atual e gerar um novo QR. Deseja continuar?')) return;
         setActionLoading(true);
         try {
             await fetch('/api/whatsapp/reset-auth', { method: 'POST' });
@@ -217,63 +283,120 @@ function ConnectionTab() {
     const isBridgeOffline = waStatus?.bridgeRunning === false;
     const recommendedCommand = waStatus?.recommendedCommand || 'npm run dev';
 
+    const statusLabel = isConnected ? 'Conectado'
+        : waStatus?.status === 'CONNECTING' ? 'Conectando...'
+            : waStatus?.status === 'QR_PENDING' ? 'Aguardando QR'
+                : waStatus?.status === 'PAIRING_CODE' ? 'Aguardando pareamento'
+                    : 'Desconectado';
+
+    const statusColor = isConnected ? 'bg-success-500' : isConnecting ? 'bg-warning-500' : 'bg-error-500';
+
     return (
-        <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className={`p-3 rounded-full ${isConnected ? 'bg-success-100' : 'bg-error-100'}`}>
-                            {isConnected ? <Wifi className="w-6 h-6 text-secondary-600" /> : <WifiOff className="w-6 h-6 text-error-600" />}
+        <div className="space-y-6">
+            {/* Status Banner */}
+            <Card className="!p-0 overflow-hidden">
+                <div className={`px-6 py-4 ${isConnected ? 'bg-success-50' : isBridgeOffline ? 'bg-warning-50' : 'bg-surface-subtle'}`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-full ${isConnected ? 'bg-success-100' : 'bg-error-100'}`}>
+                                {isConnected ? <Wifi className="w-6 h-6 text-success-600" /> : <WifiOff className="w-6 h-6 text-error-600" />}
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2.5 h-2.5 rounded-full ${statusColor} ${isConnecting ? 'animate-pulse' : ''}`} />
+                                    <p className="font-semibold text-lg">{statusLabel}</p>
+                                </div>
+                                {waStatus?.connectedAt && isConnected && (
+                                    <p className="text-sm text-muted-foreground mt-0.5">Conectado desde {new Date(waStatus.connectedAt).toLocaleString('pt-BR')}</p>
+                                )}
+                                {waStatus?.phone && isConnected && (
+                                    <p className="text-sm text-muted-foreground font-mono">{waStatus.phone}</p>
+                                )}
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-semibold">
-                                {isConnected ? 'Conectado'
-                                    : waStatus?.status === 'CONNECTING' ? 'Conectando'
-                                        : waStatus?.status === 'QR_PENDING' ? 'Aguardando QR'
-                                            : waStatus?.status === 'PAIRING_CODE' ? 'Aguardando pareamento'
-                                                : 'Desconectado'}
+                        <div className="flex gap-2">
+                            {!isConnected ? (
+                                <Button onClick={() => handleAction('connect')} isLoading={actionLoading || isConnecting}>
+                                    <Power className="w-4 h-4" />{isConnecting ? 'Conectando...' : 'Conectar'}
+                                </Button>
+                            ) : (
+                                <Button variant="danger" onClick={() => handleAction('disconnect')} isLoading={actionLoading}>
+                                    <Power className="w-4 h-4" />Desconectar
+                                </Button>
+                            )}
+                            <Button variant="outline" onClick={handleResetSession} isLoading={actionLoading} disabled={isConnecting}>
+                                <RotateCcw className="w-4 h-4" />Trocar Conta
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+                {/* QR / Pairing / Status */}
+                <Card>
+                    <h3 className="font-semibold mb-4">Autenticacao</h3>
+                    {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
+                        <div className="flex flex-col items-center py-4">
+                            <p className="text-foreground mb-2 font-medium">Escaneie o QR Code no seu celular:</p>
+                            <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
+                                <span className="inline-block w-2 h-2 bg-success-500 rounded-full animate-pulse" />
+                                Atualizando automaticamente a cada 2s
                             </p>
-                            {waStatus?.connectedAt && isConnected && <p className="text-sm text-muted-foreground">Desde {new Date(waStatus.connectedAt).toLocaleString('pt-BR')}</p>}
+                            <img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border-2 border-primary/20 rounded-xl shadow-sm" />
+                            <p className="text-xs text-muted-foreground mt-3">WhatsApp &gt; Dispositivos conectados &gt; Conectar dispositivo</p>
                         </div>
+                    )}
+                    {waStatus?.status === 'PAIRING_CODE' && waStatus?.pairingCode && (
+                        <div className="p-5 bg-info-50 rounded-lg border border-indigo-200">
+                            <p className="font-semibold text-indigo-900 mb-2">Codigo de pareamento</p>
+                            <p className="text-info-600 text-sm mb-4">No WhatsApp: Dispositivos conectados &gt; Conectar com numero de telefone</p>
+                            <code className="bg-neutral-900 text-success-500 px-4 py-2.5 rounded-lg text-2xl tracking-[0.3em] font-mono block text-center">{waStatus.pairingCode}</code>
+                        </div>
+                    )}
+                    {isConnected && (
+                        <div className="p-5 bg-success-50 rounded-lg border border-success-200 text-center">
+                            <Wifi className="w-8 h-8 text-success-600 mx-auto mb-2" />
+                            <p className="font-semibold text-success-700">WhatsApp conectado e operacional</p>
+                            <p className="text-xs text-success-600 mt-1">Todas as automacoes e fluxos estao funcionando</p>
+                        </div>
+                    )}
+                    {waStatus?.status === 'DISCONNECTED' && !isBridgeOffline && (
+                        <div className="p-5 bg-info-50 rounded-lg border border-blue-200 text-center">
+                            <Radio className="w-8 h-8 text-primary mx-auto mb-2" />
+                            <p className="font-semibold text-primary">Bridge online - Pronto para conectar</p>
+                            <p className="text-sm text-muted-foreground mt-1">Clique em <strong>Conectar</strong> acima para gerar o QR Code</p>
+                        </div>
+                    )}
+                    {isBridgeOffline && (
+                        <div className="p-5 bg-warning-50 rounded-lg border border-warning-200">
+                            <p className="font-semibold text-warning-700 mb-2">Bridge WhatsApp offline</p>
+                            <p className="text-sm text-warning-600 mb-3">Execute o comando abaixo para iniciar:</p>
+                            <code className="bg-neutral-900 text-success-500 px-3 py-2 rounded block font-mono text-sm">{recommendedCommand}</code>
+                        </div>
+                    )}
+                </Card>
+
+                {/* System Info */}
+                <Card>
+                    <h3 className="font-semibold mb-4">Informacoes do Sistema</h3>
+                    <div className="space-y-2 text-sm">
+                        {[
+                            { label: 'Numero Conectado', value: waStatus?.phone || '-', mono: true },
+                            { label: 'Versao WhatsApp', value: waStatus?.version || '-' },
+                            { label: 'Bateria', value: waStatus?.battery ? `${waStatus.battery}%` : '-' },
+                            { label: 'Plataforma', value: waStatus?.platform || '-' },
+                            { label: 'Bridge', value: isBridgeOffline ? 'Offline' : 'Online' },
+                            { label: 'Status', value: waStatus?.status || 'UNKNOWN' },
+                        ].map((item) => (
+                            <div key={item.label} className="flex justify-between items-center p-3 bg-background rounded-lg border border-border/50">
+                                <span className="text-muted-foreground">{item.label}</span>
+                                <span className={`font-medium ${item.mono ? 'font-mono text-xs' : ''}`}>{item.value}</span>
+                            </div>
+                        ))}
                     </div>
-                    <div className="flex gap-2">
-                        {!isConnected ? <Button onClick={() => handleAction('connect')} isLoading={actionLoading || isConnecting}><Power className="w-4 h-4" />{isConnecting ? 'Conectando...' : 'Conectar'}</Button>
-                            : <Button variant="danger" onClick={() => handleAction('disconnect')} isLoading={actionLoading}><Power className="w-4 h-4" />Desconectar</Button>}
-                        <Button variant="outline" onClick={handleResetSession} isLoading={actionLoading} disabled={isConnecting}>
-                            <RotateCcw className="w-4 h-4" />Trocar conta
-                        </Button>
-                    </div>
-                </div>
-                {waStatus?.status === 'QR_PENDING' && waStatus?.qrCode && (
-                    <div className="flex flex-col items-center py-6 border-t">
-                        <p className="text-foreground mb-2">Escaneie o QR Code:</p>
-                        <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1.5">
-                            <span className="inline-block w-2 h-2 bg-success-500 rounded-full animate-pulse" />
-                            Atualizando automaticamente
-                        </p>
-                        <img src={waStatus.qrCode} alt="QR" className="w-56 h-56 border rounded-lg" />
-                    </div>
-                )}
-                {waStatus?.status === 'PAIRING_CODE' && waStatus?.pairingCode && (
-                    <div className="p-4 bg-info-50 rounded-lg border border-indigo-200">
-                        <p className="font-semibold text-indigo-900 mb-1">Codigo de pareamento</p>
-                        <p className="text-info-600 text-sm mb-3">No WhatsApp: Dispositivos conectados, depois Conectar dispositivo com numero.</p>
-                        <code className="bg-neutral-900 text-success-500 px-3 py-2 rounded text-lg tracking-widest">{waStatus.pairingCode}</code>
-                    </div>
-                )}
-                {isConnected && <div className="p-4 bg-success-50 rounded-lg">WhatsApp conectado e operacional.</div>}
-                {waStatus?.status === 'DISCONNECTED' && !isBridgeOffline && <div className="p-4 bg-info-50 rounded-lg"><p className="font-semibold text-primary mb-2">Bridge online. Clique em <strong>Conectar</strong> para gerar QR.</p></div>}
-                {isBridgeOffline && <div className="p-4 bg-warning-50 rounded-lg"><p className="font-semibold text-warning-600 mb-2">Comando recomendado: <code className="bg-neutral-900 text-success-500 px-2 py-1 rounded">{recommendedCommand}</code></p></div>}
-            </Card>
-            <Card>
-                <h3 className="font-semibold mb-4">Informações do Sistema</h3>
-                <div className="space-y-3 text-sm">
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Número Conectado</span><span className="font-mono">{waStatus?.phone || '-'}</span></div>
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Versão WA</span><span>{waStatus?.version || '-'}</span></div>
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Bateria</span><span>{waStatus?.battery || '-'}%</span></div>
-                    <div className="flex justify-between p-3 bg-background rounded"><span>Plataforma</span><span>{waStatus?.platform || '-'}</span></div>
-                </div>
-            </Card>
+                </Card>
+            </div>
         </div>
     );
 }
@@ -287,6 +410,7 @@ function ChatsTab() {
     const [sending, setSending] = useState(false);
     const [sendError, setSendError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
 
     const fetchContacts = async () => {
         const res = await fetch(`/api/admin/whatsapp/contacts${search ? `?search=${search}` : ''}`);
@@ -299,6 +423,13 @@ function ChatsTab() {
     };
 
     useEffect(() => { fetchContacts(); }, []);
+
+    // Auto-refresh messages for selected chat
+    useEffect(() => {
+        if (!selectedChat?.phone) return;
+        const interval = setInterval(() => fetchChat(selectedChat.phone), 8000);
+        return () => clearInterval(interval);
+    }, [selectedChat?.phone]);
 
     const handleSend = async () => {
         if (!newMessage.trim() || !selectedChat) return;
@@ -322,62 +453,125 @@ function ChatsTab() {
         }
     };
 
+    const handleRefreshContacts = async () => {
+        setRefreshing(true);
+        await fetchContacts();
+        setRefreshing(false);
+    };
+
     return (
-        <div className="grid lg:grid-cols-3 gap-6 h-[70vh]">
+        <div className="grid lg:grid-cols-3 gap-4 h-[75vh]">
             {/* Contacts List */}
-            <Card className="!p-0 overflow-hidden">
-                <div className="p-3 border-b"><Input placeholder="Buscar..." icon={Search} value={search} onChange={(e) => { setSearch(e.target.value); fetchContacts(); }} /></div>
-                <div className="overflow-y-auto h-[calc(70vh-80px)]">
+            <Card className="!p-0 overflow-hidden flex flex-col">
+                <div className="p-3 border-b flex gap-2">
+                    <Input placeholder="Buscar contato..." icon={Search} value={search} onChange={(e) => { setSearch(e.target.value); fetchContacts(); }} className="flex-1" />
+                    <button onClick={handleRefreshContacts} className="p-2 rounded-md hover:bg-surface-subtle" title="Atualizar">
+                        <RefreshCw className={`w-4 h-4 text-muted-foreground ${refreshing ? 'animate-spin' : ''}`} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                    {contacts.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">Nenhum contato encontrado</p>}
                     {contacts.map((c, index) => (
-                        <button key={`${normalizeContactPhone(c.phone) || c.phone || c.telefone || 'contact'}-${index}`} onClick={() => fetchChat(c.phone)} className={`w-full p-3 text-left border-b border-border hover:bg-surface-subtle flex items-center gap-3 ${selectedChat?.phone === c.phone ? 'bg-primary-50' : ''}`}>
-                            <div className="w-10 h-10 bg-neutral-200 rounded-full flex items-center justify-center text-sm font-bold">{c.name?.charAt(0) || '?'}</div>
-                            <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-foreground">{c.name}</p>
-                                <p className="text-xs text-muted-foreground">{c.totalMessages} msgs</p>
+                        <button key={`${normalizeContactPhone(c.phone) || c.phone || c.telefone || 'contact'}-${index}`} onClick={() => fetchChat(c.phone)} className={`w-full p-3 text-left border-b border-border/50 hover:bg-surface-subtle flex items-center gap-3 transition-colors ${selectedChat?.phone === c.phone ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white ${c.type === 'cuidador' ? 'bg-blue-500' : c.type === 'paciente' ? 'bg-emerald-500' : 'bg-neutral-400'}`}>
+                                {c.name?.charAt(0)?.toUpperCase() || '?'}
                             </div>
-                            <Badge variant={c.type === 'cuidador' ? 'info' : c.type === 'paciente' ? 'success' : 'default'}>{c.type === 'cuidador' ? 'C' : c.type === 'paciente' ? 'P' : '?'}</Badge>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-foreground text-sm">{c.name || 'Desconhecido'}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{c.phone}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                                <Badge variant={c.type === 'cuidador' ? 'info' : c.type === 'paciente' ? 'success' : 'default'} className="text-[10px]">
+                                    {c.type === 'cuidador' ? 'Cuidador' : c.type === 'paciente' ? 'Paciente' : 'Outro'}
+                                </Badge>
+                                <p className="text-[10px] text-muted-foreground mt-1">{c.totalMessages} msgs</p>
+                            </div>
                         </button>
                     ))}
                 </div>
             </Card>
 
             {/* Chat View */}
-            <Card className="lg:col-span-2 !p-0 flex flex-col">
+            <Card className="lg:col-span-2 !p-0 flex flex-col overflow-hidden">
                 {selectedChat ? (
                     <>
-                        <div className="p-4 border-b flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center font-bold">{selectedChat.name?.charAt(0)}</div>
-                            <div>
-                                <p className="font-semibold">{selectedChat.name}</p>
-                                <p className="text-xs text-muted-foreground">{selectedChat.phone}</p>
+                        {/* Chat Header */}
+                        <div className="p-4 border-b bg-card flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white ${selectedChat.type === 'cuidador' ? 'bg-blue-500' : selectedChat.type === 'paciente' ? 'bg-emerald-500' : 'bg-neutral-400'}`}>
+                                {selectedChat.name?.charAt(0)?.toUpperCase() || '?'}
                             </div>
-                            {selectedChat.entityId && <a href={`/admin/${selectedChat.type === 'cuidador' ? 'cuidadores' : 'pacientes'}/${selectedChat.entityId}`} className="ml-auto text-primary flex items-center gap-1 text-sm hover:text-primary transition-colors"><ExternalLink className="w-4 h-4" />Ver Perfil</a>}
+                            <div className="flex-1 min-w-0">
+                                <p className="font-semibold truncate">{selectedChat.name || 'Desconhecido'}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{selectedChat.phone}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => fetchChat(selectedChat.phone)} className="p-2 rounded-md hover:bg-surface-subtle" title="Atualizar conversa">
+                                    <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                                </button>
+                                {selectedChat.entityId && (
+                                    <a href={`/admin/${selectedChat.type === 'cuidador' ? 'cuidadores' : 'pacientes'}/${selectedChat.entityId}`}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-primary hover:bg-primary/5 transition-colors border border-primary/20">
+                                        <ExternalLink className="w-3.5 h-3.5" />Ver Perfil
+                                    </a>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-background">
-                            {messages.map((msg) => (
-                                <div key={msg.id} className={`flex ${msg.direcao === 'OUT' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-primary-foreground' : msg.direcao === 'OUT_FAILED' ? 'bg-error-50 text-error-700 border border-error-200' : msg.direcao === 'OUT_PENDING' ? 'bg-warning-50 text-warning-700 border border-warning-200' : 'bg-card border border-border'}`}>
-                                        {msg.flow && <p className="text-xs opacity-70 mb-1">[{msg.flow}/{msg.step}]</p>}
-                                        <p>{msg.conteudo}</p>
-                                        <p className={`text-xs mt-1 ${msg.direcao === 'OUT' ? 'text-primary-200' : 'text-muted-foreground'}`}>{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-background/50">
+                            {messages.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">Nenhuma mensagem nesta conversa</p>}
+                            {messages.map((msg) => {
+                                const isOut = msg.direcao === 'OUT';
+                                const isFailed = msg.direcao === 'OUT_FAILED';
+                                const isPending = msg.direcao === 'OUT_PENDING';
+                                return (
+                                    <div key={msg.id} className={`flex ${isOut || isFailed || isPending ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[75%] px-3.5 py-2.5 rounded-2xl text-sm shadow-sm ${
+                                            isOut ? 'bg-primary text-primary-foreground rounded-br-md'
+                                                : isFailed ? 'bg-error-50 text-error-700 border border-error-200 rounded-bl-md'
+                                                    : isPending ? 'bg-warning-50 text-warning-700 border border-warning-200 rounded-bl-md'
+                                                        : 'bg-card border border-border rounded-bl-md'
+                                        }`}>
+                                            {msg.flow && <p className="text-[10px] opacity-60 mb-1 font-mono">{msg.flow}/{msg.step}</p>}
+                                            <p className="whitespace-pre-wrap break-words">{msg.conteudo}</p>
+                                            <div className="flex items-center justify-end gap-1 mt-1">
+                                                {isFailed && <span className="text-[10px] text-error-500">Falhou</span>}
+                                                {isPending && <span className="text-[10px] text-warning-500">Pendente</span>}
+                                                <p className={`text-[10px] ${isOut ? 'text-primary-200' : 'text-muted-foreground'}`}>
+                                                    {new Date(msg.timestamp).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
-                        <div className="p-3 border-t space-y-2">
+
+                        {/* Message Input */}
+                        <div className="p-3 border-t bg-card space-y-2">
                             {sendError && (
                                 <div className="px-3 py-2 rounded-lg bg-error-50 border border-error-200 text-error-700 text-xs flex items-center justify-between">
                                     <span>{sendError}</span>
-                                    <button onClick={() => setSendError(null)} className="ml-2 font-bold hover:text-error-900">x</button>
+                                    <button onClick={() => setSendError(null)} className="ml-2 text-error-400 hover:text-error-700"><X className="w-3.5 h-3.5" /></button>
                                 </div>
                             )}
                             <div className="flex gap-2">
-                                <Input placeholder="Digite sua mensagem..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} className="flex-1" />
-                                <Button onClick={handleSend} isLoading={sending}><Send className="w-4 h-4" /></Button>
+                                <Input placeholder="Digite sua mensagem..." value={newMessage}
+                                    onChange={(e) => setNewMessage(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                                    className="flex-1" />
+                                <Button onClick={handleSend} isLoading={sending} disabled={!newMessage.trim()}>
+                                    <Send className="w-4 h-4" />
+                                </Button>
                             </div>
                         </div>
                     </>
-                ) : <div className="flex-1 flex items-center justify-center text-muted-foreground">Selecione uma conversa</div>}
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
+                        <MessageCircle className="w-12 h-12 opacity-30" />
+                        <p className="text-sm">Selecione uma conversa para visualizar</p>
+                    </div>
+                )}
             </Card>
         </div>
     );

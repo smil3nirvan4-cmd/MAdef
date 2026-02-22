@@ -648,36 +648,38 @@ export async function handleConversationMessage(payload: any): Promise<boolean> 
 
     if (payload?.key?.fromMe) return true;
 
-    const normalizedIncoming = normalizeText(incoming.text);
     const legacyState = await getUserState(incoming.phone);
     const session = await loadSession(incoming.phone);
     const hasConversationSession =
-        session.hasRecord || session.state !== 'MENU' || Object.keys(session.data).length > 0;
-    const explicitConversationKeywords = new Set([
-        'orcamento',
-        'solicitar orcamento',
-        'simular',
-        'cotacao',
-        'preco',
-        'valor',
-        'servicos',
-        'servico',
-        'horario',
-        'funcionamento',
-        'cobertura',
-        'ajuda',
-        'atendente',
-        'humano',
-        'consultor',
-    ]);
-    const explicitConversationIntent =
-        isGreeting(incoming.text) ||
-        isMenuCommand(incoming.text) ||
-        isResetCommand(incoming.text) ||
-        explicitConversationKeywords.has(normalizedIncoming);
+        session.hasRecord && session.state !== 'MENU' && Object.keys(session.data).length > 0;
 
-    if (isLegacyFlowActive(legacyState?.currentFlow) && !hasConversationSession && !explicitConversationIntent) {
+    // PRIORITY: If user has an active legacy flow (onboarding, cadastro, proposta, etc.)
+    // ALWAYS defer to legacy handlers - never intercept with conversation bot
+    if (isLegacyFlowActive(legacyState?.currentFlow)) {
         return false;
+    }
+
+    // If user is mid-conversation in the commercial bot session, continue it
+    if (hasConversationSession) {
+        // allow conversation-bot to handle below
+    } else {
+        // No legacy flow and no conversation session - only handle explicit commercial keywords
+        const normalizedIncoming = normalizeText(incoming.text);
+        const commercialKeywords = new Set([
+            'orcamento',
+            'solicitar orcamento',
+            'simular',
+            'cotacao',
+            'preco',
+            'valor',
+        ]);
+        const isCommercialIntent = isBudgetCommand(incoming.text) || commercialKeywords.has(normalizedIncoming);
+
+        // For new users or idle users: let legacy ONBOARDING handle greetings and general messages
+        // Only intercept if user explicitly wants commercial/budget flow
+        if (!isCommercialIntent && !isHoursCommand(incoming.text)) {
+            return false;
+        }
     }
 
     await logIncoming(incoming.jid, incoming.text, session.state);

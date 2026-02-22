@@ -217,18 +217,28 @@ export async function handleIncomingMessage(msg: any) {
             case 'MAIN_MENU':
                 return await handleMainMenu(message, state);
 
+            case 'IDLE':
+                // IDLE state = no active flow, start onboarding for new interactions
+                state = await setUserState(phone, {
+                    currentFlow: 'ONBOARDING',
+                    currentStep: 'WELCOME',
+                    data: {},
+                });
+                await handleOnboarding(message, state);
+                return;
+
             default:
-                await sendMessage(phone, `
-Olá! Não entendi sua mensagem.
+                await sendMessage(fullJid, `
+Ola! Nao entendi sua mensagem.
 
 Digite:
-1️⃣ MENU - Ver opções
-2️⃣ AJUDA - Falar com atendente
-3️⃣ STATUS - Ver seus plantões
+1 - MENU - Ver opcoes
+2 - AJUDA - Falar com atendente
+3 - STATUS - Ver seus plantoes
         `.trim());
         }
     } catch (error) {
-        // ...
+        console.error('[Handler] error:', error);
     }
 }
 
