@@ -45,7 +45,7 @@ const TYPE_VARIANTS: Record<string, BadgeVariant> = {
 const FILTER_FIELDS: FilterField[] = [
     {
         key: 'type',
-        label: 'Type',
+        label: 'Tipo',
         type: 'select',
         options: [
             { label: 'Error', value: 'ERROR' },
@@ -55,9 +55,9 @@ const FILTER_FIELDS: FilterField[] = [
             { label: 'Debug', value: 'DEBUG' },
         ],
     },
-    { key: 'action', label: 'Action', type: 'text', placeholder: 'Filter by action...' },
-    { key: 'phone', label: 'Phone', type: 'text', placeholder: 'Filter by phone...' },
-    { key: 'created', label: 'Created', type: 'date-range' },
+    { key: 'action', label: 'Acao', type: 'text', placeholder: 'Filtrar por acao...' },
+    { key: 'phone', label: 'Telefone', type: 'text', placeholder: 'Filtrar por telefone...' },
+    { key: 'created', label: 'Data', type: 'date-range' },
 ];
 
 function parseRequestId(metadata: string | null): string {
@@ -174,7 +174,7 @@ function LogsPageContent() {
     const columns = useMemo<ColumnDef<SystemLogRow>[]>(() => ([
         {
             key: 'type',
-            header: 'Type',
+            header: 'Tipo',
             sortable: true,
             width: '130px',
             accessor: (row) => (
@@ -185,7 +185,7 @@ function LogsPageContent() {
         },
         {
             key: 'action',
-            header: 'Action',
+            header: 'Acao',
             sortable: true,
             accessor: (row) => (
                 <div className="space-y-1">
@@ -196,7 +196,7 @@ function LogsPageContent() {
         },
         {
             key: 'userId',
-            header: 'User',
+            header: 'Usuario',
             accessor: (row) => row.userId || '-',
             hidden: true,
         },
@@ -210,18 +210,18 @@ function LogsPageContent() {
         },
         {
             key: 'createdAt',
-            header: 'Created',
+            header: 'Criado em',
             sortable: true,
             width: '200px',
             accessor: (row) => formatDate(row.createdAt),
         },
         {
             key: 'details',
-            header: 'Details',
+            header: 'Detalhes',
             width: '110px',
             accessor: (row) => (
                 <Link href={`/admin/logs/${row.id}`} className="text-sm text-primary hover:underline">
-                    Open
+                    Abrir
                 </Link>
             ),
         },
@@ -232,8 +232,8 @@ function LogsPageContent() {
     return (
         <div className="p-6 lg:p-8 space-y-4">
             <PageHeader
-                title="System Logs"
-                description="Track actions, request IDs, and operational failures."
+                title="Logs do Sistema"
+                description="Acompanhe acoes, IDs de requisicao e falhas operacionais."
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
                     { label: 'Logs' },
@@ -263,7 +263,7 @@ function LogsPageContent() {
                 pagination={pagination}
                 loading={loading}
                 error={error}
-                emptyMessage="No logs found for the selected filters."
+                emptyMessage="Nenhum log encontrado para os filtros selecionados."
                 onPageChange={table.setPage}
                 onSort={table.setSort}
                 caption={`Total logs: ${totalRows}`}
@@ -274,7 +274,7 @@ function LogsPageContent() {
 
 export default function LogsPage() {
     return (
-        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading logs...</div>}>
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Carregando logs...</div>}>
             <LogsPageContent />
         </Suspense>
     );

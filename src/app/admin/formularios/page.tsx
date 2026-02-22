@@ -1,4 +1,7 @@
 import { getFormSubmissions } from '@/lib/database';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 
 // Tipagem para os dados parseados (pode variar)
 interface FormDados {
@@ -12,10 +15,17 @@ export default async function FormulariosPage() {
     const submissions = await getFormSubmissions();
 
     return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold mb-6">Submissoes de Formularios</h1>
+        <div className="p-6 lg:p-8 space-y-4">
+            <PageHeader
+                title="Submissoes de Formularios"
+                description="Formularios recebidos via site e WhatsApp."
+                breadcrumbs={[
+                    { label: 'Dashboard', href: '/admin/dashboard' },
+                    { label: 'Formularios' },
+                ]}
+            />
 
-            <div className="bg-card rounded-lg shadow overflow-hidden">
+            <Card noPadding>
                 {submissions.length === 0 ? (
                     <div className="p-8 text-center text-muted-foreground">
                         Nenhum formulário recebido ainda.
@@ -34,9 +44,7 @@ export default async function FormulariosPage() {
                                 <div key={sub.id} className="p-6 hover:bg-background transition">
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-info-100 text-primary">
-                                                {sub.tipo}
-                                            </span>
+                                            <Badge variant="info">{sub.tipo}</Badge>
                                             <h3 className="text-lg font-medium text-foreground mt-1">
                                                 {parsedData.nome || 'Sem nome'}
                                             </h3>
@@ -57,7 +65,7 @@ export default async function FormulariosPage() {
                         })}
                     </div>
                 )}
-            </div>
+            </Card>
         </div>
     );
 }

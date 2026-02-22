@@ -153,7 +153,7 @@ export default function WhatsAppQueuePage() {
         },
         {
             accessorKey: 'id',
-            header: 'Queue Item',
+            header: 'Item da Fila',
             cell: ({ row }) => (
                 <Link href={`/admin/whatsapp/queue/${row.original.id}`} className="font-mono text-xs text-primary hover:underline">
                     {row.original.id}
@@ -186,7 +186,7 @@ export default function WhatsAppQueuePage() {
         },
         {
             accessorKey: 'retries',
-            header: 'Retries',
+            header: 'Tentativas',
         },
         {
             accessorKey: 'idempotencyKey',
@@ -195,7 +195,7 @@ export default function WhatsAppQueuePage() {
         },
         {
             accessorKey: 'resolvedMessageId',
-            header: 'Resolved Message ID',
+            header: 'ID Mensagem',
             cell: ({ row }) => <span className="font-mono text-[11px]">{row.original.resolvedMessageId || '-'}</span>,
         },
         {
@@ -223,12 +223,12 @@ export default function WhatsAppQueuePage() {
     return (
         <div className="p-6 lg:p-8">
             <PageHeader
-                title="WhatsApp Queue"
+                title="Fila do WhatsApp"
                 description="Outbox com retries, reprocessamento, filtros e drilldown."
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
                     { label: 'WhatsApp', href: '/admin/whatsapp' },
-                    { label: 'Queue' },
+                    { label: 'Fila' },
                 ]}
             />
 
@@ -348,7 +348,7 @@ export default function WhatsAppQueuePage() {
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => runAction('retry')} disabled={!selectedIds.length}>
                                 <RotateCcw className="w-4 h-4" />
-                                Retry
+                                Retentar
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => runAction('reprocess')} disabled={!selectedIds.length}>
                                 <RotateCcw className="w-4 h-4" />

@@ -73,7 +73,7 @@ const FILTER_FIELDS: FilterField[] = [
             { label: 'HOSPITAL', value: 'HOSPITAL' },
         ],
     },
-    { key: 'created', label: 'Created', type: 'date-range' },
+    { key: 'created', label: 'Data', type: 'date-range' },
 ];
 
 function buildQueryString(args: {
@@ -264,10 +264,10 @@ function AvaliacoesPageContent() {
                 pagination={pagination}
                 loading={loading}
                 error={error}
-                emptyMessage="No avaliacao found."
+                emptyMessage="Nenhuma avaliacao encontrada."
                 onPageChange={table.setPage}
                 onSort={table.setSort}
-                caption={`Rows: ${pagination?.total || 0}`}
+                caption={`Total: ${pagination?.total || 0}`}
             />
         </div>
     );
@@ -275,7 +275,7 @@ function AvaliacoesPageContent() {
 
 export default function AvaliacoesPage() {
     return (
-        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading avaliacoes...</div>}>
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Carregando avaliacoes...</div>}>
             <AvaliacoesPageContent />
         </Suspense>
     );

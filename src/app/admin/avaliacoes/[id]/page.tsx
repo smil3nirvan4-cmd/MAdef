@@ -664,7 +664,7 @@ export default function AvaliacaoDetailPage() {
     }, [avaliacao?.dadosDetalhados]);
 
     if (loading) {
-        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading avaliacao...</div>;
+        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Carregando avaliacao...</div>;
     }
 
     if (error && !avaliacao) {
@@ -676,7 +676,7 @@ export default function AvaliacaoDetailPage() {
                     breadcrumbs={[
                         { label: 'Dashboard', href: '/admin/dashboard' },
                         { label: 'Avaliacoes', href: '/admin/avaliacoes' },
-                        { label: 'Detail' },
+                        { label: 'Detalhe' },
                     ]}
                 />
                 <Card>
@@ -685,7 +685,7 @@ export default function AvaliacaoDetailPage() {
                         <Link href="/admin/avaliacoes">
                             <Button size="sm" variant="outline">
                                 <ArrowLeft className="h-4 w-4" />
-                                Back
+                                Voltar
                             </Button>
                         </Link>
                     </div>
@@ -712,7 +712,7 @@ export default function AvaliacaoDetailPage() {
                     <Link href="/admin/avaliacoes">
                         <Button size="sm" variant="outline">
                             <ArrowLeft className="h-4 w-4" />
-                            Back
+                            Voltar
                         </Button>
                     </Link>
                 )}
@@ -905,7 +905,7 @@ export default function AvaliacaoDetailPage() {
                                 </div>
                                 <p className="mt-2 text-sm text-foreground">{entry.message}</p>
                                 <Link href={`/admin/logs/${entry.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
-                                    Open log detail
+                                    Abrir detalhe do log
                                 </Link>
                             </div>
                         ))}

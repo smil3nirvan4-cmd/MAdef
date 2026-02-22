@@ -147,7 +147,7 @@ export default function PacienteDetalhePage() {
     );
 
     if (loading) {
-        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading paciente...</div>;
+        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Carregando paciente...</div>;
     }
 
     if (error || !data) {
@@ -159,7 +159,7 @@ export default function PacienteDetalhePage() {
                     breadcrumbs={[
                         { label: 'Dashboard', href: '/admin/dashboard' },
                         { label: 'Pacientes', href: '/admin/pacientes' },
-                        { label: 'Detail' },
+                        { label: 'Detalhe' },
                     ]}
                 />
                 <Card>
@@ -168,7 +168,7 @@ export default function PacienteDetalhePage() {
                         <Link href="/admin/pacientes">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4" />
-                                Back
+                                Voltar
                             </Button>
                         </Link>
                     </div>
@@ -192,7 +192,7 @@ export default function PacienteDetalhePage() {
                         <Link href="/admin/pacientes">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4" />
-                                Back
+                                Voltar
                             </Button>
                         </Link>
                         {whatsappPhone ? (
@@ -239,9 +239,9 @@ export default function PacienteDetalhePage() {
                                         <Badge variant={STATUS_BADGE[avaliacao.status] || 'default'}>{avaliacao.status}</Badge>
                                         <span className="text-xs text-muted-foreground">{formatDate(avaliacao.createdAt)}</span>
                                     </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">WhatsApp: {avaliacao.whatsappEnviado ? 'sent' : 'pending'}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">WhatsApp: {avaliacao.whatsappEnviado ? 'enviado' : 'pendente'}</p>
                                     <Link href={`/admin/avaliacoes/${avaliacao.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
-                                        Open avaliacao
+                                        Abrir avaliacao
                                     </Link>
                                 </div>
                             ))}
@@ -287,7 +287,7 @@ export default function PacienteDetalhePage() {
                                 </div>
                                 <p className="mt-1 text-sm text-foreground">{entry.message}</p>
                                 <Link href={`/admin/logs/${entry.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
-                                    Open log detail
+                                    Abrir detalhe do log
                                 </Link>
                             </div>
                         ))}

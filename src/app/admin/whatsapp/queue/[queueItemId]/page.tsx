@@ -94,12 +94,12 @@ export default function QueueItemDetailsPage() {
     return (
         <div className="p-6 lg:p-8">
             <PageHeader
-                title={`Queue Item ${queueItemId}`}
+                title={`Item da Fila ${queueItemId}`}
                 description="Timeline, payload e logs correlatos."
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
                     { label: 'WhatsApp', href: '/admin/whatsapp' },
-                    { label: 'Queue', href: '/admin/whatsapp/queue' },
+                    { label: 'Fila', href: '/admin/whatsapp/queue' },
                     { label: 'Detalhe' },
                 ]}
                 actions={(
@@ -126,11 +126,11 @@ export default function QueueItemDetailsPage() {
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between"><span>Status</span><Badge>{item.status}</Badge></div>
                                 <div className="flex justify-between"><span>Intent</span><span>{item.intent || '-'}</span></div>
-                                <div className="flex justify-between"><span>Retries</span><span>{item.retries}</span></div>
+                                <div className="flex justify-between"><span>Tentativas</span><span>{item.retries}</span></div>
                                 <div className="flex justify-between"><span>Telefone</span><span className="font-mono">{item.phone}</span></div>
-                                <div className="flex justify-between"><span>Internal ID</span><span className="font-mono text-xs">{item.internalMessageId || '-'}</span></div>
-                                <div className="flex justify-between"><span>Provider ID</span><span className="font-mono text-xs">{item.providerMessageId || '-'}</span></div>
-                                <div className="flex justify-between"><span>Resolved ID</span><span className="font-mono text-xs">{item.resolvedMessageId || '-'}</span></div>
+                                <div className="flex justify-between"><span>ID Interno</span><span className="font-mono text-xs">{item.internalMessageId || '-'}</span></div>
+                                <div className="flex justify-between"><span>ID Provedor</span><span className="font-mono text-xs">{item.providerMessageId || '-'}</span></div>
+                                <div className="flex justify-between"><span>ID Resolvido</span><span className="font-mono text-xs">{item.resolvedMessageId || '-'}</span></div>
                             </div>
                         </Card>
 

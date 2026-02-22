@@ -80,28 +80,28 @@ export default function LogDetailPage() {
     const metadata = useMemo(() => safeParseMetadata(log?.metadata || null), [log?.metadata]);
 
     if (loading) {
-        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading log...</div>;
+        return <div className="p-6 lg:p-8 text-sm text-muted-foreground">Carregando log...</div>;
     }
 
     if (error || !log) {
         return (
             <div className="p-6 lg:p-8 space-y-4">
                 <PageHeader
-                    title="Log Detail"
-                    description={error || 'Log not found'}
+                    title="Detalhe do Log"
+                    description={error || 'Log nao encontrado'}
                     breadcrumbs={[
                         { label: 'Dashboard', href: '/admin/dashboard' },
                         { label: 'Logs', href: '/admin/logs' },
-                        { label: 'Detail' },
+                        { label: 'Detalhe' },
                     ]}
                 />
                 <Card>
                     <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm text-error-600">{error || 'Log not found'}</p>
+                        <p className="text-sm text-error-600">{error || 'Log nao encontrado'}</p>
                         <Link href="/admin/logs">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4" />
-                                Back
+                                Voltar
                             </Button>
                         </Link>
                     </div>
@@ -113,7 +113,7 @@ export default function LogDetailPage() {
     return (
         <div className="p-6 lg:p-8 space-y-4">
             <PageHeader
-                title="Log Detail"
+                title="Detalhe do Log"
                 description={log.action}
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
@@ -124,7 +124,7 @@ export default function LogDetailPage() {
                     <Link href="/admin/logs">
                         <Button variant="outline" size="sm">
                             <ArrowLeft className="h-4 w-4" />
-                            Back
+                            Voltar
                         </Button>
                     </Link>
                 )}
@@ -132,27 +132,27 @@ export default function LogDetailPage() {
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-muted-foreground">Type</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Tipo</p>
                     <Badge variant={TYPE_VARIANTS[log.type] || 'default'}>{log.type}</Badge>
                 </Card>
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-muted-foreground">User</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Usuario</p>
                     <p className="text-sm text-foreground">{log.userId || '-'}</p>
                 </Card>
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-muted-foreground">Created</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">Criado em</p>
                     <p className="text-sm text-foreground">{new Date(log.createdAt).toLocaleString('pt-BR')}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Duration: {log.duration ?? '-'} ms</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Duracao: {log.duration ?? '-'} ms</p>
                 </Card>
             </div>
 
             <Card>
-                <p className="mb-2 text-xs uppercase text-muted-foreground">Message</p>
+                <p className="mb-2 text-xs uppercase text-muted-foreground">Mensagem</p>
                 <p className="text-sm text-foreground">{log.message}</p>
             </Card>
 
             <Card>
-                <p className="mb-2 text-xs uppercase text-muted-foreground">Metadata</p>
+                <p className="mb-2 text-xs uppercase text-muted-foreground">Metadados</p>
                 <pre className="max-h-[480px] overflow-auto rounded-lg bg-neutral-900 p-4 text-xs text-green-300">
                     {metadata}
                 </pre>

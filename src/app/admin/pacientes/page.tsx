@@ -50,7 +50,7 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
 };
 
 const FILTER_FIELDS: FilterField[] = [
-    { key: 'search', label: 'Search', type: 'text', placeholder: 'Name or phone...' },
+    { key: 'search', label: 'Buscar', type: 'text', placeholder: 'Nome ou telefone...' },
     {
         key: 'status',
         label: 'Status',
@@ -62,7 +62,7 @@ const FILTER_FIELDS: FilterField[] = [
             { label: 'INATIVO', value: 'INATIVO' },
         ],
     },
-    { key: 'cidade', label: 'Cidade', type: 'text', placeholder: 'Filter by city...' },
+    { key: 'cidade', label: 'Cidade', type: 'text', placeholder: 'Filtrar por cidade...' },
 ];
 
 function buildQueryString(args: {
@@ -171,7 +171,7 @@ function PacientesPageContent() {
         },
         {
             key: 'createdAt',
-            header: 'Created',
+            header: 'Criado em',
             sortable: true,
             accessor: (row) => new Date(row.createdAt).toLocaleString('pt-BR'),
         },
@@ -182,7 +182,7 @@ function PacientesPageContent() {
             accessor: (row) => (
                 <div className="flex items-center gap-2">
                     <Link href={`/admin/pacientes/${row.id}`} className="text-sm text-primary hover:underline">
-                        Detail
+                        Detalhes
                     </Link>
                     <a
                         href={`https://wa.me/${String(row.telefone || '').replace(/\D/g, '')}`}
@@ -201,7 +201,7 @@ function PacientesPageContent() {
         <div className="p-6 lg:p-8 space-y-4">
             <PageHeader
                 title="Pacientes"
-                description="Track active patients, their status, and communication history."
+                description="Acompanhe pacientes ativos, status e historico de comunicacao."
                 breadcrumbs={[
                     { label: 'Dashboard', href: '/admin/dashboard' },
                     { label: 'Pacientes' },
@@ -209,7 +209,7 @@ function PacientesPageContent() {
                 actions={(
                     <Button variant="outline" size="sm" onClick={fetchRows} isLoading={loading}>
                         <RefreshCw className="h-4 w-4" />
-                        Refresh
+                        Atualizar
                     </Button>
                 )}
             />
@@ -235,10 +235,10 @@ function PacientesPageContent() {
                 pagination={pagination}
                 loading={loading}
                 error={error}
-                emptyMessage="No pacientes found."
+                emptyMessage="Nenhum paciente encontrado."
                 onPageChange={table.setPage}
                 onSort={table.setSort}
-                caption={`Rows: ${pagination?.total || 0}`}
+                caption={`Total: ${pagination?.total || 0}`}
             />
         </div>
     );
@@ -246,7 +246,7 @@ function PacientesPageContent() {
 
 export default function PacientesPage() {
     return (
-        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Loading pacientes...</div>}>
+        <Suspense fallback={<div className="p-6 lg:p-8 text-sm text-muted-foreground">Carregando pacientes...</div>}>
             <PacientesPageContent />
         </Suspense>
     );
