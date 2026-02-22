@@ -232,6 +232,21 @@ export default function AvaliacaoDetailPage() {
     const canManageOrcamentos = hasCapability('MANAGE_ORCAMENTOS');
     const isDbSchemaBlocked = !dbSchemaStatus.ok;
 
+    /* ── Auto-calculate valorParcela when dependencies change ── */
+    useEffect(() => {
+        const valorFinalNum = Number(documentOptions.valorFinal) || 0;
+        const entradaNum = Number(documentOptions.entrada) || 0;
+        const parcelasNum = Number(documentOptions.parcelas) || 1;
+        if (valorFinalNum > 0 && parcelasNum >= 1) {
+            const restante = Math.max(0, valorFinalNum - entradaNum);
+            const novaParcelaValue = parcelasNum > 0 ? (restante / parcelasNum).toFixed(2) : '0';
+            setDocumentOptions((prev) => {
+                if (prev.valorParcela === novaParcelaValue) return prev;
+                return { ...prev, valorParcela: novaParcelaValue };
+            });
+        }
+    }, [documentOptions.valorFinal, documentOptions.entrada, documentOptions.parcelas]);
+
     const loadAvaliacao = useCallback(async () => {
         if (!params?.id) return;
         setLoading(true);
@@ -737,16 +752,22 @@ export default function AvaliacaoDetailPage() {
                     <p className="mb-2 text-xs uppercase text-muted-foreground">Status</p>
                     <Badge variant={STATUS_VARIANT[avaliacao.status] || 'default'}>{avaliacao.status}</Badge>
                     <div className="mt-3 space-y-1 text-sm text-foreground">
-                        <p>Created: {safeFormatDate(avaliacao.createdAt)}</p>
-                        <p>Validated: {safeFormatDate(avaliacao.validadoEm)}</p>
+                        <p><span className="text-muted-foreground">Criado em:</span> {safeFormatDate(avaliacao.createdAt)}</p>
+                        <p><span className="text-muted-foreground">Validado em:</span> {safeFormatDate(avaliacao.validadoEm)}</p>
                     </div>
                 </Card>
 
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-muted-foreground">WhatsApp Tracking</p>
-                    <p className="text-sm text-foreground">Sent: {avaliacao.whatsappEnviado ? 'yes' : 'no'}</p>
-                    <p className="text-sm text-foreground">Sent At: {safeFormatDate(avaliacao.whatsappEnviadoEm)}</p>
-                    <p className="text-sm text-foreground">Message ID: {avaliacao.whatsappMessageId || '-'}</p>
+                    <p className="mb-2 text-xs uppercase text-muted-foreground">WhatsApp</p>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Badge variant={avaliacao.whatsappEnviado ? 'whatsapp' : 'warning'}>
+                            {avaliacao.whatsappEnviado ? 'Enviado' : 'Nao enviado'}
+                        </Badge>
+                    </div>
+                    <div className="space-y-1 text-sm text-foreground">
+                        <p><span className="text-muted-foreground">Enviado em:</span> {safeFormatDate(avaliacao.whatsappEnviadoEm)}</p>
+                        <p className="truncate"><span className="text-muted-foreground">ID:</span> <span className="font-mono text-xs">{avaliacao.whatsappMessageId || '-'}</span></p>
+                    </div>
                     {avaliacao.whatsappErro ? (
                         <p className="mt-2 rounded bg-error-50 p-2 text-xs text-error-600">{avaliacao.whatsappErro}</p>
                     ) : null}
@@ -755,31 +776,31 @@ export default function AvaliacaoDetailPage() {
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
-                    <p className="mb-3 text-xs uppercase text-muted-foreground">Acoes</p>
-                    <div className="flex flex-wrap gap-2">
+                    <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Acoes</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         <Button
                             size="sm"
-                            variant="outline"
+                            className="justify-start bg-purple-600 hover:bg-purple-700"
                             disabled={isDbSchemaBlocked || !canSendProposta || !!actionState}
                             isLoading={actionState === 'proposta'}
                             onClick={() => openDocumentModal('proposta')}
                         >
-                            <FileText className="h-4 w-4" />
-                            Enviar Proposta
+                            <FileText className="h-3.5 w-3.5" />
+                            Proposta
                         </Button>
                         <Button
                             size="sm"
-                            variant="outline"
+                            className="justify-start bg-indigo-600 hover:bg-indigo-700"
                             disabled={isDbSchemaBlocked || !canSendContrato || !!actionState}
                             isLoading={actionState === 'contrato'}
                             onClick={() => openDocumentModal('contrato')}
                         >
-                            <FileText className="h-4 w-4" />
-                            Enviar Contrato
+                            <FileText className="h-3.5 w-3.5" />
+                            Contrato
                         </Button>
                         <Link
                             href={`/admin/orcamentos/novo?avaliacaoId=${avaliacao.id}`}
-                            className={`inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium transition-colors ${
+                            className={`inline-flex h-8 items-center justify-start gap-1.5 rounded-md px-3 text-xs font-medium transition-colors ${
                                 canManageOrcamentos
                                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                     : 'cursor-not-allowed bg-surface-subtle text-muted-foreground'
@@ -793,48 +814,66 @@ export default function AvaliacaoDetailPage() {
                         </Link>
                         <Button
                             size="sm"
+                            variant="success"
+                            className="justify-start"
                             disabled={!!actionState}
                             isLoading={actionState === 'aprovar'}
                             onClick={() => handleStatusAction('aprovar')}
                         >
-                            <CheckCircle2 className="h-4 w-4" />
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                             Aprovar
                         </Button>
                         <Button
                             size="sm"
                             variant="danger"
+                            className="justify-start"
                             disabled={!!actionState}
                             isLoading={actionState === 'rejeitar'}
                             onClick={() => handleStatusAction('rejeitar')}
                         >
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-3.5 w-3.5" />
                             Rejeitar
                         </Button>
                         <Button
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
+                            className="justify-start"
                             disabled={!!actionState}
                             isLoading={actionState === 'concluir'}
                             onClick={() => handleStatusAction('concluir')}
                         >
                             Concluir
                         </Button>
+                    </div>
+                    <div className="mt-2">
                         <Button
                             size="sm"
                             variant="ghost"
+                            className="w-full justify-start text-muted-foreground"
                             onClick={() => router.push(`/admin/whatsapp/chats?phone=${encodeURIComponent(avaliacao.paciente.telefone)}`)}
                         >
-                            <MessageCircle className="h-4 w-4" />
-                            Abrir chat
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            Abrir chat WhatsApp
                         </Button>
                     </div>
                 </Card>
 
                 <Card>
-                    <p className="mb-2 text-xs uppercase text-muted-foreground">Resumo Clinico</p>
-                    <p className="text-sm text-foreground">Nivel sugerido: {avaliacao.nivelSugerido || '-'}</p>
-                    <p className="text-sm text-foreground">Carga sugerida: {avaliacao.cargaSugerida || '-'}</p>
-                    <p className="text-sm text-foreground">Valor proposto: {avaliacao.valorProposto || '-'}</p>
+                    <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Resumo Clinico</p>
+                    <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Nivel sugerido</span>
+                            <span className="font-medium text-foreground">{avaliacao.nivelSugerido || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Carga sugerida</span>
+                            <span className="font-medium text-foreground">{avaliacao.cargaSugerida || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Valor proposto</span>
+                            <span className="font-medium text-foreground">{avaliacao.valorProposto || '-'}</span>
+                        </div>
+                    </div>
                 </Card>
             </div>
 
@@ -907,9 +946,10 @@ export default function AvaliacaoDetailPage() {
                             </Button>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="max-h-[75vh] space-y-4 overflow-y-auto pr-1">
+                            {/* ── Orcamento Source ── */}
                             <label className="block text-sm">
-                                <span className="mb-1 block font-medium text-foreground">Orcamento</span>
+                                <span className="mb-1 block font-medium text-foreground">Orcamento base</span>
                                 <select
                                     value={documentOptions.orcamentoId}
                                     onChange={(event) => {
@@ -936,174 +976,185 @@ export default function AvaliacaoDetailPage() {
                                     <option value="">Mais recente do paciente</option>
                                     {(avaliacao?.paciente?.orcamentos || []).map((item) => (
                                         <option key={item.id} value={item.id}>
-                                            {item.id} - {item.status} - {item.valorFinal ? item.valorFinal.toFixed(2) : 'sem valor'}
+                                            {item.id} - {item.status} - {item.valorFinal ? `R$ ${item.valorFinal.toFixed(2)}` : 'sem valor'}
                                         </option>
                                     ))}
                                 </select>
                             </label>
 
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Cenario</span>
-                                    <select
-                                        value={documentOptions.cenarioSelecionado}
-                                        onChange={(event) => setDocumentOptions((prev) => ({
-                                            ...prev,
-                                            cenarioSelecionado: sanitizeScenarioKey(event.target.value),
-                                        }))}
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    >
-                                        <option value="economico">Economico</option>
-                                        <option value="recomendado">Recomendado</option>
-                                        <option value="premium">Premium</option>
-                                    </select>
-                                </label>
-
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Desconto manual (%)</span>
-                                    <input
-                                        value={documentOptions.descontoManualPercent}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, descontoManualPercent: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        max={100}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Valor do periodo (R$)</span>
-                                    <input
-                                        value={documentOptions.valorPeriodo}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorPeriodo: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Data vencimento</span>
-                                    <input
-                                        type="date"
-                                        value={documentOptions.dataVencimento}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, dataVencimento: event.target.value }))}
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Valor final (R$/semana)</span>
-                                    <input
-                                        value={documentOptions.valorFinal}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorFinal: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Descontos (R$)</span>
-                                    <input
-                                        value={documentOptions.descontoValor}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, descontoValor: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Acrescimos (R$)</span>
-                                    <input
-                                        value={documentOptions.acrescimosValor}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, acrescimosValor: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Parcelas</span>
-                                    <input
-                                        value={documentOptions.parcelas}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, parcelas: event.target.value }))}
-                                        type="number"
-                                        min={1}
-                                        max={24}
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Entrada (R$)</span>
-                                    <input
-                                        value={documentOptions.entrada}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, entrada: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Valor da parcela (R$)</span>
-                                    <input
-                                        value={documentOptions.valorParcela}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorParcela: event.target.value }))}
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Minicustos desativados</span>
-                                    <input
-                                        value={documentOptions.minicustosDesativados}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, minicustosDesativados: event.target.value }))}
-                                        placeholder="RESERVA_TECNICA, VISITA_SUPERVISAO"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Metodos (csv)</span>
-                                    <input
-                                        value={documentOptions.metodosPagamento}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, metodosPagamento: event.target.value }))}
-                                        placeholder="PIX, CARTAO DE CREDITO"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                                <label className="block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Forma de pagamento (csv)</span>
-                                    <input
-                                        value={documentOptions.opcoesParcelamento}
-                                        onChange={(event) => setDocumentOptions((prev) => ({ ...prev, opcoesParcelamento: event.target.value }))}
-                                        placeholder="1x sem juros, 2x sem juros, 3x sem juros, 4x sem juros"
-                                        className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
-                                    />
-                                </label>
-                            </div>
-
+                            {/* ── Secao 1: Cenario e Desconto ── */}
                             <div className="rounded-lg border border-border bg-background p-3">
-                                <p className="mb-2 text-sm font-medium text-foreground">Planejamento 360 (datas e alocacao)</p>
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Cenario e Desconto</p>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Cenario</span>
+                                        <select
+                                            value={documentOptions.cenarioSelecionado}
+                                            onChange={(event) => setDocumentOptions((prev) => ({
+                                                ...prev,
+                                                cenarioSelecionado: sanitizeScenarioKey(event.target.value),
+                                            }))}
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        >
+                                            <option value="economico">Economico</option>
+                                            <option value="recomendado">Recomendado</option>
+                                            <option value="premium">Premium</option>
+                                        </select>
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Desconto manual (%)</span>
+                                        <input
+                                            value={documentOptions.descontoManualPercent}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, descontoManualPercent: event.target.value }))}
+                                            type="number"
+                                            min={0}
+                                            max={100}
+                                            step="0.01"
+                                            placeholder="0"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* ── Secao 2: Valores e Pagamento ── */}
+                            <div className="rounded-lg border border-border bg-background p-3">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Valores e Pagamento</p>
+                                <div className="grid gap-3 md:grid-cols-3">
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Valor do periodo (R$)</span>
+                                        <input
+                                            value={documentOptions.valorPeriodo}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorPeriodo: event.target.value }))}
+                                            type="number"
+                                            min={0}
+                                            step="0.01"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Data vencimento</span>
+                                        <input
+                                            type="date"
+                                            value={documentOptions.dataVencimento}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, dataVencimento: event.target.value }))}
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Valor final (R$)</span>
+                                        <input
+                                            value={documentOptions.valorFinal}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, valorFinal: event.target.value }))}
+                                            type="number"
+                                            min={0}
+                                            step="0.01"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm font-semibold"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Descontos (R$)</span>
+                                        <input
+                                            value={documentOptions.descontoValor}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, descontoValor: event.target.value }))}
+                                            type="number"
+                                            min={0}
+                                            step="0.01"
+                                            placeholder="0"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Acrescimos (R$)</span>
+                                        <input
+                                            value={documentOptions.acrescimosValor}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, acrescimosValor: event.target.value }))}
+                                            type="number"
+                                            min={0}
+                                            step="0.01"
+                                            placeholder="0"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Parcelas</span>
+                                        <input
+                                            value={documentOptions.parcelas}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, parcelas: event.target.value }))}
+                                            type="number"
+                                            min={1}
+                                            max={24}
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Entrada (R$)</span>
+                                        <input
+                                            value={documentOptions.entrada}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, entrada: event.target.value }))}
+                                            type="number"
+                                            min={0}
+                                            step="0.01"
+                                            placeholder="0"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Valor da parcela (R$)</span>
+                                        <input
+                                            value={documentOptions.valorParcela}
+                                            readOnly
+                                            className="w-full rounded-lg border border-border-hover bg-surface-subtle px-3 py-2 text-sm font-semibold text-primary cursor-not-allowed"
+                                            title="Calculado automaticamente"
+                                        />
+                                        <span className="mt-0.5 block text-[10px] text-muted-foreground">Auto-calculado: (Valor final - Entrada) / Parcelas</span>
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Minicustos desativados</span>
+                                        <input
+                                            value={documentOptions.minicustosDesativados}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, minicustosDesativados: event.target.value }))}
+                                            placeholder="RESERVA_TECNICA, VISITA_SUPERVISAO"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Metodos de pagamento (csv)</span>
+                                        <input
+                                            value={documentOptions.metodosPagamento}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, metodosPagamento: event.target.value }))}
+                                            placeholder="PIX, CARTAO DE CREDITO"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                    <label className="block text-sm">
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Formas de parcelamento (csv)</span>
+                                        <input
+                                            value={documentOptions.opcoesParcelamento}
+                                            onChange={(event) => setDocumentOptions((prev) => ({ ...prev, opcoesParcelamento: event.target.value }))}
+                                            placeholder="1x sem juros, 2x sem juros, 3x sem juros"
+                                            className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* ── Secao 3: Planejamento 360 ── */}
+                            <div className="rounded-lg border border-border bg-background p-3">
+                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">Planejamento 360</p>
 
                                 <div className="grid gap-3 md:grid-cols-3">
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Inicio</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Inicio do cuidado</span>
                                         <input
                                             type="date"
                                             value={documentOptions.dataInicioCuidado}
@@ -1112,7 +1163,7 @@ export default function AvaliacaoDetailPage() {
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Fim</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Fim do cuidado</span>
                                         <input
                                             type="date"
                                             value={documentOptions.dataFimCuidado}
@@ -1121,7 +1172,7 @@ export default function AvaliacaoDetailPage() {
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Periodicidade</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Periodicidade</span>
                                         <select
                                             value={documentOptions.periodicidade}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, periodicidade: event.target.value }))}
@@ -1137,7 +1188,7 @@ export default function AvaliacaoDetailPage() {
 
                                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Semanas</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Semanas planejadas</span>
                                         <input
                                             value={documentOptions.semanasPlanejadas}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, semanasPlanejadas: event.target.value }))}
@@ -1148,7 +1199,7 @@ export default function AvaliacaoDetailPage() {
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Meses</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Meses planejados</span>
                                         <input
                                             value={documentOptions.mesesPlanejados}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, mesesPlanejados: event.target.value }))}
@@ -1159,7 +1210,7 @@ export default function AvaliacaoDetailPage() {
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Horas/dia</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Horas por dia</span>
                                         <input
                                             value={documentOptions.horasCuidadoDia}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, horasCuidadoDia: event.target.value }))}
@@ -1174,16 +1225,16 @@ export default function AvaliacaoDetailPage() {
 
                                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Dias (csv)</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Dias de atendimento (csv)</span>
                                         <input
                                             value={documentOptions.diasAtendimento}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, diasAtendimento: event.target.value }))}
-                                            placeholder="seg,ter,qua,qui,sex"
+                                            placeholder="seg, ter, qua, qui, sex"
                                             className="w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                         />
                                     </label>
                                     <label className="block text-sm">
-                                        <span className="mb-1 block font-medium text-foreground">Tempo de cuidado</span>
+                                        <span className="mb-1 block text-xs font-medium text-muted-foreground">Descricao do tempo de cuidado</span>
                                         <input
                                             value={documentOptions.tempoCuidadoDescricao}
                                             onChange={(event) => setDocumentOptions((prev) => ({ ...prev, tempoCuidadoDescricao: event.target.value }))}
@@ -1194,19 +1245,20 @@ export default function AvaliacaoDetailPage() {
                                 </div>
 
                                 <label className="mt-3 block text-sm">
-                                    <span className="mb-1 block font-medium text-foreground">Resumo de alocacao</span>
+                                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Resumo de alocacao</span>
                                     <textarea
                                         value={documentOptions.alocacaoResumo}
                                         onChange={(event) => setDocumentOptions((prev) => ({ ...prev, alocacaoResumo: event.target.value }))}
                                         placeholder="Escala, cobertura, substituicoes..."
-                                        className="h-20 w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
+                                        className="h-16 w-full rounded-lg border border-border-hover px-3 py-2 text-sm"
                                     />
                                 </label>
                             </div>
 
+                            {/* ── Secao 4: Mensagem ── */}
                             <div className="rounded-lg border border-border bg-background p-3">
                                 <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium text-foreground">Template da mensagem</p>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">Mensagem WhatsApp</p>
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -1223,19 +1275,20 @@ export default function AvaliacaoDetailPage() {
                                 <textarea
                                     value={documentOptions.mensagemTemplate}
                                     onChange={(event) => setDocumentOptions((prev) => ({ ...prev, mensagemTemplate: event.target.value }))}
-                                    className="h-44 w-full rounded-lg border border-border-hover px-3 py-2 text-sm font-mono"
+                                    className="h-36 w-full rounded-lg border border-border-hover px-3 py-2 text-xs font-mono"
                                     placeholder="Edite o template com placeholders, ex.: {{nome}}, {{investimentoTotal}}"
                                 />
                                 {documentPreview?.missingVariables?.length ? (
-                                    <p className="mt-2 text-xs text-warning-600">
-                                        Variaveis ausentes no template: {documentPreview.missingVariables.join(', ')}
+                                    <p className="mt-1 text-xs text-warning-600">
+                                        Variaveis ausentes: {documentPreview.missingVariables.join(', ')}
                                     </p>
                                 ) : null}
                             </div>
 
+                            {/* ── Preview ── */}
                             <div className="rounded-lg border border-border p-3">
                                 <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium text-foreground">Preview da mensagem final</p>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preview da mensagem</p>
                                     <Button
                                         size="sm"
                                         variant="outline"
@@ -1243,15 +1296,16 @@ export default function AvaliacaoDetailPage() {
                                         isLoading={pdfPreviewLoading}
                                         disabled={!documentPreview}
                                     >
-                                        Abrir preview PDF
+                                        Abrir PDF
                                     </Button>
                                 </div>
-                                <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-neutral-900 p-3 text-xs text-green-300">
-                                    {documentPreview?.previewMessage || 'Clique em "Atualizar preview" para visualizar a mensagem.'}
+                                <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded bg-neutral-900 p-3 text-xs text-green-300">
+                                    {documentPreview?.previewMessage || 'Clique em "Atualizar preview" para visualizar.'}
                                 </pre>
                             </div>
 
-                            <div className="flex gap-2 pt-2">
+                            {/* ── Actions ── */}
+                            <div className="flex gap-2 pt-1">
                                 <Button
                                     className="flex-1"
                                     onClick={confirmDocumentAction}

@@ -763,77 +763,84 @@ export default function OrcamentoDetalhePage() {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <Card>
-                    <h3 className="mb-3 font-semibold">Resumo</h3>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Status</span>
-                            <Badge variant={STATUS_VARIANT[orcamento.status] || 'default'}>{orcamento.status}</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Valor Final</span>
-                            <span className="font-medium">{formatCurrency(orcamento.valorFinal)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Desconto Manual</span>
-                            <span>{orcamento.descontoManualPercent !== null && orcamento.descontoManualPercent !== undefined ? `${orcamento.descontoManualPercent}%` : '-'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Cenario</span>
-                            <span className="uppercase">{sanitizeScenarioKey(orcamento.cenarioSelecionado)}</span>
-                        </div>
+                    <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Resumo</p>
+                    <div className="mb-3 flex items-center gap-3">
+                        <Badge variant={STATUS_VARIANT[orcamento.status] || 'default'}>{orcamento.status}</Badge>
+                        <span className="text-xs uppercase text-muted-foreground">{sanitizeScenarioKey(orcamento.cenarioSelecionado)}</span>
+                    </div>
+                    {orcamento.valorFinal ? (
+                        <p className="mb-3 text-2xl font-bold text-foreground">{formatCurrency(orcamento.valorFinal)}</p>
+                    ) : null}
+                    <div className="space-y-1.5 text-sm">
+                        {orcamento.descontoManualPercent !== null && orcamento.descontoManualPercent !== undefined && orcamento.descontoManualPercent > 0 ? (
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Desconto</span>
+                                <span className="text-primary font-medium">{orcamento.descontoManualPercent}%</span>
+                            </div>
+                        ) : null}
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Criado em</span>
-                            <span>{formatDate(orcamento.createdAt)}</span>
+                            <span className="text-xs">{formatDate(orcamento.createdAt)}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Enviado em</span>
-                            <span>{formatDate(orcamento.enviadoEm)}</span>
+                            <span className="text-xs">{formatDate(orcamento.enviadoEm)}</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Aceito em</span>
-                            <span>{formatDate(orcamento.aceitoEm)}</span>
+                            <span className="text-xs">{formatDate(orcamento.aceitoEm)}</span>
                         </div>
                     </div>
                 </Card>
 
                 <Card>
-                    <h3 className="mb-3 font-semibold">Paciente</h3>
-                    <div className="space-y-2 text-sm">
-                        <p><strong>Nome:</strong> {orcamento.paciente?.nome || 'Sem nome'}</p>
-                        <p><strong>Telefone:</strong> {orcamento.paciente?.telefone}</p>
-                        <p><strong>Cidade:</strong> {orcamento.paciente?.cidade || '-'}</p>
-                        <p><strong>Bairro:</strong> {orcamento.paciente?.bairro || '-'}</p>
-                        <p><strong>Minicustos off:</strong> {parseMinicustosStored(orcamento.minicustosDesativados) || '-'}</p>
-                    </div>
+                    <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Paciente</p>
+                    <p className="text-base font-semibold text-foreground">{orcamento.paciente?.nome || 'Sem nome'}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{orcamento.paciente?.telefone}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                        {[orcamento.paciente?.cidade, orcamento.paciente?.bairro].filter(Boolean).join(' - ') || '-'}
+                    </p>
+                    {parseMinicustosStored(orcamento.minicustosDesativados) ? (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Minicustos off: </span>
+                            {parseMinicustosStored(orcamento.minicustosDesativados)}
+                        </p>
+                    ) : null}
                 </Card>
 
                 <Card>
-                    <h3 className="mb-3 font-semibold">Acoes</h3>
-                    <div className="space-y-2">
-                        <Button className="w-full justify-start" onClick={() => openConfiguredAction('preview-proposta')} isLoading={actionLoading === 'gerar-proposta'}>
-                            <FileText className="h-4 w-4" />
-                            Preview Proposta (configuravel)
-                        </Button>
-                        <Button className="w-full justify-start" variant="outline" onClick={() => openConfiguredAction('preview-contrato')} isLoading={actionLoading === 'gerar-contrato'}>
-                            <FileText className="h-4 w-4" />
-                            Preview Contrato (configuravel)
-                        </Button>
-                        <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700" onClick={() => openConfiguredAction('send-proposta')} isLoading={actionLoading === 'enviar-proposta'}>
-                            <Send className="h-4 w-4" />
-                            Enviar Proposta (Outbox)
-                        </Button>
-                        <Button className="w-full justify-start bg-indigo-600 hover:bg-indigo-700" onClick={() => openConfiguredAction('send-contrato')} isLoading={actionLoading === 'enviar-contrato'}>
-                            <Send className="h-4 w-4" />
-                            Enviar Contrato (Outbox)
-                        </Button>
-                        <Button className="w-full justify-start bg-secondary-600 hover:bg-secondary-700" onClick={() => runAction('aceitar')} isLoading={actionLoading === 'aceitar'}>
-                            <CheckCircle className="h-4 w-4" />
-                            Marcar como Aceito
-                        </Button>
-                        <Button className="w-full justify-start" variant="danger" onClick={() => runAction('cancelar')} isLoading={actionLoading === 'cancelar'}>
-                            <XCircle className="h-4 w-4" />
-                            Cancelar Orcamento
-                        </Button>
+                    <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Acoes</p>
+                    <div className="space-y-1.5">
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <Button size="sm" className="w-full justify-start" onClick={() => openConfiguredAction('preview-proposta')} isLoading={actionLoading === 'gerar-proposta'}>
+                                <FileText className="h-3.5 w-3.5" />
+                                Preview Proposta
+                            </Button>
+                            <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => openConfiguredAction('preview-contrato')} isLoading={actionLoading === 'gerar-contrato'}>
+                                <FileText className="h-3.5 w-3.5" />
+                                Preview Contrato
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <Button size="sm" className="w-full justify-start bg-purple-600 hover:bg-purple-700" onClick={() => openConfiguredAction('send-proposta')} isLoading={actionLoading === 'enviar-proposta'}>
+                                <Send className="h-3.5 w-3.5" />
+                                Enviar Proposta
+                            </Button>
+                            <Button size="sm" className="w-full justify-start bg-indigo-600 hover:bg-indigo-700" onClick={() => openConfiguredAction('send-contrato')} isLoading={actionLoading === 'enviar-contrato'}>
+                                <Send className="h-3.5 w-3.5" />
+                                Enviar Contrato
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            <Button size="sm" variant="success" className="w-full justify-start" onClick={() => runAction('aceitar')} isLoading={actionLoading === 'aceitar'}>
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                Aceitar
+                            </Button>
+                            <Button size="sm" variant="danger" className="w-full justify-start" onClick={() => runAction('cancelar')} isLoading={actionLoading === 'cancelar'}>
+                                <XCircle className="h-3.5 w-3.5" />
+                                Cancelar
+                            </Button>
+                        </div>
                     </div>
                 </Card>
             </div>
@@ -841,18 +848,35 @@ export default function OrcamentoDetalhePage() {
             <Card className="mt-6">
                 <h3 className="mb-3 font-semibold">Cenarios</h3>
                 <div className="grid gap-3 text-sm md:grid-cols-3">
-                    <div className="rounded-lg border border-border p-3">
-                        <p className="mb-1 font-medium">Economico</p>
-                        <p className="text-foreground whitespace-pre-wrap">{orcamento.cenarioEconomico || '-'}</p>
-                    </div>
-                    <div className="rounded-lg border border-border p-3">
-                        <p className="mb-1 font-medium">Recomendado</p>
-                        <p className="text-foreground whitespace-pre-wrap">{orcamento.cenarioRecomendado || '-'}</p>
-                    </div>
-                    <div className="rounded-lg border border-border p-3">
-                        <p className="mb-1 font-medium">Premium</p>
-                        <p className="text-foreground whitespace-pre-wrap">{orcamento.cenarioPremium || '-'}</p>
-                    </div>
+                    {scenarioCards.map((scenario) => {
+                        const isSelected = sanitizeScenarioKey(orcamento.cenarioSelecionado) === scenario.key;
+                        return (
+                            <div
+                                key={scenario.key}
+                                className={`rounded-lg border p-4 transition ${
+                                    isSelected
+                                        ? 'border-primary bg-info-50 ring-1 ring-primary/30'
+                                        : 'border-border'
+                                }`}
+                            >
+                                <div className="mb-2 flex items-center justify-between">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{scenario.label}</p>
+                                    {isSelected && <Badge variant="info">Selecionado</Badge>}
+                                </div>
+                                {scenario.data ? (
+                                    <div className="space-y-1">
+                                        <p className="text-lg font-bold text-foreground">{formatCurrency(scenario.data.totalSemanal)}<span className="text-xs font-normal text-muted-foreground"> /semana</span></p>
+                                        <p className="text-sm text-muted-foreground">{formatCurrency(scenario.data.estimativaMensal)} /mes</p>
+                                        {scenario.data.plantoes && (
+                                            <p className="text-xs text-muted-foreground">{Array.isArray(scenario.data.plantoes) ? scenario.data.plantoes.length : 0} plantoes</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-muted-foreground">Sem dados</p>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </Card>
 
