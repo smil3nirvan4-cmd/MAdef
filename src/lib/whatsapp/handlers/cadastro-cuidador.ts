@@ -63,7 +63,31 @@ export async function handleCadastroCuidador(
         const cpf = body.replace(/\D/g, '');
 
         if (cpf.length !== 11) {
-            await sendMessage(from, 'CPF inválido. Digite os 11 dígitos:');
+            await sendMessage(from, 'CPF inválido. Digite os 11 dígitos (somente números):');
+            return;
+        }
+
+        // Validate CPF check digits
+        if (/^(\d)\1{10}$/.test(cpf)) {
+            await sendMessage(from, 'CPF inválido. Todos os dígitos são iguais. Tente novamente:');
+            return;
+        }
+
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += parseInt(cpf.charAt(i)) * (10 - i);
+        let remainder = (sum * 10) % 11;
+        if (remainder === 10) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(9))) {
+            await sendMessage(from, 'CPF inválido. Verifique os dígitos e tente novamente:');
+            return;
+        }
+
+        sum = 0;
+        for (let i = 0; i < 10; i++) sum += parseInt(cpf.charAt(i)) * (11 - i);
+        remainder = (sum * 10) % 11;
+        if (remainder === 10) remainder = 0;
+        if (remainder !== parseInt(cpf.charAt(10))) {
+            await sendMessage(from, 'CPF inválido. Verifique os dígitos e tente novamente:');
             return;
         }
 

@@ -1,4 +1,6 @@
 import React from 'react';
+import PhoneInput from '@/components/PhoneInput';
+import { maskCPF, validateCPF, maskWeight, maskHeight, unmask } from '@/lib/input-masks';
 
 export interface PatientInfoData {
     nome: string;
@@ -57,6 +59,8 @@ const SONO = [
     'Pesadelos frequentes', 'Levanta para comer', 'Cai da cama'
 ];
 
+const INPUT_CLASS = 'w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all';
+
 export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: StepPatientInfoProps) {
     const handleToggleTemperamento = (t: string) => {
         const list = data.temperamento || [];
@@ -67,6 +71,9 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
         }
     };
 
+    const cpfDigits = unmask(data.cpf);
+    const cpfValid = cpfDigits.length === 11 ? validateCPF(cpfDigits) : null;
+
     return (
         <div className="max-w-5xl mx-auto p-4 space-y-8">
             <div className="text-center mb-8">
@@ -76,44 +83,105 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
 
             {/* DADOS CADASTRAIS */}
             <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
-                <h3 className="col-span-full font-bold text-foreground border-b pb-4 mb-4">1. Dados Biométricos e Civis</h3>
+                <h3 className="col-span-full font-bold text-foreground border-b pb-4 mb-4">1. Dados Biometricos e Civis</h3>
                 <div className="grid md:grid-cols-3 gap-4 mb-4">
-                    <input placeholder="Nome Completo" className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.nome} onChange={e => onUpdate({ nome: e.target.value })} />
-                    <input type="date" className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.dataNascimento} onChange={e => onUpdate({ dataNascimento: e.target.value })} />
-                    <input placeholder="CPF" className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.cpf} onChange={e => onUpdate({ cpf: e.target.value })} />
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Nome Completo <span className="text-error-500">*</span></label>
+                        <input
+                            placeholder="Nome Completo"
+                            className={INPUT_CLASS}
+                            value={data.nome}
+                            onChange={e => onUpdate({ nome: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Data de Nascimento</label>
+                        <input
+                            type="date"
+                            className={INPUT_CLASS}
+                            value={data.dataNascimento}
+                            onChange={e => onUpdate({ dataNascimento: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">CPF</label>
+                        <input
+                            placeholder="000.000.000-00"
+                            className={`${INPUT_CLASS} ${cpfValid === false ? 'border-error-500 bg-error-50' : ''} ${cpfValid === true ? 'border-secondary-500 bg-success-50' : ''}`}
+                            value={maskCPF(data.cpf)}
+                            onChange={e => onUpdate({ cpf: unmask(e.target.value) })}
+                            maxLength={14}
+                        />
+                        {cpfValid === false && (
+                            <p className="text-xs text-error-600 mt-1">CPF invalido</p>
+                        )}
+                    </div>
                 </div>
                 <div className="grid md:grid-cols-4 gap-4">
-                    <input placeholder="Telefone" className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.telefone} onChange={e => onUpdate({ telefone: e.target.value })} />
-                    <select className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.sexo} onChange={e => onUpdate({ sexo: e.target.value as any })}>
-                        <option value="">Sexo</option><option value="M">Masculino</option><option value="F">Feminino</option>
-                    </select>
-                    <input placeholder="Peso (kg)" className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.peso} onChange={e => onUpdate({ peso: e.target.value })} />
-                    <input placeholder="Altura (m)" className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.altura} onChange={e => onUpdate({ altura: e.target.value })} />
+                    <PhoneInput
+                        value={data.telefone}
+                        onChange={(value) => onUpdate({ telefone: value })}
+                        label="Telefone"
+                        required
+                        placeholder="(45) 99999-9999"
+                    />
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Sexo</label>
+                        <select
+                            className={INPUT_CLASS}
+                            value={data.sexo}
+                            onChange={e => onUpdate({ sexo: e.target.value as PatientInfoData['sexo'] })}
+                        >
+                            <option value="">Sexo</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Feminino</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Peso (kg)</label>
+                        <input
+                            placeholder="Ex: 72.5"
+                            className={INPUT_CLASS}
+                            value={data.peso}
+                            onChange={e => onUpdate({ peso: maskWeight(e.target.value) })}
+                            inputMode="decimal"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">Altura (m)</label>
+                        <input
+                            placeholder="Ex: 1.65"
+                            className={INPUT_CLASS}
+                            value={data.altura}
+                            onChange={e => onUpdate({ altura: maskHeight(e.target.value) })}
+                            inputMode="decimal"
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* HISTORIA E PERSONALIDADE */}
             <div className="bg-card p-6 rounded-xl shadow-sm border border-border space-y-6">
-                <h3 className="font-bold text-foreground border-b pb-2">2. História e Personalidade</h3>
+                <h3 className="font-bold text-foreground border-b pb-2">2. Historia e Personalidade</h3>
 
                 <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm text-foreground mb-1">Profissão Anterior</label>
-                        <input className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.profissaoAnterior} onChange={e => onUpdate({ profissaoAnterior: e.target.value })} />
+                        <label className="block text-sm text-foreground mb-1">Profissao Anterior</label>
+                        <input className={INPUT_CLASS} value={data.profissaoAnterior} onChange={e => onUpdate({ profissaoAnterior: e.target.value })} />
                     </div>
                     <div>
-                        <label className="block text-sm text-foreground mb-1">Religião / Crença</label>
-                        <input className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" value={data.religiao} onChange={e => onUpdate({ religiao: e.target.value })} />
+                        <label className="block text-sm text-foreground mb-1">Religiao / Crenca</label>
+                        <input className={INPUT_CLASS} value={data.religiao} onChange={e => onUpdate({ religiao: e.target.value })} />
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-sm text-foreground mb-1">Hobbies e Interesses (Detalhar)</label>
-                    <textarea className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" rows={3} placeholder="Ex: Gosta de Baralho, Futebol (Time X), Música Sertaneja, Tricô..." value={data.hobbies} onChange={e => onUpdate({ hobbies: e.target.value })} />
+                    <textarea className={INPUT_CLASS} rows={3} placeholder="Ex: Gosta de Baralho, Futebol (Time X), Musica Sertaneja, Trico..." value={data.hobbies} onChange={e => onUpdate({ hobbies: e.target.value })} />
                 </div>
 
                 <div>
-                    <label className="block text-sm text-foreground mb-3 font-bold">Temperamento Predominante (Multiseleção)</label>
+                    <label className="block text-sm text-foreground mb-3 font-bold">Temperamento Predominante (Multiselecao)</label>
                     <div className="flex flex-wrap gap-2">
                         {TEMPERAMENTOS.map(t => (
                             <button
@@ -129,9 +197,9 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
 
                 <div className="grid md:grid-cols-2 gap-6 mt-6 border-t pt-6">
                     <div>
-                        <label className="block text-sm text-foreground mb-1 font-bold">Exigências/Preferências (Paciente e Família)</label>
+                        <label className="block text-sm text-foreground mb-1 font-bold">Exigencias/Preferencias (Paciente e Familia)</label>
                         <textarea
-                            className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all"
+                            className={INPUT_CLASS}
                             rows={3}
                             placeholder="Ex: Cuidador comunicativo, que saiba cozinhar..."
                             value={data.exigenciasPreferencias || ''}
@@ -139,9 +207,9 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
                         />
                     </div>
                     <div>
-                        <label className="block text-sm text-foreground mb-1 font-bold">Traços negativos a evitar no Profissional</label>
+                        <label className="block text-sm text-foreground mb-1 font-bold">Tracos negativos a evitar no Profissional</label>
                         <textarea
-                            className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all"
+                            className={INPUT_CLASS}
                             rows={3}
                             placeholder="Ex: Pessoas muito caladas, uso excessivo de celular..."
                             value={data.tracosEvitar || ''}
@@ -151,7 +219,7 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
                 </div>
 
                 <div className="mt-4">
-                    <label className="block text-sm text-foreground mb-1 font-bold">O que faria o cuidador ser substituído na primeira semana?</label>
+                    <label className="block text-sm text-foreground mb-1 font-bold">O que faria o cuidador ser substituido na primeira semana?</label>
                     <textarea
                         className="w-full border border-error-300 p-3 rounded-lg text-sm bg-error-50 focus:bg-card focus:ring-2 focus:ring-error-200 focus:border-error-500 outline-none transition-all placeholder:text-error-300 text-error-800"
                         rows={2}
@@ -164,7 +232,7 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
 
             {/* ROTINA */}
             <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
-                <h3 className="font-bold text-foreground border-b pb-4 mb-4">3. Rotina Diária</h3>
+                <h3 className="font-bold text-foreground border-b pb-4 mb-4">3. Rotina Diaria</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
                     {['acorda', 'cafe', 'lancheManha', 'almoco', 'lancheTarde', 'jantar', 'ceia', 'dormir'].map((key) => (
                         <div key={key}>
@@ -172,7 +240,7 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
                             <input
                                 type="time"
                                 className="w-full border border-border-hover p-2 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all text-center"
-                                value={(data.rotina as any)[key] || ''}
+                                value={(data.rotina as Record<string, string>)[key] || ''}
                                 onChange={e => onUpdate({
                                     rotina: { ...data.rotina, [key]: e.target.value }
                                 })}
@@ -195,14 +263,14 @@ export default function StepPatientInfo({ data, onUpdate, onNext, onBack }: Step
                 </div>
 
                 <div>
-                    <label className="block text-sm text-foreground mb-1">Preferências Alimentares / Restrições Culturais</label>
-                    <textarea className="w-full border border-border-hover p-3 rounded-lg text-sm bg-background focus:bg-card focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all" rows={2} placeholder="Ex: Não come carne vermelha, prefere sopa à noite..." value={data.preferenciasAlimentares} onChange={e => onUpdate({ preferenciasAlimentares: e.target.value })} />
+                    <label className="block text-sm text-foreground mb-1">Preferencias Alimentares / Restricoes Culturais</label>
+                    <textarea className={INPUT_CLASS} rows={2} placeholder="Ex: Nao come carne vermelha, prefere sopa a noite..." value={data.preferenciasAlimentares} onChange={e => onUpdate({ preferenciasAlimentares: e.target.value })} />
                 </div>
             </div>
 
             <div className="flex justify-between pt-6 border-t pb-12">
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground font-medium">← Voltar</button>
-                <button onClick={onNext} className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary">Próxima: Clínico →</button>
+                <button onClick={onNext} className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors">Proxima: Clinico →</button>
             </div>
         </div>
     );

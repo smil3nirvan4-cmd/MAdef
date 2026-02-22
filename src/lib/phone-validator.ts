@@ -35,7 +35,41 @@ const VALID_DDDS = [
 ];
 
 /**
+ * Auto-correct a Brazilian phone number by adding the missing 9th digit
+ * when the number looks like a truncated mobile (8 digits starting with 9 after DDD).
+ * Example: 4591233799 → 45991233799
+ */
+export function autoCorrectBrazilianPhone(input: string): {
+    corrected: string;
+    wasCorrected: boolean;
+    original: string;
+} {
+    const digitsOnly = String(input ?? '').replace(/\D/g, '');
+    let normalized = digitsOnly;
+
+    // Remove country code if present.
+    if (normalized.startsWith('55') && normalized.length >= 12) {
+        normalized = normalized.slice(2);
+    }
+
+    // Check: exactly 10 digits (DDD + 8 digit number starting with 9)
+    if (normalized.length === 10) {
+        const ddd = normalized.slice(0, 2);
+        const number = normalized.slice(2);
+
+        if (VALID_DDDS.includes(ddd) && number.startsWith('9')) {
+            // Mobile number missing the leading 9 → add it
+            const corrected = `${ddd}9${number}`;
+            return { corrected, wasCorrected: true, original: digitsOnly };
+        }
+    }
+
+    return { corrected: digitsOnly, wasCorrected: false, original: digitsOnly };
+}
+
+/**
  * Validate and normalize Brazilian phone number.
+ * Automatically corrects truncated mobile numbers (adds missing 9th digit).
  */
 export function validateBrazilianPhone(input: string): PhoneValidationResult {
     const digitsOnly = String(input ?? '').replace(/\D/g, '');
@@ -64,6 +98,15 @@ export function validateBrazilianPhone(input: string): PhoneValidationResult {
     // Remove country code if present.
     if (normalizedNumber.startsWith('55') && normalizedNumber.length >= 12) {
         normalizedNumber = normalizedNumber.slice(2);
+    }
+
+    // Auto-correct truncated mobile: DDD + 8 digits starting with 9 → add leading 9
+    if (normalizedNumber.length === 10) {
+        const ddd = normalizedNumber.slice(0, 2);
+        const number = normalizedNumber.slice(2);
+        if (VALID_DDDS.includes(ddd) && number.startsWith('9')) {
+            normalizedNumber = `${ddd}9${number}`;
+        }
     }
 
     if (normalizedNumber.length < 10 || normalizedNumber.length > 11) {
@@ -144,7 +187,9 @@ export function toJid(raw: string): string {
 
 export function normalizeOutboundPhoneBR(raw: string): OutboundPhoneNormalization {
     const cleaned = sanitizePhoneInput(raw);
-    const validation = validateBrazilianPhone(cleaned);
+    // Auto-correct truncated mobile before validating
+    const { corrected } = autoCorrectBrazilianPhone(cleaned);
+    const validation = validateBrazilianPhone(corrected);
 
     if (!validation.isValid) {
         return {
@@ -188,6 +233,7 @@ export function isMobileNumber(input: string): boolean {
 
 export default {
     validate: validateBrazilianPhone,
+    autoCorrect: autoCorrectBrazilianPhone,
     formatDisplay: formatPhoneDisplay,
     formatWhatsApp: formatPhoneWhatsApp,
     formatJID: formatPhoneJID,

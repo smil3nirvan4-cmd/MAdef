@@ -8,6 +8,7 @@ import { generatePropostaPDF } from '@/lib/documents/pdf-generator';
 import { sendDocumentViaBridge } from '@/lib/documents/whatsapp-documents';
 import { renderCommercialMessage } from '@/lib/documents/commercial-message';
 import type { OrcamentoSendOptions } from '@/lib/documents/send-options';
+import { autoCorrectBrazilianPhone, validateBrazilianPhone } from '@/lib/phone-validator';
 
 type ScenarioKey = 'economico' | 'recomendado' | 'premium';
 
@@ -304,12 +305,38 @@ export async function POST(req: Request) {
             throw new Error('Nome e Telefone sao obrigatorios para salvar a avaliacao.');
         }
 
-        let paciente = await prisma.paciente.findUnique({ where: { telefone: phone } });
+        // Auto-correct truncated mobile numbers (e.g., 4591233799 → 45991233799)
+        const phoneCorrection = autoCorrectBrazilianPhone(phone);
+        const correctedPhone = phoneCorrection.wasCorrected
+            ? `55${phoneCorrection.corrected}`
+            : phone;
+
+        // Validate the phone number
+        const phoneValidation = validateBrazilianPhone(correctedPhone);
+        if (!phoneValidation.isValid) {
+            await logger.warning('proposta_telefone_invalido', `Telefone invalido: ${phone} - ${phoneValidation.error}`, {
+                phone,
+                correctedPhone,
+                error: phoneValidation.error,
+            });
+        }
+
+        // Use corrected phone (E164 format if valid)
+        const normalizedPhone = phoneValidation.isValid ? phoneValidation.whatsapp : correctedPhone;
+
+        if (phoneCorrection.wasCorrected) {
+            await logger.info('phone_auto_corrected', `Telefone corrigido automaticamente: ${phone} → ${normalizedPhone}`, {
+                original: phone,
+                corrected: normalizedPhone,
+            });
+        }
+
+        let paciente = await prisma.paciente.findUnique({ where: { telefone: normalizedPhone } });
         if (!paciente) {
             paciente = await prisma.paciente.create({
                 data: {
                     nome: nome || stringOr(asRecord(asRecord(dadosDetalhados).patient).nome, 'Novo Paciente'),
-                    telefone: phone,
+                    telefone: normalizedPhone,
                     status: 'AVALIACAO',
                 },
             });
@@ -392,7 +419,7 @@ export async function POST(req: Request) {
         await logger.info('avaliacao_criada', `Nova avaliacao criada para paciente ${paciente.nome}`, {
             avaliacaoId: novaAvaliacao.id,
             pacienteId: paciente.id,
-            pacienteTelefone: phone,
+            pacienteTelefone: normalizedPhone,
             valorTotal,
         });
 
@@ -404,7 +431,7 @@ export async function POST(req: Request) {
 
             if (!orcamentoPersistido) {
                 await logger.warning('whatsapp_document_error', 'Orcamento nao encontrado apos persistencia para envio de proposta', {
-                    phone,
+                    phone: normalizedPhone,
                     avaliacaoId: novaAvaliacao.id,
                 });
                 return NextResponse.json({
@@ -461,7 +488,7 @@ export async function POST(req: Request) {
                 const pdfBuffer = await generatePropostaPDF(pdfData);
                 const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
                 const envio = await sendDocumentViaBridge({
-                    phone,
+                    phone: normalizedPhone,
                     fileName: `Proposta_${safeReference}_MaosAmigas.pdf`,
                     caption: mensagem.rendered,
                     buffer: pdfBuffer,
@@ -469,7 +496,7 @@ export async function POST(req: Request) {
 
                 if (!envio.success) {
                     await logger.warning('whatsapp_document_error', `Falha ao enviar PDF de proposta: ${envio.error || 'erro desconhecido'}`, {
-                        phone,
+                        phone: normalizedPhone,
                         avaliacaoId: novaAvaliacao.id,
                         providerMessageId: envio.messageId || null,
                         errorCode: envio.errorCode || null,
@@ -481,7 +508,7 @@ export async function POST(req: Request) {
                         avaliacaoId: novaAvaliacao.id,
                     });
                 } else {
-                    await logger.whatsapp('proposta_enviada', `Proposta enviada para ${phone}`, {
+                    await logger.whatsapp('proposta_enviada', `Proposta enviada para ${normalizedPhone}`, {
                         avaliacaoId: novaAvaliacao.id,
                         pacienteId: paciente.id,
                         valorTotal,
@@ -494,7 +521,7 @@ export async function POST(req: Request) {
                     });
 
                     await prisma.whatsAppFlowState.upsert({
-                        where: { phone },
+                        where: { phone: normalizedPhone },
                         update: {
                             currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
                             currentStep: 'ESPERANDO_CONFIRMACAO',
@@ -506,7 +533,7 @@ export async function POST(req: Request) {
                             lastInteraction: new Date(),
                         },
                         create: {
-                            phone,
+                            phone: normalizedPhone,
                             currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
                             currentStep: 'ESPERANDO_CONFIRMACAO',
                             data: JSON.stringify({
@@ -520,7 +547,7 @@ export async function POST(req: Request) {
             }
         } catch (bridgeError) {
             await logger.error('whatsapp_bridge_offline', 'Bridge offline na porta 4000', bridgeError as Error, {
-                phone,
+                phone: normalizedPhone,
                 avaliacaoId: novaAvaliacao.id,
             });
             return NextResponse.json({

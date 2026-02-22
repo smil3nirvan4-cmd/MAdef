@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { validateBrazilianPhone, type PhoneValidationResult } from '@/lib/phone-validator';
+import { validateBrazilianPhone, autoCorrectBrazilianPhone, type PhoneValidationResult } from '@/lib/phone-validator';
 
 interface PhoneInputProps {
     value: string;
@@ -18,28 +18,28 @@ export default function PhoneInput({
     onChange,
     label = 'Telefone',
     required = false,
-    placeholder = '(11) 99999-9999',
+    placeholder = '(45) 99999-9999',
     className = '',
     showValidation = true,
 }: PhoneInputProps) {
     const [displayValue, setDisplayValue] = useState('');
     const [validation, setValidation] = useState<PhoneValidationResult | null>(null);
     const [touched, setTouched] = useState(false);
+    const [corrected, setCorrected] = useState(false);
 
     const formatForDisplay = useCallback((input: string): string => {
-        const digits = input.replace(/\D/g, '');
-        let clean = digits;
-        if (clean.startsWith('55') && clean.length > 11) {
-            clean = clean.slice(2);
+        let digits = input.replace(/\D/g, '');
+        if (digits.startsWith('55') && digits.length > 11) {
+            digits = digits.slice(2);
         }
 
-        if (clean.length === 0) return '';
-        if (clean.length <= 2) return `(${clean}`;
-        if (clean.length <= 6) return `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
-        if (clean.length <= 10) {
-            return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+        if (digits.length === 0) return '';
+        if (digits.length <= 2) return `(${digits}`;
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) {
+            return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
         }
-        return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
     }, []);
 
     useEffect(() => {
@@ -54,10 +54,30 @@ export default function PhoneInput({
         const digits = input.replace(/\D/g, '').slice(0, 11);
 
         setDisplayValue(formatForDisplay(digits));
+        setCorrected(false);
 
         const result = validateBrazilianPhone(digits);
         setValidation(result);
         onChange(digits, result);
+    };
+
+    const handleBlur = () => {
+        setTouched(true);
+
+        // Auto-correct truncated mobile numbers on blur
+        const digits = (displayValue || '').replace(/\D/g, '');
+        if (digits.length >= 10) {
+            const correction = autoCorrectBrazilianPhone(digits);
+            if (correction.wasCorrected) {
+                const correctedDigits = correction.corrected;
+                setDisplayValue(formatForDisplay(correctedDigits));
+                setCorrected(true);
+
+                const result = validateBrazilianPhone(correctedDigits);
+                setValidation(result);
+                onChange(correctedDigits, result);
+            }
+        }
     };
 
     const showError = showValidation && touched && validation && !validation.isValid;
@@ -72,24 +92,28 @@ export default function PhoneInput({
             )}
 
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🇧🇷</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">+55</span>
                 <input
                     type="tel"
                     value={displayValue}
                     onChange={handleChange}
-                    onBlur={() => setTouched(true)}
+                    onBlur={handleBlur}
                     placeholder={placeholder}
                     required={required}
-                    className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-ring transition-all
-            ${showError ? 'border-error-500 bg-error-50' : ''}
+                    className={`w-full pl-12 pr-10 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-ring focus:outline-none transition-all bg-background
+            ${showError ? 'border-error-500 bg-error-50' : 'border-border-hover'}
             ${showSuccess ? 'border-secondary-500 bg-success-50' : ''}`}
                 />
                 {showValidation && touched && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold ${validation?.isValid ? 'text-success-600' : 'text-error-500'}`}>
                         {validation?.isValid ? '✓' : '✗'}
                     </span>
                 )}
             </div>
+
+            {corrected && showSuccess && (
+                <p className="text-xs text-info-600">Nono digito adicionado automaticamente</p>
+            )}
 
             {showError && validation?.error && (
                 <p className="text-sm text-error-600">{validation.error}</p>
