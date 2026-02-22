@@ -65,7 +65,7 @@ export default function StepEvaluator({ data, onUpdate, onNext, onBack }: StepEv
                             <button
                                 key={level}
                                 onClick={() => onUpdate({ complexidade: level as EvaluatorData['complexidade'] })}
-                                className={`p-3 rounded-lg border text-sm font-bold transition-all active:scale-[0.98] ${data.complexidade === level ? (level === 'CRITICA' || level === 'ALTA' ? 'bg-error-500 text-white border-error-600 shadow-sm' : 'bg-primary text-white border-primary shadow-sm') : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
+                                className={`p-3 rounded-lg border text-sm font-bold transition-all active:scale-[0.98] ${data.complexidade === level ? (level === 'CRITICA' || level === 'ALTA' ? 'bg-error-500 text-white border-error-600 shadow-sm' : 'bg-primary text-primary-foreground border-primary shadow-sm') : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                             >
                                 {level}
                             </button>
@@ -87,7 +87,7 @@ export default function StepEvaluator({ data, onUpdate, onNext, onBack }: StepEv
 
             <div className="flex justify-between pt-6 border-t pb-12">
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground font-medium">← Voltar</button>
-                <button onClick={onNext} className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary">Ir para Proposta →</button>
+                <button onClick={onNext} className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors">Ir para Proposta &rarr;</button>
             </div>
         </div>
     );

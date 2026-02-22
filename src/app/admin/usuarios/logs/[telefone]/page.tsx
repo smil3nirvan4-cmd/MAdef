@@ -125,7 +125,7 @@ export default function UserLogsPage() {
                     </div>
                     <button
                         onClick={fetchData}
-                        className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary"
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary-hover transition-colors"
                     >
                         Atualizar
                     </button>

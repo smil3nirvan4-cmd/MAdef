@@ -23,7 +23,7 @@ export default function StepSafety({ onNext, onBack }: StepSafetyProps) {
             <div className="bg-card p-6 rounded-xl shadow-sm border border-border">
                 <div className="grid md:grid-cols-2 gap-4">
                     {items.map((item, idx) => (
-                        <label key={idx} className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-background">
+                        <label key={idx} className="flex items-center gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-surface-subtle text-foreground bg-card">
                             <input type="checkbox" className="w-5 h-5 text-secondary-600 rounded" />
                             <span className="font-medium text-foreground">{item}</span>
                         </label>
@@ -39,7 +39,7 @@ export default function StepSafety({ onNext, onBack }: StepSafetyProps) {
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
+                    className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors"
                 >
                     Finalizar Análise Ambiental →
                 </button>

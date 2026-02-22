@@ -1274,7 +1274,7 @@ export default function NewEvaluationPage() {
                                                             metodosPagamento: next.length ? next : ['PIX'],
                                                         };
                                                     })}
-                                                    className={`rounded border px-3 py-2 text-sm font-medium transition ${selected ? 'border-blue-600 bg-primary text-white' : 'hover:bg-background'
+                                                    className={`rounded border px-3 py-2 text-sm font-medium transition ${selected ? 'border-blue-600 bg-primary text-primary-foreground' : 'hover:bg-background'
                                                         }`}
                                                 >
                                                     {method.label}
@@ -1297,7 +1297,7 @@ export default function NewEvaluationPage() {
                                                     opcoesParcelamento: ['1x sem juros', '2x sem juros', '3x sem juros', '4x sem juros'],
                                                     valorParcela: (num(prev.valorTotal) - num(prev.entrada)) / parcelas,
                                                 }))}
-                                                className={`rounded border py-2 font-medium transition ${proposal.parcelas === parcelas ? 'border-blue-600 bg-primary text-white' : 'hover:bg-background'}`}
+                                                className={`rounded border py-2 font-medium transition ${proposal.parcelas === parcelas ? 'border-blue-600 bg-primary text-primary-foreground' : 'hover:bg-background'}`}
                                             >
                                                 {parcelas}x sem juros
                                             </button>

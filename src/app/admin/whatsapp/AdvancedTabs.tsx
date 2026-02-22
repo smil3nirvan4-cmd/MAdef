@@ -239,7 +239,7 @@ export function ExportImportTab() {
             <Card>
                 <h3 className="font-semibold mb-4"><Upload className="w-4 h-4 inline mr-2" />Importar Configurações</h3>
                 <p className="text-sm text-foreground mb-4">Restaura configurações de um arquivo de backup exportado anteriormente.</p>
-                <label className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md cursor-pointer hover:bg-primary transition-colors">
+                <label className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary-hover transition-colors">
                     <Upload className="w-4 h-4" />{importing ? 'Importando...' : 'Selecionar Arquivo'}
                     <input type="file" accept=".json" onChange={handleImport} className="hidden" />
                 </label>

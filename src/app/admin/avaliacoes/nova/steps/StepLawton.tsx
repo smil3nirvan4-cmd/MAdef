@@ -36,7 +36,7 @@ export default function StepLawton({ data, onUpdate, onNext, onBack }: StepLawto
                                     onClick={() => onUpdate(key as keyof LawtonEvaluation, 3)}
                                     className={`p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${currentVal === 3
                                         ? 'bg-primary-50 border-primary-500 ring-1 ring-ring shadow-sm'
-                                        : 'border-border hover:bg-background hover:border-primary/30'
+                                        : 'border-border bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground'
                                         }`}
                                 >
                                     <div className="font-bold text-primary mb-1">3 pts</div>
@@ -47,7 +47,7 @@ export default function StepLawton({ data, onUpdate, onNext, onBack }: StepLawto
                                     onClick={() => onUpdate(key as keyof LawtonEvaluation, 2)}
                                     className={`p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${currentVal === 2
                                         ? 'bg-warning-50 border-warning-500 ring-1 ring-warning-500 shadow-sm'
-                                        : 'border-border hover:bg-background hover:border-primary/30'
+                                        : 'border-border bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground'
                                         }`}
                                 >
                                     <div className="font-bold text-warning-700 mb-1">2 pts</div>
@@ -58,7 +58,7 @@ export default function StepLawton({ data, onUpdate, onNext, onBack }: StepLawto
                                     onClick={() => onUpdate(key as keyof LawtonEvaluation, 1)}
                                     className={`p-4 rounded-lg border text-left transition-all active:scale-[0.98] ${currentVal === 1
                                         ? 'bg-error-50 border-error-500 ring-1 ring-error-500 shadow-sm'
-                                        : 'border-border hover:bg-background hover:border-primary/30'
+                                        : 'border-border bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground'
                                         }`}
                                 >
                                     <div className="font-bold text-error-700 mb-1">1 pt</div>
@@ -74,7 +74,7 @@ export default function StepLawton({ data, onUpdate, onNext, onBack }: StepLawto
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
+                    className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors"
                 >
                     Finalizar Avaliação Clínica →
                 </button>
