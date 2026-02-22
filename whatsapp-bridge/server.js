@@ -11,11 +11,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('node:crypto');
 
-function loadLocalEnvFile() {
-    const envPath = path.resolve(process.cwd(), '.env.local');
-    if (!fs.existsSync(envPath)) return;
+function loadEnvFile(filePath) {
+    if (!fs.existsSync(filePath)) return;
 
-    const lines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+    const lines = fs.readFileSync(filePath, 'utf-8').split(/\r?\n/);
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith('#')) continue;
@@ -38,7 +37,9 @@ function loadLocalEnvFile() {
     }
 }
 
-loadLocalEnvFile();
+// Load .env.local first (higher priority), then .env as fallback
+loadEnvFile(path.resolve(process.cwd(), '.env.local'));
+loadEnvFile(path.resolve(process.cwd(), '.env'));
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));

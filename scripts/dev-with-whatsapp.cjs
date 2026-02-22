@@ -1,5 +1,5 @@
 const { spawn, spawnSync } = require('node:child_process');
-const { existsSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const path = require('node:path');
 
 const isWindows = process.platform === 'win32';
@@ -7,6 +7,27 @@ const rootDir = path.resolve(__dirname, '..');
 const bridgeDir = path.join(rootDir, 'whatsapp-bridge');
 const bridgeNodeModules = path.join(bridgeDir, 'node_modules');
 const isProd = process.argv.includes('--prod');
+
+// Load .env.local and .env so child processes inherit the variables
+function loadEnvFile(filePath) {
+    if (!existsSync(filePath)) return;
+    const lines = readFileSync(filePath, 'utf-8').split(/\r?\n/);
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const sep = trimmed.indexOf('=');
+        if (sep <= 0) continue;
+        const key = trimmed.slice(0, sep).trim();
+        if (!key || process.env[key] !== undefined) continue;
+        let value = trimmed.slice(sep + 1).trim();
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        process.env[key] = value;
+    }
+}
+loadEnvFile(path.join(rootDir, '.env.local'));
+loadEnvFile(path.join(rootDir, '.env'));
 
 let shuttingDown = false;
 const children = new Set();
