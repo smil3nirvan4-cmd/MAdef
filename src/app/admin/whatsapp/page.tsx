@@ -275,6 +275,7 @@ function ChatsTab() {
     const [messages, setMessages] = useState<any[]>([]);
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
+    const [sendError, setSendError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
 
     const fetchContacts = async () => {
@@ -292,13 +293,23 @@ function ChatsTab() {
     const handleSend = async () => {
         if (!newMessage.trim() || !selectedChat) return;
         setSending(true);
-        await fetch(`/api/admin/whatsapp/chat/${selectedChat.phone}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: newMessage }),
-        });
-        setNewMessage('');
-        fetchChat(selectedChat.phone);
-        setSending(false);
+        setSendError(null);
+        try {
+            const res = await fetch(`/api/admin/whatsapp/chat/${selectedChat.phone}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: newMessage }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success) {
+                setSendError(data.error || `Falha ao enviar (status: ${data.status || res.status})`);
+            }
+            setNewMessage('');
+            fetchChat(selectedChat.phone);
+        } catch (err) {
+            setSendError('Erro de conexao ao enviar mensagem');
+        } finally {
+            setSending(false);
+        }
     };
 
     return (
@@ -335,7 +346,7 @@ function ChatsTab() {
                         <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-background">
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.direcao === 'OUT' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-primary-foreground' : 'bg-card border border-border'}`}>
+                                    <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-primary-foreground' : msg.direcao === 'OUT_FAILED' ? 'bg-error-50 text-error-700 border border-error-200' : msg.direcao === 'OUT_PENDING' ? 'bg-warning-50 text-warning-700 border border-warning-200' : 'bg-card border border-border'}`}>
                                         {msg.flow && <p className="text-xs opacity-70 mb-1">[{msg.flow}/{msg.step}]</p>}
                                         <p>{msg.conteudo}</p>
                                         <p className={`text-xs mt-1 ${msg.direcao === 'OUT' ? 'text-primary-200' : 'text-muted-foreground'}`}>{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>
@@ -343,9 +354,17 @@ function ChatsTab() {
                                 </div>
                             ))}
                         </div>
-                        <div className="p-3 border-t flex gap-2">
-                            <Input placeholder="Digite sua mensagem..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} className="flex-1" />
-                            <Button onClick={handleSend} isLoading={sending}><Send className="w-4 h-4" /></Button>
+                        <div className="p-3 border-t space-y-2">
+                            {sendError && (
+                                <div className="px-3 py-2 rounded-lg bg-error-50 border border-error-200 text-error-700 text-xs flex items-center justify-between">
+                                    <span>{sendError}</span>
+                                    <button onClick={() => setSendError(null)} className="ml-2 font-bold hover:text-error-900">x</button>
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                <Input placeholder="Digite sua mensagem..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} className="flex-1" />
+                                <Button onClick={handleSend} isLoading={sending}><Send className="w-4 h-4" /></Button>
+                            </div>
                         </div>
                     </>
                 ) : <div className="flex-1 flex items-center justify-center text-muted-foreground">Selecione uma conversa</div>}

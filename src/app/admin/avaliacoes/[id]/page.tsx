@@ -241,7 +241,10 @@ export default function AvaliacaoDetailPage() {
             const response = await fetch(`/api/admin/avaliacoes/${params.id}`, { cache: 'no-store' });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || !payload?.avaliacao) {
-                throw new Error(payload?.error || 'Failed to load avaliacao');
+                const errMsg = typeof payload?.error === 'string'
+                    ? payload.error
+                    : payload?.error?.message || `Erro ao carregar avaliacao (HTTP ${response.status})`;
+                throw new Error(errMsg);
             }
             setAvaliacao(payload.avaliacao);
         } catch (fetchError) {

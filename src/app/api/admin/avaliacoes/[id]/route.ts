@@ -27,31 +27,23 @@ export async function GET(
     try {
         const { id } = await params;
         const schemaCapabilities = await getDbSchemaCapabilities();
-        if (!schemaCapabilities.dbSchemaOk) {
-            await logger.warning('db_schema_drift', 'Schema desatualizado ao carregar detalhes da avaliacao', {
-                table: 'Orcamento',
-                column: 'auditHash',
+        const schemaOk = schemaCapabilities.dbSchemaOk;
+
+        if (!schemaOk) {
+            await logger.warning('db_schema_drift', 'Schema desatualizado ao carregar detalhes da avaliacao - tentando sem orcamentos', {
                 missingColumns: schemaCapabilities.missingColumns,
                 avaliacaoId: id,
             });
-            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
-                status: 503,
-                details: {
-                    action: 'db_schema_drift',
-                    table: 'Orcamento',
-                    column: 'auditHash',
-                    missingColumns: schemaCapabilities.missingColumns,
-                },
-            });
         }
 
+        // If schema has drift, load without orcamentos to avoid P2022 errors
         const avaliacao = await prisma.avaliacao.findUnique({
             where: { id },
             include: {
                 paciente: {
                     include: {
                         mensagens: { orderBy: { timestamp: 'desc' }, take: 50 },
-                        orcamentos: { orderBy: { createdAt: 'desc' }, take: 5 },
+                        ...(schemaOk ? { orcamentos: { orderBy: { createdAt: 'desc' }, take: 5 } } : {}),
                     },
                 },
             },
@@ -61,7 +53,16 @@ export async function GET(
             return NextResponse.json({ error: 'Avaliacao nao encontrada' }, { status: 404 });
         }
 
-        return NextResponse.json({ avaliacao });
+        // Ensure paciente.orcamentos always exists (empty array if schema drift)
+        const result = {
+            ...avaliacao,
+            paciente: {
+                ...avaliacao.paciente,
+                orcamentos: (avaliacao.paciente as any).orcamentos ?? [],
+            },
+        };
+
+        return NextResponse.json({ avaliacao: result });
     } catch (error) {
         if (isMissingColumnError(error)) {
             const resolved = resolveMissingColumn(error);
@@ -79,7 +80,9 @@ export async function GET(
             });
         }
 
-        return NextResponse.json({ error: 'Erro ao buscar avaliacao' }, { status: 500 });
+        console.error('[avaliacoes/[id]] GET error:', error);
+        const message = error instanceof Error ? error.message : 'Erro ao buscar avaliacao';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
