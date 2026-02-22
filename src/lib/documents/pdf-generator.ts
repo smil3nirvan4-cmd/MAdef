@@ -135,13 +135,37 @@ interface DocContext {
     doc: PDFKit.PDFDocument;
     width: number;
     y: number;
+    /** Y position where content starts on the current page (after header) */
+    pageStartY: number;
+    /** Track whether the current page has received meaningful content */
+    currentPageHasContent: boolean;
+    /** Total pages that actually contain content */
+    contentPageCount: number;
+    /** Reference to OrcamentoPDFData for drawing headers on new pages */
+    pdfData?: OrcamentoPDFData;
 }
 
 function ensureSpace(ctx: DocContext, needed: number): void {
     const usable = ctx.doc.page.height - 60;
     if (ctx.y + needed > usable) {
+        // Mark current page as having content if we wrote anything on it
+        if (ctx.y > ctx.pageStartY + 5) {
+            ctx.currentPageHasContent = true;
+        }
+        if (ctx.currentPageHasContent) {
+            ctx.contentPageCount++;
+        }
+
         ctx.doc.addPage();
-        ctx.y = PAGE_MARGIN + 10;
+
+        // Draw content header on new pages (pages 2+)
+        if (ctx.pdfData) {
+            ctx.y = drawContentHeader(ctx.doc, ctx.pdfData);
+        } else {
+            ctx.y = PAGE_MARGIN + 10;
+        }
+        ctx.pageStartY = ctx.y;
+        ctx.currentPageHasContent = false;
     }
 }
 
@@ -380,7 +404,15 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         doc.addPage();
         let y = drawContentHeader(doc, data);
 
-        const ctx: DocContext = { doc, width: contentWidth, y };
+        const ctx: DocContext = {
+            doc,
+            width: contentWidth,
+            y,
+            pageStartY: y,
+            currentPageHasContent: false,
+            contentPageCount: 1, // Cover page always counts
+            pdfData: data,
+        };
 
         /* ── 01 PERFIL DO ATENDIMENTO ─────────────────────────── */
         drawSectionTitle(ctx, '01', 'PERFIL DO ATENDIMENTO');
@@ -717,11 +749,18 @@ export async function generateOrcamentoPDF(data: OrcamentoPDFData): Promise<Buff
         doc.text('CNPJ 52.724.250/0001-78', CONTENT_LEFT + sigW + 40, sigY + 14, { width: sigW, align: 'center' });
 
         /* ── Footer on content pages only ─────────────────────── */
-        // Calculate the actual number of pages with content
-        // Page index is 0-based; current page after signatures is the last real page
+        // Count the final page if it has meaningful content
+        if (ctx.y > ctx.pageStartY + 5) {
+            ctx.currentPageHasContent = true;
+        }
+        if (ctx.currentPageHasContent) {
+            ctx.contentPageCount++;
+        }
+
+        // Only draw footers on pages that actually have content
         const pages = doc.bufferedPageRange();
-        const currentPageIndex = pages.count; // pages buffered so far
-        drawFooter(doc, doc.page.width, currentPageIndex);
+        const totalPagesWithContent = Math.min(pages.count, ctx.contentPageCount);
+        drawFooter(doc, doc.page.width, totalPagesWithContent);
 
         doc.flushPages();
         doc.end();
@@ -780,14 +819,21 @@ export async function generateContractTextPDF(title: string, content: string): P
         doc.font(PDF_FONT_REGULAR_NAME).fontSize(9).fillColor(TEXT_PRIMARY);
 
         let pageCount = 1;
+        let lastPageStartY = doc.y;
         const lines = String(content || '').split(/\r?\n/);
         for (const line of lines) {
             if (doc.y > doc.page.height - 60) {
                 doc.addPage();
                 doc.font(PDF_FONT_REGULAR_NAME).fontSize(9).fillColor(TEXT_PRIMARY);
+                lastPageStartY = doc.y;
                 pageCount++;
             }
             doc.text(line || ' ', { width: contentWidth, align: 'left' });
+        }
+
+        // If the last page has minimal content (less than 30px), don't count it
+        if (pageCount > 1 && doc.y < lastPageStartY + 30) {
+            pageCount--;
         }
 
         drawFooter(doc, doc.page.width, pageCount);
