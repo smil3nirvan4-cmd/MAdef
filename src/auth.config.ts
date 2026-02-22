@@ -8,6 +8,7 @@ import {
 } from '@/lib/auth/roles';
 
 export const authConfig = {
+    trustHost: true,
     pages: {
         signIn: '/login',
     },
