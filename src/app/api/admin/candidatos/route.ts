@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { validateBrazilianPhone } from '@/lib/phone-validator';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,13 +60,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { nome, telefone, area, endereco, competencias } = body;
+        const { nome, area, endereco, competencias } = body;
+        const rawTelefone = String(body?.telefone || '').trim();
 
-        if (!telefone) {
+        if (!rawTelefone) {
             return NextResponse.json({ error: 'Telefone obrigatório' }, { status: 400 });
         }
 
-        const existing = await prisma.cuidador.findUnique({ where: { telefone } });
+        // Validate and normalize phone (auto-corrects missing 9th digit)
+        const phoneValidation = validateBrazilianPhone(rawTelefone);
+        if (!phoneValidation.isValid) {
+            return NextResponse.json({ error: phoneValidation.error || 'Telefone invalido' }, { status: 400 });
+        }
+        const telefone = phoneValidation.whatsapp; // Store normalized E.164
+
+        const existing = await prisma.cuidador.findFirst({
+            where: {
+                OR: [
+                    { telefone },
+                    { telefone: rawTelefone },
+                    { telefone: rawTelefone.replace(/\D/g, '') },
+                ],
+            },
+        });
         if (existing) {
             return NextResponse.json({ error: 'Cuidador já cadastrado' }, { status: 400 });
         }

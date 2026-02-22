@@ -4,6 +4,7 @@ import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok, paginated } from '@/lib/api/response';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { validateBrazilianPhone } from '@/lib/phone-validator';
 
 const SORTABLE_FIELDS = ['createdAt', 'nome', 'status', 'cidade'] as const;
 
@@ -89,12 +90,28 @@ const postHandler = async (request: NextRequest) => {
 
     try {
         const body = await request.json();
-        const telefone = String(body?.telefone || '').trim();
-        if (!telefone) {
+        const rawTelefone = String(body?.telefone || '').trim();
+        if (!rawTelefone) {
             return fail(E.MISSING_FIELD, 'Telefone e obrigatorio', { status: 400, field: 'telefone' });
         }
 
-        const existing = await prisma.paciente.findUnique({ where: { telefone } });
+        // Validate and normalize phone (auto-corrects missing 9th digit)
+        const phoneValidation = validateBrazilianPhone(rawTelefone);
+        if (!phoneValidation.isValid) {
+            return fail(E.VALIDATION_ERROR, phoneValidation.error || 'Telefone invalido', { status: 400, field: 'telefone' });
+        }
+        const telefone = phoneValidation.whatsapp; // Store normalized E.164 (e.g. 5545991233799)
+
+        // Check both raw input and normalized to prevent duplicates
+        const existing = await prisma.paciente.findFirst({
+            where: {
+                OR: [
+                    { telefone },
+                    { telefone: rawTelefone },
+                    { telefone: rawTelefone.replace(/\D/g, '') },
+                ],
+            },
+        });
         if (existing) {
             return fail(E.CONFLICT, 'Paciente ja cadastrado com este telefone', { status: 409, field: 'telefone' });
         }
