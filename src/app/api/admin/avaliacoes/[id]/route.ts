@@ -55,15 +55,7 @@ const getHandler = async (
                 missingColumns: schemaCapabilities.missingColumns,
                 avaliacaoId: id,
             });
-            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
-                status: 503,
-                details: {
-                    action: 'db_schema_drift',
-                    table: 'Orcamento',
-                    column: 'auditHash',
-                    missingColumns: schemaCapabilities.missingColumns,
-                },
-            });
+            // Non-blocking: continue loading avaliacao, frontend will show schema warning
         }
 
         const avaliacao = await prisma.avaliacao.findUnique({
@@ -82,18 +74,48 @@ const getHandler = async (
             return fail(E.NOT_FOUND, 'Avaliação não encontrada', { status: 404 });
         }
 
-        return ok({ avaliacao });
+        return ok({
+            avaliacao,
+            dbSchemaOk: schemaCapabilities.dbSchemaOk,
+            missingColumns: schemaCapabilities.missingColumns,
+        });
     } catch (error) {
         if (isMissingColumnError(error)) {
             const resolved = resolveMissingColumn(error);
-            await logger.warning('db_schema_drift', 'P2022 ao carregar detalhes da avaliacao', {
+            await logger.warning('db_schema_drift', 'P2022 ao carregar detalhes da avaliacao – fallback sem orcamentos', {
                 table: resolved.table,
                 column: resolved.column,
             });
-            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado. Aplique as migrations pendentes.', {
-                status: 503,
-                details: { action: 'db_schema_drift', table: resolved.table, column: resolved.column },
-            });
+            // Retry without orcamentos include to bypass missing-column error
+            try {
+                const { id: fallbackId } = await params;
+                const avaliacao = await prisma.avaliacao.findUnique({
+                    where: { id: fallbackId },
+                    include: {
+                        paciente: {
+                            include: {
+                                mensagens: { orderBy: { timestamp: 'desc' }, take: 50 },
+                            },
+                        },
+                    },
+                });
+                if (!avaliacao) {
+                    return fail(E.NOT_FOUND, 'Avaliação não encontrada', { status: 404 });
+                }
+                // Attach empty orcamentos so frontend doesn't break
+                const avaliacaoWithOrcamentos = {
+                    ...avaliacao,
+                    paciente: { ...avaliacao.paciente, orcamentos: [] },
+                };
+                return ok({
+                    avaliacao: avaliacaoWithOrcamentos,
+                    dbSchemaOk: false,
+                    missingColumns: [`${resolved.table}.${resolved.column}`],
+                });
+            } catch (fallbackError) {
+                await logger.error('avaliacao_get', 'Erro no fallback sem orcamentos', fallbackError instanceof Error ? fallbackError : undefined);
+                return fail(E.INTERNAL_ERROR, 'Erro ao buscar avaliação', { status: 500 });
+            }
         }
 
         await logger.error('avaliacao_get', 'Erro ao buscar avaliacao', error instanceof Error ? error : undefined);

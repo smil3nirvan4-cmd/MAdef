@@ -1002,8 +1002,13 @@ export default function NewEvaluationPage() {
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.success) {
-                setFormMessage({ type: 'success', text: 'Proposta enviada e avaliação salva com sucesso. Redirecionando...' });
-                setTimeout(() => { window.location.href = '/admin/avaliacoes'; }, 2000);
+                if (data.whatsappSent === false) {
+                    setFormMessage({ type: 'error', text: `Avaliacao salva, mas WhatsApp falhou: ${data.whatsappError || 'erro desconhecido'}. Reenvie manualmente.` });
+                    setTimeout(() => { window.location.href = '/admin/avaliacoes'; }, 4000);
+                } else {
+                    setFormMessage({ type: 'success', text: 'Proposta enviada e avaliação salva com sucesso. Redirecionando...' });
+                    setTimeout(() => { window.location.href = '/admin/avaliacoes'; }, 2000);
+                }
             } else {
                 setFormMessage({ type: 'error', text: data.error || 'Falha ao enviar proposta.' });
             }

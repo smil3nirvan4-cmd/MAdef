@@ -407,6 +407,12 @@ export async function POST(req: Request) {
                     phone,
                     avaliacaoId: novaAvaliacao.id,
                 });
+                return NextResponse.json({
+                    success: true,
+                    whatsappSent: false,
+                    whatsappError: 'Orcamento nao encontrado apos persistencia',
+                    avaliacaoId: novaAvaliacao.id,
+                });
             } else {
                 const sendOptions: OrcamentoSendOptions = {
                     cenarioSelecionado,
@@ -466,6 +472,13 @@ export async function POST(req: Request) {
                         phone,
                         avaliacaoId: novaAvaliacao.id,
                         providerMessageId: envio.messageId || null,
+                        errorCode: envio.errorCode || null,
+                    });
+                    return NextResponse.json({
+                        success: true,
+                        whatsappSent: false,
+                        whatsappError: envio.error || 'Falha ao enviar proposta via WhatsApp',
+                        avaliacaoId: novaAvaliacao.id,
                     });
                 } else {
                     await logger.whatsapp('proposta_enviada', `Proposta enviada para ${phone}`, {
@@ -510,9 +523,15 @@ export async function POST(req: Request) {
                 phone,
                 avaliacaoId: novaAvaliacao.id,
             });
+            return NextResponse.json({
+                success: true,
+                whatsappSent: false,
+                whatsappError: bridgeError instanceof Error ? bridgeError.message : 'Bridge offline',
+                avaliacaoId: novaAvaliacao.id,
+            });
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, whatsappSent: true, avaliacaoId: novaAvaliacao.id });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Erro fatal ao processar proposta';
         const errorObj = error instanceof Error ? error : new Error(message);
