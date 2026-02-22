@@ -18,7 +18,7 @@ export default function Home() {
             </Link>
             <a 
               href="#contato" 
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary font-medium"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium"
             >
               Fale Conosco
             </a>
@@ -117,22 +117,22 @@ export default function Home() {
             </h2>
             <div className="grid md:grid-cols-4 gap-8">
               <div className="text-center">
-                <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
+                <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
                 <h3 className="font-bold text-foreground mb-2">Entre em Contato</h3>
                 <p className="text-foreground text-sm">Fale conosco pelo WhatsApp ou telefone</p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
+                <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
                 <h3 className="font-bold text-foreground mb-2">Avaliação</h3>
                 <p className="text-foreground text-sm">Nossa equipe avalia as necessidades do paciente</p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
+                <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
                 <h3 className="font-bold text-foreground mb-2">Orçamento</h3>
                 <p className="text-foreground text-sm">Receba um orçamento personalizado</p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">4</div>
+                <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">4</div>
                 <h3 className="font-bold text-foreground mb-2">Início do Cuidado</h3>
                 <p className="text-foreground text-sm">Profissional selecionado inicia o atendimento</p>
               </div>
@@ -157,7 +157,7 @@ export default function Home() {
               </a>
               <a 
                 href="tel:08001234567" 
-                className="px-8 py-4 bg-primary text-white rounded-lg hover:bg-primary font-semibold text-lg flex items-center justify-center gap-2"
+                className="px-8 py-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-semibold text-lg flex items-center justify-center gap-2"
               >
                 <span></span> 0800 123 4567
               </a>

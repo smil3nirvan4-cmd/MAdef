@@ -87,7 +87,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={g}
                             onClick={() => toggleGatilho(g)}
-                            className={`p-3 rounded-lg border text-sm text-left transition-all active:scale-[0.98] ${data.gatilho === g ? 'bg-primary text-white border-primary shadow-sm' : 'hover:bg-background hover:border-primary/30'}`}
+                            className={`p-3 rounded-lg border text-sm text-left transition-all active:scale-[0.98] ${data.gatilho === g ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                         >
                             {g}
                         </button>
@@ -113,7 +113,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={s}
                             onClick={() => toggleSituacao(s)}
-                            className={`p-3 rounded-lg border text-left text-sm transition-all active:scale-[0.98] ${data.situacaoAtual === s ? 'bg-info-50 border-primary-500 ring-1 ring-ring text-primary shadow-sm' : 'hover:bg-background hover:border-primary/30'}`}
+                            className={`p-3 rounded-lg border text-left text-sm transition-all active:scale-[0.98] ${data.situacaoAtual === s ? 'bg-primary-50 border-primary-500 ring-1 ring-ring text-primary shadow-sm' : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                         >
                             {s}
                         </button>
@@ -161,7 +161,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={level}
                             onClick={() => onUpdate({ urgencia: level as DiscoveryData['urgencia'] })}
-                            className={`p-3 rounded-lg border text-sm font-bold transition-all active:scale-[0.98] ${data.urgencia === level ? (level === 'CRITICA' || level === 'ALTA' ? 'bg-error-500 text-white border-error-600 shadow-sm' : 'bg-primary text-white border-primary shadow-sm') : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
+                            className={`p-3 rounded-lg border text-sm font-bold transition-all active:scale-[0.98] ${data.urgencia === level ? (level === 'CRITICA' || level === 'ALTA' ? 'bg-error-500 text-white border-error-600 shadow-sm' : 'bg-primary text-primary-foreground border-primary shadow-sm') : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                         >
                             {level}
                         </button>
@@ -190,7 +190,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={p}
                             onClick={() => handleTogglePreocupacao(p)}
-                            className={`px-3 py-2 rounded-lg border text-sm text-left transition-all active:scale-[0.98] flex items-center gap-2 ${data.preocupacoes?.includes(p) ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 font-bold shadow-sm' : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
+                            className={`px-3 py-2 rounded-lg border text-sm text-left transition-all active:scale-[0.98] flex items-center gap-2 ${data.preocupacoes?.includes(p) ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 font-bold shadow-sm' : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                         >
                             <div className={`w-3 h-3 rounded-full border ${data.preocupacoes?.includes(p) ? 'bg-error-500 border-error-500' : 'border-border-hover'}`} />
                             {p}
@@ -214,7 +214,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                         <button
                             key={e}
                             onClick={() => toggleExperiencia(e)}
-                            className={`p-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.98] ${data.experienciaAnterior === e ? 'bg-neutral-800 text-white border-neutral-800 shadow-sm' : 'hover:bg-background hover:border-primary/30 text-foreground'}`}
+                            className={`p-3 rounded-lg border text-sm font-medium transition-all active:scale-[0.98] ${data.experienciaAnterior === e ? 'bg-neutral-800 text-white border-neutral-800 shadow-sm' : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                         >
                             {e}
                         </button>
@@ -227,7 +227,7 @@ export default function StepDiscovery({ data, onUpdate, onNext, onBack }: StepDi
                 <button
                     onClick={onNext}
                     disabled={!data.gatilho}
-                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-primary hover:scale-105 transition transform disabled:opacity-50 disabled:scale-100"
+                    className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-primary-hover hover:scale-105 transition transform disabled:opacity-50 disabled:scale-100"
                 >
                     Próxima: Dados Pessoais →
                 </button>

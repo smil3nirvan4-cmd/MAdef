@@ -220,7 +220,7 @@ export default function StepResponsibilities({ data, onUpdate, onNext, onBack }:
 
             <div className="flex justify-between pt-6 border-t pb-12">
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground font-medium">← Voltar</button>
-                <button onClick={onNext} className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary">Próxima: Proposta Comercial →</button>
+                <button onClick={onNext} className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors">Próxima: Proposta Comercial &rarr;</button>
             </div>
         </div>
     );

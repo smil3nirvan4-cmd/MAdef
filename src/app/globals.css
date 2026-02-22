@@ -21,8 +21,50 @@
   --navy-50: #f8fafc;
   --navy-100: #f1f5f9;
   --navy-200: #e2e8f0;
+  --navy-300: #cbd5e1;
+  --navy-400: #94a3b8;
+  --navy-500: #64748b;
+  --navy-600: #475569;
+  --navy-700: #334155;
   --navy-800: #1e293b;
   --navy-900: #0f172a;
+  --navy-950: #020617;
+
+  /* Accent Orange */
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+
+  /* Secondary Green */
+  --secondary-50: #f0fdf4;
+  --secondary-400: #4ade80;
+  --secondary-500: #22c55e;
+  --secondary-600: #16a34a;
+  --secondary-700: #15803d;
+
+  /* Info Blue */
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+  --info-700: #1d4ed8;
+
+  /* Success extended */
+  --success-200: #bbf7d0;
+  --success-800: #166534;
+
+  /* Warning extended */
+  --warning-200: #fef08a;
+
+  /* Error extended */
+  --error-200: #fecaca;
+  --error-300: #fca5a5;
+  --error-800: #991b1b;
+
+  /* Success extended */
+  --success-300: #86efac;
+  --success-400: #4ade80;
 
   /* ── Neutral (Calm Slate) ── */
   --neutral-50: #f8fafc;
@@ -157,6 +199,36 @@
   --error-500: #f87171;
   --error-600: #ef4444;
   --error-700: #fca5a5;
+
+  /* Info (dark) */
+  --info-50: #0c1929;
+  --info-100: #172554;
+  --info-500: #60a5fa;
+  --info-600: #3b82f6;
+  --info-700: #93bbfd;
+
+  /* Accent (dark) */
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #fdba74;
+
+  /* Secondary Green (dark) */
+  --secondary-50: #052e16;
+  --secondary-400: #4ade80;
+  --secondary-500: #22c55e;
+  --secondary-600: #16a34a;
+  --secondary-700: #4ade80;
+
+  /* Extended tokens (dark) */
+  --success-200: #064e3b;
+  --success-300: #065f46;
+  --success-400: #34d399;
+  --success-800: #86efac;
+  --warning-200: #422006;
+  --error-200: #450a0a;
+  --error-300: #7f1d1d;
+  --error-800: #fca5a5;
 
   --shadow-xs: 0 1px 3px 0 rgb(0 0 0 / 0.5);
   --shadow-sm: 0 1px 4px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
@@ -297,6 +369,24 @@
   --color-info-100: var(--info-100);
   --color-info-500: var(--info-500);
   --color-info-600: var(--info-600);
+  --color-info-700: var(--info-700);
+
+  /* Secondary Green */
+  --color-secondary-50: var(--secondary-50);
+
+  /* Success extended */
+  --color-success-200: var(--success-200);
+  --color-success-300: var(--success-300);
+  --color-success-400: var(--success-400);
+  --color-success-800: var(--success-800);
+
+  /* Warning extended */
+  --color-warning-200: var(--warning-200);
+
+  /* Error extended */
+  --color-error-200: var(--error-200);
+  --color-error-300: var(--error-300);
+  --color-error-800: var(--error-800);
 
   /* ── Radius Defaults (Linear Style) ── */
   --radius-sm: var(--radius-sm);
@@ -632,7 +722,7 @@ a.group>div,
 input:focus,
 select:focus,
 textarea:focus {
-  box-shadow: 0 0 0 3px var(--primary-100);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -643,10 +733,10 @@ select {
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   padding-right: 2.5rem;
-  border: 1px solid var(--neutral-400);
+  border: 1px solid var(--border-hover);
   border-radius: var(--radius-md);
-  background-color: white;
-  color: var(--neutral-700);
+  background-color: var(--background);
+  color: var(--foreground);
   font-size: 0.875rem;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -659,10 +749,10 @@ select:focus {
 
 /* ── Textarea styling ── */
 textarea {
-  border: 1px solid var(--neutral-400);
+  border: 1px solid var(--border-hover);
   border-radius: var(--radius-md);
   font-size: 0.875rem;
-  color: var(--neutral-700);
+  color: var(--foreground);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 

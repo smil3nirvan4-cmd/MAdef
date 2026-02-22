@@ -241,7 +241,7 @@ function AvaliacoesPageContent() {
                             Atualizar
                         </Button>
                         <Link href="/admin/avaliacoes/nova">
-                            <Button size="sm" className="bg-primary hover:bg-primary text-white shadow-md active:scale-[0.98] transition-all">
+                            <Button size="sm" className="bg-primary hover:bg-primary-hover text-primary-foreground shadow-md active:scale-[0.98] transition-all">
                                 Nova Avaliação
                                 <ExternalLink className="h-4 w-4 ml-1" />
                             </Button>

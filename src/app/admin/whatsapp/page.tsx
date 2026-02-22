@@ -335,7 +335,7 @@ function ChatsTab() {
                         <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-background">
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.direcao === 'OUT' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-white' : 'bg-card border border-border'}`}>
+                                    <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-primary-foreground' : 'bg-card border border-border'}`}>
                                         {msg.flow && <p className="text-xs opacity-70 mb-1">[{msg.flow}/{msg.step}]</p>}
                                         <p>{msg.conteudo}</p>
                                         <p className={`text-xs mt-1 ${msg.direcao === 'OUT' ? 'text-primary-200' : 'text-muted-foreground'}`}>{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>

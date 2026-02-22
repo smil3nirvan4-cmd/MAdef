@@ -110,7 +110,7 @@ export default function UsuariosPage() {
                                         key={tipo}
                                         onClick={() => setFilterTipo(tipo)}
                                         className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filterTipo === tipo
-                                            ? 'bg-primary text-white'
+                                            ? 'bg-primary text-primary-foreground'
                                             : 'bg-surface-subtle text-foreground hover:bg-neutral-200'
                                             }`}
                                     >

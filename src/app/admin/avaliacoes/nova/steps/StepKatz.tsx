@@ -36,7 +36,7 @@ export default function StepKatz({ data, onUpdate, onNext, onBack }: StepKatzPro
                                 onClick={() => onUpdate(key as keyof KATZEvaluation, 'independente')}
                                 className={`flex-1 py-2 px-2 rounded-lg border font-medium transition-all active:scale-[0.98] ${data[key as keyof KATZEvaluation] === 'independente'
                                     ? 'bg-success-50 border-secondary-500 text-secondary-700 shadow-sm ring-1 ring-secondary-500'
-                                    : 'border-border hover:bg-background hover:border-primary/30 text-foreground'
+                                    : 'border-border bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground'
                                     }`}
                             >
                                 ✨ S (Sempre independente)
@@ -45,7 +45,7 @@ export default function StepKatz({ data, onUpdate, onNext, onBack }: StepKatzPro
                                 onClick={() => onUpdate(key as keyof KATZEvaluation, 'parcial')}
                                 className={`flex-1 py-2 px-2 rounded-lg border font-medium transition-all active:scale-[0.98] ${data[key as keyof KATZEvaluation] === 'parcial'
                                     ? 'bg-warning-50 border-warning-500 text-warning-700 shadow-sm ring-1 ring-warning-500'
-                                    : 'border-border hover:bg-background hover:border-primary/30 text-foreground'
+                                    : 'border-border bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground'
                                     }`}
                             >
                                 AV (Às vezes precisa de ajuda)
@@ -54,7 +54,7 @@ export default function StepKatz({ data, onUpdate, onNext, onBack }: StepKatzPro
                                 onClick={() => onUpdate(key as keyof KATZEvaluation, 'dependente')}
                                 className={`flex-1 py-2 px-2 rounded-lg border font-medium transition-all active:scale-[0.98] ${data[key as keyof KATZEvaluation] === 'dependente'
                                     ? 'bg-error-50 border-error-500 text-error-700 shadow-sm ring-1 ring-error-500'
-                                    : 'border-border hover:bg-background hover:border-primary/30 text-foreground'
+                                    : 'border-border bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground'
                                     }`}
                             >
                                 🆘 Sempre (Dependente total)
@@ -68,7 +68,7 @@ export default function StepKatz({ data, onUpdate, onNext, onBack }: StepKatzPro
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
+                    className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors"
                 >
                     Próxima Etapa: Lawton →
                 </button>

@@ -44,8 +44,14 @@ export default function PhoneInput({
 
     useEffect(() => {
         if (value) {
-            setDisplayValue(formatForDisplay(value));
-            setValidation(validateBrazilianPhone(value));
+            const result = validateBrazilianPhone(value);
+            setValidation(result);
+            // If the number was auto-corrected, display the corrected version
+            if (result.corrected && result.number) {
+                setDisplayValue(`(${result.ddd}) ${result.number.slice(0, 5)}-${result.number.slice(5)}`);
+            } else {
+                setDisplayValue(formatForDisplay(value));
+            }
         }
     }, [value, formatForDisplay]);
 
@@ -53,15 +59,23 @@ export default function PhoneInput({
         const input = e.target.value;
         const digits = input.replace(/\D/g, '').slice(0, 11);
 
-        setDisplayValue(formatForDisplay(digits));
-
         const result = validateBrazilianPhone(digits);
         setValidation(result);
-        onChange(digits, result);
+
+        // If auto-corrected, propagate the corrected number and show corrected display
+        if (result.corrected && result.ddd && result.number) {
+            const correctedDigits = `${result.ddd}${result.number}`;
+            setDisplayValue(`(${result.ddd}) ${result.number.slice(0, 5)}-${result.number.slice(5)}`);
+            onChange(correctedDigits, result);
+        } else {
+            setDisplayValue(formatForDisplay(digits));
+            onChange(digits, result);
+        }
     };
 
     const showError = showValidation && touched && validation && !validation.isValid;
     const showSuccess = showValidation && touched && validation?.isValid;
+    const showCorrected = showValidation && touched && validation?.corrected;
 
     return (
         <div className={`flex flex-col gap-1 ${className}`}>
@@ -72,7 +86,7 @@ export default function PhoneInput({
             )}
 
             <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🇧🇷</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-base leading-none">+55</span>
                 <input
                     type="tel"
                     value={displayValue}
@@ -80,23 +94,29 @@ export default function PhoneInput({
                     onBlur={() => setTouched(true)}
                     placeholder={placeholder}
                     required={required}
-                    className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-ring transition-all
-            ${showError ? 'border-error-500 bg-error-50' : ''}
-            ${showSuccess ? 'border-secondary-500 bg-success-50' : ''}`}
+                    className={`w-full pl-12 pr-10 py-2 border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all
+            ${showError ? 'border-error-500 bg-error-50' : 'border-border-hover'}
+            ${showSuccess ? 'border-success-500 bg-success-50' : ''}`}
                 />
                 {showValidation && touched && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {validation?.isValid ? '✓' : '✗'}
+                    <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold ${validation?.isValid ? 'text-success-600' : 'text-error-500'}`}>
+                        {validation?.isValid ? '\u2713' : '\u2717'}
                     </span>
                 )}
             </div>
 
             {showError && validation?.error && (
-                <p className="text-sm text-error-600">{validation.error}</p>
+                <p className="text-xs text-error-600">{validation.error}</p>
             )}
 
-            {showSuccess && validation?.type !== 'celular' && (
-                <p className="text-sm text-warning-600">WhatsApp requer celular</p>
+            {showCorrected && (
+                <p className="text-xs text-primary">
+                    Digito 9 adicionado automaticamente (celular BR)
+                </p>
+            )}
+
+            {showSuccess && !showCorrected && validation?.type !== 'celular' && (
+                <p className="text-xs text-warning-600">WhatsApp requer celular</p>
             )}
         </div>
     );

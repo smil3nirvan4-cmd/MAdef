@@ -115,7 +115,7 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
                                 onClick={() => onUpdate({ quedas: data.quedas === opt ? '' : opt })}
                                 className={`p-3 rounded-lg text-sm font-medium border text-left transition-all active:scale-[0.98] ${data.quedas === opt
                                     ? (opt.includes('Alto') || opt.includes('frequentes') ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 shadow-sm' : 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm')
-                                    : 'hover:bg-background hover:border-primary/30'
+                                    : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'
                                     }`}
                             >
                                 {opt}
@@ -131,7 +131,7 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
                             <button
                                 key={d}
                                 onClick={() => toggleDispositivo(d)}
-                                className={`p-2 rounded-lg border font-medium text-sm text-left transition-all active:scale-[0.98] ${data.dispositivos?.includes(d) ? 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm' : 'hover:bg-background hover:border-primary/30'}`}
+                                className={`p-2 rounded-lg border font-medium text-sm text-left transition-all active:scale-[0.98] ${data.dispositivos?.includes(d) ? 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm' : 'bg-card hover:bg-surface-subtle hover:border-primary/30 text-foreground border-border'}`}
                             >
                                 {d}
                             </button>
@@ -156,7 +156,7 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
                             <button
                                 key={opt.val}
                                 onClick={() => onUpdate({ medicamentos: { ...data.medicamentos, total: data.medicamentos.total === opt.val ? '' : opt.val } })}
-                                className={`py-2 px-1 text-xs rounded-lg border font-medium transition-all active:scale-[0.98] ${data.medicamentos.total === opt.val ? `border-primary-500 ring-1 ring-ring ${opt.color} shadow-sm` : 'border-border text-muted-foreground hover:bg-background hover:border-primary/30'}`}
+                                className={`py-2 px-1 text-xs rounded-lg border font-medium transition-all active:scale-[0.98] ${data.medicamentos.total === opt.val ? `border-primary-500 ring-1 ring-ring ${opt.color} shadow-sm` : 'border-border text-muted-foreground hover:bg-surface-subtle hover:border-primary/30'}`}
                             >
                                 {opt.label}
                             </button>
@@ -190,7 +190,7 @@ export default function StepClinical({ data, onUpdate, onNext, onBack }: StepCli
                 <button onClick={onBack} className="text-muted-foreground hover:text-foreground font-medium">← Voltar</button>
                 <button
                     onClick={onNext}
-                    className="bg-primary text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-primary"
+                    className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-bold shadow hover:bg-primary-hover transition-colors"
                 >
                     Próxima: ABEMID →
                 </button>

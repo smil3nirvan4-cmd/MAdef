@@ -129,7 +129,7 @@ export default function CandidatoDetailPage() {
                         <Button className="w-full justify-start" onClick={() => handleAction('aprovar')} isLoading={actionLoading === 'aprovar'}>
                             <UserCheck className="w-4 h-4" />Aprovar Candidato
                         </Button>
-                        <Button className="w-full justify-start bg-primary hover:bg-primary" onClick={() => handleAction('entrevistar')} isLoading={actionLoading === 'entrevistar'}>
+                        <Button className="w-full justify-start" onClick={() => handleAction('entrevistar')} isLoading={actionLoading === 'entrevistar'}>
                             <Calendar className="w-4 h-4" />Marcar Entrevista
                         </Button>
                         <Button className="w-full justify-start" variant="danger" onClick={() => handleAction('rejeitar')} isLoading={actionLoading === 'rejeitar'}>
@@ -172,7 +172,7 @@ export default function CandidatoDetailPage() {
                     {cuidador.mensagens?.length === 0 ? <p className="text-muted-foreground text-center py-4">Nenhuma mensagem</p> :
                         cuidador.mensagens?.map((msg) => (
                             <div key={msg.id} className={`flex ${msg.direcao === 'OUT' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-white' : 'bg-card border'}`}>
+                                <div className={`max-w-[70%] px-3 py-2 rounded-lg text-sm ${msg.direcao === 'OUT' ? 'bg-primary text-primary-foreground' : 'bg-card border'}`}>
                                     <p>{msg.conteudo}</p>
                                     <p className={`text-xs mt-1 ${msg.direcao === 'OUT' ? 'text-primary-200' : 'text-muted-foreground'}`}>{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>
                                 </div>
