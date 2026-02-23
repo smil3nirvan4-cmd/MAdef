@@ -1,3 +1,4 @@
+import pino from 'pino';
 import { prisma } from '@/lib/prisma';
 import { RequestContext } from './request-context';
 
@@ -16,57 +17,59 @@ export interface LogParams {
     duration?: number;
 }
 
-interface ConsoleLogConfig {
-    color: string;
-    method: 'log' | 'warn' | 'error';
-}
-
-const CONSOLE_BY_TYPE: Record<LogType, ConsoleLogConfig> = {
-    INFO: { color: '\x1b[36m', method: 'log' },
-    WARNING: { color: '\x1b[33m', method: 'warn' },
-    ERROR: { color: '\x1b[31m', method: 'error' },
-    WHATSAPP: { color: '\x1b[32m', method: 'log' },
-    DEBUG: { color: '\x1b[90m', method: 'log' },
+const PINO_LEVEL_MAP: Record<LogType, string> = {
+    ERROR: 'error',
+    WARNING: 'warn',
+    INFO: 'info',
+    WHATSAPP: 'info',
+    DEBUG: 'debug',
 };
 
-function normalizeMetadata(metadata?: Record<string, unknown>): Record<string, unknown> {
+const pinoLogger = pino({
+    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+    transport: process.env.NODE_ENV !== 'production'
+        ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:HH:MM:ss.l' } }
+        : undefined,
+    formatters: {
+        level(label) {
+            return { level: label };
+        },
+    },
+    base: {
+        service: 'madef',
+        env: process.env.NODE_ENV || 'development',
+    },
+});
+
+function enrichWithContext(metadata?: Record<string, unknown>): Record<string, unknown> {
     const context = RequestContext.get();
     const requestId = RequestContext.getRequestId();
     const durationMs = RequestContext.getDurationMs();
 
     return {
         ...(metadata || {}),
-        requestId: requestId || '',
+        requestId: requestId || undefined,
         route: context?.route || undefined,
         role: context?.role || undefined,
-        durationMs,
+        durationMs: durationMs || undefined,
     };
-}
-
-function logToConsole(params: LogParams, metadata: Record<string, unknown>): void {
-    if (process.env.NODE_ENV === 'production') return;
-
-    const config = CONSOLE_BY_TYPE[params.type] || CONSOLE_BY_TYPE.INFO;
-    const reset = '\x1b[0m';
-    const timestamp = new Date().toISOString();
-    const prefix = `${config.color}[${timestamp}] [${params.type}] [${params.action}]${reset}`;
-    const writer = console[config.method];
-    writer(`${prefix} ${params.message}`, metadata);
-
-    if (params.stack) {
-        console.error(params.stack);
-    }
 }
 
 export async function logEvent(params: LogParams): Promise<void> {
     try {
         const context = RequestContext.get();
-        const metadata = normalizeMetadata(params.metadata);
+        const enriched = enrichWithContext(params.metadata);
         const duration = params.duration ?? RequestContext.getDurationMs();
         const userId = params.userId || context?.userId || null;
         const role = params.role || context?.role || undefined;
 
-        logToConsole(params, metadata);
+        const pinoLevel = PINO_LEVEL_MAP[params.type] || 'info';
+        const child = pinoLogger.child({
+            action: params.action,
+            logType: params.type,
+            ...enriched,
+        });
+        child[pinoLevel as 'info'](params.stack ? { stack: params.stack } : {}, params.message);
 
         await prisma.systemLog.create({
             data: {
@@ -74,7 +77,7 @@ export async function logEvent(params: LogParams): Promise<void> {
                 action: params.action,
                 message: params.message,
                 metadata: JSON.stringify({
-                    ...metadata,
+                    ...enriched,
                     role,
                 }),
                 stack: params.stack || null,
@@ -85,7 +88,7 @@ export async function logEvent(params: LogParams): Promise<void> {
             },
         });
     } catch (error) {
-        console.error('[LOGGER_CRITICAL] failed to persist structured log', error);
+        pinoLogger.error({ err: error }, '[LOGGER_CRITICAL] failed to persist structured log');
     }
 }
 
@@ -148,6 +151,9 @@ const logger = {
             metadata: normalized.metadata,
         });
     },
+
+    /** Access the underlying Pino instance for advanced usage */
+    pino: pinoLogger,
 };
 
 export default logger;

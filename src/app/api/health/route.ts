@@ -16,6 +16,7 @@ interface HealthStatus {
     databaseTarget: string;
     checks: {
         database: { status: string; latency?: number };
+        redis: { status: string; latency?: number };
         fileSystem: { status: string; files?: string[] };
         whatsapp: {
             status: string;
@@ -38,6 +39,7 @@ export async function GET() {
     const dbInfo = resolveDatabaseTargetInfo(process.env.DATABASE_URL);
     const checks: HealthStatus['checks'] = {
         database: { status: 'unknown' },
+        redis: { status: 'unknown' },
         fileSystem: { status: 'unknown' },
         whatsapp: { status: 'unknown' },
         memory: { used: 0, total: 0, percentage: 0 },
@@ -58,6 +60,16 @@ export async function GET() {
         };
     } catch {
         checks.database = { status: 'error' };
+    }
+
+    try {
+        const redisStart = Date.now();
+        const { getRedis } = await import('@/lib/redis/client');
+        const redis = getRedis();
+        await redis.ping();
+        checks.redis = { status: 'ok', latency: Date.now() - redisStart };
+    } catch {
+        checks.redis = { status: 'error' };
     }
 
     try {
