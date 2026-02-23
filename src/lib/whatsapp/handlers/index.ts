@@ -106,7 +106,7 @@ export async function handleIncomingMessage(msg: any) {
             text = body.display_text || body.id || '';
             void logger.whatsapp('wa_interactive_response', 'Resposta interativa recebida', { phone, buttonResponse });
         } catch (_e) {
-            void logger.warn('wa_interactive_parse_error', 'Erro ao parsear interactiveResponseMessage', { phone });
+            void logger.warning('wa_interactive_parse_error', 'Erro ao parsear interactiveResponseMessage', { phone });
         }
     }
 

@@ -23,7 +23,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
 
             tester.once('error', (err: NodeJS.ErrnoException) => {
                 if (err.code === 'EADDRINUSE') {
-                    void logger.warn('wa_port_in_use', `Porta ${port} em uso, tentando ${port + 1}...`, { port, nextPort: port + 1 });
+                    void logger.warning('wa_port_in_use', `Porta ${port} em uso, tentando ${port + 1}...`, { port, nextPort: port + 1 });
                     tryPort(port + 1);
                 } else {
                     reject(err);

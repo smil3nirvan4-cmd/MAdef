@@ -12,7 +12,7 @@ async function initializeStateManager(): Promise<IStateManager> {
     if (initialized) return stateManager;
 
     if (FORCE_MEMORY_STATE) {
-        await logger.warn('wa_state_memory_forced', 'Usando State Manager em memória (forçado via variável de ambiente)');
+        await logger.warning('wa_state_memory_forced', 'Usando State Manager em memória (forçado via variável de ambiente)');
         stateManager = MemoryInMemState;
         initialized = true;
         return stateManager;
@@ -20,7 +20,7 @@ async function initializeStateManager(): Promise<IStateManager> {
 
     // Auto-detect: Se não tem DATABASE_URL, usa Memory
     if (!process.env.DATABASE_URL) {
-        await logger.warn('wa_state_no_database', 'DATABASE_URL não encontrada. Usando State Manager em memória.');
+        await logger.warning('wa_state_no_database', 'DATABASE_URL não encontrada. Usando State Manager em memória.');
         stateManager = MemoryInMemState;
         initialized = true;
         return stateManager;
@@ -34,7 +34,7 @@ async function initializeStateManager(): Promise<IStateManager> {
         initialized = true;
         return stateManager;
     } catch (_e) {
-        await logger.warn('wa_state_memory_fallback', 'Usando State Manager em memória (fallback). Para produção, configure REDIS_URL ou garanta que o Prisma esteja disponível.');
+        await logger.warning('wa_state_memory_fallback', 'Usando State Manager em memória (fallback). Para produção, configure REDIS_URL ou garanta que o Prisma esteja disponível.');
         stateManager = MemoryInMemState;
         initialized = true;
         return stateManager;

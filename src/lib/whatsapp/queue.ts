@@ -98,13 +98,13 @@ export async function processQueue(): Promise<void> {
             const status = await statusRes.json();
 
             if (!status.connected) {
-                await logger.warn('wa_queue_bridge_disconnected', 'Bridge não conectado, reagendando');
+                await logger.warning('wa_queue_bridge_disconnected', 'Bridge não conectado, reagendando');
                 isProcessing = false;
                 setTimeout(() => processQueue(), RETRY_DELAY);
                 return;
             }
         } catch (e) {
-            await logger.warn('wa_queue_bridge_unavailable', 'Bridge indisponível, reagendando');
+            await logger.warning('wa_queue_bridge_unavailable', 'Bridge indisponível, reagendando');
             isProcessing = false;
             setTimeout(() => processQueue(), RETRY_DELAY);
             return;

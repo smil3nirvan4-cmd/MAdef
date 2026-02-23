@@ -99,7 +99,7 @@ export async function notifyEmergencyTeam(telefone: string): Promise<void> {
     ).length;
 
     if (successCount === 0) {
-        await logger.warn('emergency_no_channels', 'Nenhum canal de notificação configurado ou disponível');
+        await logger.warning('emergency_no_channels', 'Nenhum canal de notificação configurado ou disponível');
     } else {
         await logger.info('emergency_notification_sent', `Notificação enviada para ${successCount} canal(is)`, { successCount });
     }
