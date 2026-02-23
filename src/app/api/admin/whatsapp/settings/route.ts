@@ -1,9 +1,13 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const updateSettingsSchema = z.record(z.string(), z.unknown());
 
 const DEFAULT_SETTINGS: Record<string, string> = {
     autoReplyEnabled: 'true',
@@ -75,8 +79,9 @@ async function handlePatch(request: NextRequest) {
         const guard = await guardCapability('MANAGE_SETTINGS');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const entries = Object.entries(body || {});
+        const { data: body, error: parseError } = await parseBody(request, updateSettingsSchema);
+        if (parseError) return parseError;
+        const entries = Object.entries(body);
 
         if (entries.length === 0) {
             return NextResponse.json({ success: false, error: 'Nenhuma configuracao recebida' }, { status: 400 });

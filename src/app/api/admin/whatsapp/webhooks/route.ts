@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createWebhookSchema = z.object({
+    name: z.string().optional(),
+    url: z.string().min(1),
+    events: z.array(z.string()).optional(),
+    secret: z.string().optional(),
+    active: z.boolean().optional(),
+});
+
+const updateWebhookSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().optional(),
+    url: z.string().optional(),
+    events: z.array(z.string()).optional(),
+    secret: z.string().optional().nullable(),
+    active: z.boolean().optional(),
+});
 
 const EVENTS = [
     'message_received',
@@ -72,20 +91,16 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { name, url, events, secret, active } = body || {};
-
-        if (!url) {
-            return NextResponse.json({ success: false, error: 'url é obrigatória' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createWebhookSchema);
+        if (error) return error;
 
         const webhook = await prisma.whatsAppWebhook.create({
             data: {
-                name: String(name || 'Webhook'),
-                url: String(url),
-                events: serializeEvents(events || []),
-                secret: secret ? String(secret) : null,
-                isActive: active !== false,
+                name: String(data.name || 'Webhook'),
+                url: String(data.url),
+                events: serializeEvents(data.events || []),
+                secret: data.secret ? String(data.secret) : null,
+                isActive: data.active !== false,
             },
         });
 
@@ -101,11 +116,9 @@ async function handlePut(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { id, ...updates } = body || {};
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, updateWebhookSchema);
+        if (error) return error;
+        const { id, ...updates } = data;
 
         const webhook = await prisma.whatsAppWebhook.update({
             where: { id: String(id) },

@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createLabelSchema = z.object({
+    name: z.string().min(1),
+    color: z.string().optional(),
+});
+
+const updateLabelSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().optional(),
+    color: z.string().optional(),
+});
 
 const DEFAULT_LABELS = [
     { name: 'VIP', color: '#FFD700' },
@@ -45,17 +58,13 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { name, color } = body || {};
-
-        if (!name) {
-            return NextResponse.json({ success: false, error: 'name é obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createLabelSchema);
+        if (error) return error;
 
         const label = await prisma.whatsAppLabel.create({
             data: {
-                name: String(name).trim(),
-                color: String(color || '#3B82F6'),
+                name: String(data.name).trim(),
+                color: String(data.color || '#3B82F6'),
             },
         });
 
@@ -75,11 +84,9 @@ async function handlePut(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { id, ...updates } = body || {};
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, updateLabelSchema);
+        if (error) return error;
+        const { id, ...updates } = data;
 
         const label = await prisma.whatsAppLabel.update({
             where: { id: String(id) },

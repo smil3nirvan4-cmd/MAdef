@@ -1,8 +1,10 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { E, fail, ok } from '@/lib/api/response';
+import { parseBody } from '@/lib/api/parse-body';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { renderCommercialMessage } from '@/lib/documents/commercial-message';
@@ -10,6 +12,11 @@ import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const previewDocumentSchema = z.object({
+    kind: z.string().optional(),
+    orcamentoId: z.string().optional(),
+}).passthrough();
 
 type PreviewKind = 'proposta' | 'contrato';
 
@@ -40,7 +47,8 @@ async function handlePost(
 ) {
     try {
         const { id: avaliacaoId } = await params;
-        const body = await request.json().catch(() => ({}));
+        const { data: body, error } = await parseBody(request, previewDocumentSchema);
+        if (error) return error;
         const kind = normalizeKind(body?.kind);
         const tipo = kind === 'proposta' ? 'PROPOSTA' : 'CONTRATO';
         const guard = await guardCapability(kind === 'proposta' ? 'SEND_PROPOSTA' : 'SEND_CONTRATO');

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const patchFlowSchema = z.object({
+    phone: z.string().min(1),
+    action: z.string().min(1),
+});
 
 async function handleGet() {
     try {
@@ -53,8 +60,9 @@ async function handlePatch(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { phone, action } = body;
+        const { data, error } = await parseBody(request, patchFlowSchema);
+        if (error) return error;
+        const { phone, action } = data;
 
         if (action === 'reset') {
             await prisma.whatsAppFlowState.update({

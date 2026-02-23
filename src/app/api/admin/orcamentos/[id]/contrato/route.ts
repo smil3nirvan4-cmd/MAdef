@@ -11,6 +11,7 @@ import {
 import { buildContractRenderData, defaultContractTemplate } from '@/lib/contracts/render-data';
 import { generateContractTextPDF } from '@/lib/documents/pdf-generator';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 
@@ -36,14 +37,9 @@ async function handlePost(
         return NextResponse.json({ success: false, error: 'Rate limit exceeded' }, { status: 429 });
     }
 
-    const body = await request.json().catch(() => ({}));
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) {
-        return NextResponse.json(
-            { success: false, error: 'Payload invalido', details: parsed.error.issues },
-            { status: 400 },
-        );
-    }
+    const { data: parsed_data, error: parseError } = await parseBody(request, schema);
+    if (parseError) return parseError;
+    const parsed = { data: parsed_data };
 
     const { id } = await params;
     const orcamento = await prisma.orcamento.findUnique({

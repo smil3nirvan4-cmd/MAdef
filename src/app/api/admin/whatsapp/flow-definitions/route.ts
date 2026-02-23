@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createFlowDefinitionSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    trigger: z.string().optional(),
+    category: z.string().optional(),
+    active: z.boolean().optional(),
+    steps: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const updateFlowDefinitionSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    trigger: z.string().optional(),
+    category: z.string().optional(),
+    active: z.boolean().optional(),
+    steps: z.array(z.record(z.string(), z.unknown())).optional(),
+});
 
 const STEP_TYPES = ['message', 'question', 'buttons', 'list', 'media', 'condition', 'action', 'delay'];
 const MEDIA_TYPES = ['image', 'video', 'audio', 'document'];
@@ -118,17 +140,18 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
+        const { data, error } = await parseBody(request, createFlowDefinitionSchema);
+        if (error) return error;
         const now = Date.now();
         const flow = await prisma.whatsAppFlowDefinition.create({
             data: {
-                id: body?.id ? String(body.id) : `FLOW_${now}`,
-                name: String(body?.name || `Fluxo ${now}`),
-                description: body?.description ? String(body.description) : '',
-                trigger: body?.trigger ? String(body.trigger) : '',
-                category: body?.category ? String(body.category) : 'custom',
-                isActive: body?.active !== false,
-                definition: JSON.stringify(Array.isArray(body?.steps) ? body.steps : [{ id: 'start', type: 'message', content: 'Olá' }]),
+                id: data.id ? String(data.id) : `FLOW_${now}`,
+                name: String(data.name || `Fluxo ${now}`),
+                description: data.description ? String(data.description) : '',
+                trigger: data.trigger ? String(data.trigger) : '',
+                category: data.category ? String(data.category) : 'custom',
+                isActive: data.active !== false,
+                definition: JSON.stringify(Array.isArray(data.steps) ? data.steps : [{ id: 'start', type: 'message', content: 'Olá' }]),
             },
         });
         return NextResponse.json({ success: true, flow: toClientFlow(flow) });
@@ -143,21 +166,19 @@ async function handlePatch(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const id = body?.id ? String(body.id) : '';
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, updateFlowDefinitionSchema);
+        if (error) return error;
+        const { id } = data;
 
         const flow = await prisma.whatsAppFlowDefinition.update({
             where: { id },
             data: {
-                ...(body.name !== undefined && { name: String(body.name) }),
-                ...(body.description !== undefined && { description: String(body.description) }),
-                ...(body.trigger !== undefined && { trigger: String(body.trigger) }),
-                ...(body.category !== undefined && { category: String(body.category) }),
-                ...(body.active !== undefined && { isActive: Boolean(body.active) }),
-                ...(body.steps !== undefined && { definition: JSON.stringify(Array.isArray(body.steps) ? body.steps : []) }),
+                ...(data.name !== undefined && { name: String(data.name) }),
+                ...(data.description !== undefined && { description: String(data.description) }),
+                ...(data.trigger !== undefined && { trigger: String(data.trigger) }),
+                ...(data.category !== undefined && { category: String(data.category) }),
+                ...(data.active !== undefined && { isActive: Boolean(data.active) }),
+                ...(data.steps !== undefined && { definition: JSON.stringify(Array.isArray(data.steps) ? data.steps : []) }),
             },
         });
 

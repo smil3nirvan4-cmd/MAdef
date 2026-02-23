@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createContactSchema = z.object({
+    phone: z.string().optional(),
+    telefone: z.string().optional(),
+    name: z.string().optional(),
+    jid: z.string().optional(),
+});
 
 interface AdminWhatsappContact {
     telefone: string | null;
@@ -187,17 +196,18 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const rawPhone = String(body?.phone || body?.telefone || '').trim();
-        const name = body?.name ? String(body.name).trim() : null;
+        const { data, error } = await parseBody(request, createContactSchema);
+        if (error) return error;
+        const rawPhone = String(data.phone || data.telefone || '').trim();
+        const name = data.name ? String(data.name).trim() : null;
 
         const phone = rawPhone.replace(/\D/g, '');
         if (!phone || phone.length < 10) {
             return NextResponse.json({ success: false, error: 'Telefone inválido' }, { status: 400 });
         }
 
-        const jid = body?.jid
-            ? String(body.jid)
+        const jid = data.jid
+            ? String(data.jid)
             : `${phone}@s.whatsapp.net`;
 
         const contact = await prisma.whatsAppContact.upsert({

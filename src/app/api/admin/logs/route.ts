@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, paginated, ok } from '@/lib/api/response';
@@ -6,6 +7,7 @@ import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
 
 const SORTABLE_FIELDS = ['createdAt', 'type', 'action'] as const;
 
@@ -59,10 +61,12 @@ const deleteHandler = async (request: NextRequest) => {
         const guard = await guardCapability('VIEW_LOGS');
         if (guard instanceof NextResponse) return guard;
 
-        const { olderThanDays } = await request.json();
-        if (!olderThanDays || olderThanDays < 1) {
-            return fail(E.VALIDATION_ERROR, 'olderThanDays deve ser >= 1', { status: 400, field: 'olderThanDays' });
-        }
+        const deleteLogsSchema = z.object({
+            olderThanDays: z.number().int().min(1),
+        });
+        const { data: body, error: bodyError } = await parseBody(request, deleteLogsSchema);
+        if (bodyError) return bodyError;
+        const { olderThanDays } = body;
 
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);

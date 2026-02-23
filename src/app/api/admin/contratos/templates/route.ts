@@ -8,6 +8,7 @@ import {
 } from '@/lib/contracts/template-engine';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
 
 const createTemplateSchema = z.object({
     unidadeId: z.string().min(1),
@@ -65,16 +66,8 @@ async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
-    const body = await request.json().catch(() => ({}));
-    const parsed = createTemplateSchema.safeParse(body);
-    if (!parsed.success) {
-        return NextResponse.json(
-            { success: false, error: 'Payload invalido', details: parsed.error.issues },
-            { status: 400 },
-        );
-    }
-
-    const data = parsed.data;
+    const { data, error } = await parseBody(request, createTemplateSchema);
+    if (error) return error;
     const placeholders = extractPlaceholders(data.conteudo);
     const missingRequired = validateRequiredPlaceholders(placeholders);
 

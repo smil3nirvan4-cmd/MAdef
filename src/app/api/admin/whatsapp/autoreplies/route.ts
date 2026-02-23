@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
 
 const TRIGGER_TYPES = ['exact', 'contains', 'startsWith', 'endsWith', 'regex'];
 
@@ -65,24 +67,27 @@ async function handleGet(_request: NextRequest) {
     }
 }
 
+const createAutoReplySchema = z.object({
+    trigger: z.string().min(1),
+    triggerType: z.string().optional(),
+    response: z.string().min(1),
+    priority: z.number().optional(),
+});
+
 async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { trigger, triggerType, response, priority } = body || {};
-
-        if (!trigger || !response) {
-            return NextResponse.json({ success: false, error: 'trigger e response são obrigatórios' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createAutoReplySchema);
+        if (error) return error;
 
         const rule = await prisma.whatsAppAutoReply.create({
             data: {
-                trigger: String(trigger).trim(),
-                condition: TRIGGER_TYPES.includes(String(triggerType)) ? String(triggerType) : 'contains',
-                response: String(response),
-                priority: Number(priority || 1),
+                trigger: data.trigger.trim(),
+                condition: TRIGGER_TYPES.includes(String(data.triggerType)) ? String(data.triggerType) : 'contains',
+                response: data.response,
+                priority: Number(data.priority || 1),
                 isActive: true,
             },
         });
@@ -94,17 +99,24 @@ async function handlePost(request: NextRequest) {
     }
 }
 
+const updateAutoReplySchema = z.object({
+    id: z.string().min(1),
+    trigger: z.string().optional(),
+    triggerType: z.string().optional(),
+    response: z.string().optional(),
+    priority: z.number().optional(),
+    active: z.boolean().optional(),
+});
+
 async function handlePatch(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { id, ...updates } = body || {};
+        const { data, error } = await parseBody(request, updateAutoReplySchema);
+        if (error) return error;
 
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+        const { id, ...updates } = data;
 
         const rule = await prisma.whatsAppAutoReply.update({
             where: { id: String(id) },

@@ -6,6 +6,7 @@ import logger from '@/lib/observability/logger';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { computeInputHash } from '@/lib/pricing/input-hash';
 import { z } from 'zod';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 
@@ -99,16 +100,10 @@ async function handlePost(request: NextRequest) {
     }
 
     try {
-        const body = await request.json().catch(() => ({}));
-        const parsed = createOrcamentoSchema.safeParse(body);
-        if (!parsed.success) {
-            return fail(E.VALIDATION_ERROR, 'Dados invalidos para criar orcamento', {
-                status: 400,
-                details: parsed.error.issues,
-            });
-        }
+        const { data: parsedData, error } = await parseBody(request, createOrcamentoSchema);
+        if (error) return error;
 
-        const data = parsed.data;
+        const data = parsedData;
         const selectedScenario = parseScenarioKey(data.cenarioSelecionado);
         const scenarioSnapshot = data.snapshotsByScenario?.[selectedScenario];
         const fallbackConfig = (!data.unidadeId || !data.configVersionId || !data.moeda)

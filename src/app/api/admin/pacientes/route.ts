@@ -6,6 +6,8 @@ import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { z } from 'zod';
+import { parseBody } from '@/lib/api/parse-body';
 
 const SORTABLE_FIELDS = ['createdAt', 'nome', 'status', 'cidade'] as const;
 
@@ -90,28 +92,37 @@ const postHandler = async (request: NextRequest) => {
     if (guard instanceof NextResponse) return guard;
 
     try {
-        const body = await request.json();
-        const telefone = String(body?.telefone || '').trim();
-        if (!telefone) {
-            return fail(E.MISSING_FIELD, 'Telefone e obrigatorio', { status: 400, field: 'telefone' });
-        }
+        const createPacienteSchema = z.object({
+            telefone: z.string().min(1, 'Telefone é obrigatório'),
+            nome: z.string().nullable().optional(),
+            cidade: z.string().nullable().optional(),
+            bairro: z.string().nullable().optional(),
+            tipo: z.string().optional().default('HOME_CARE'),
+            hospital: z.string().nullable().optional(),
+            quarto: z.string().nullable().optional(),
+            prioridade: z.string().optional().default('NORMAL'),
+            status: z.string().optional().default('LEAD'),
+        });
 
-        const existing = await prisma.paciente.findUnique({ where: { telefone } });
+        const { data, error } = await parseBody(request, createPacienteSchema);
+        if (error) return error;
+
+        const existing = await prisma.paciente.findUnique({ where: { telefone: data.telefone } });
         if (existing) {
             return fail(E.CONFLICT, 'Paciente ja cadastrado com este telefone', { status: 409, field: 'telefone' });
         }
 
         const paciente = await prisma.paciente.create({
             data: {
-                nome: body?.nome || null,
-                telefone,
-                cidade: body?.cidade || null,
-                bairro: body?.bairro || null,
-                tipo: body?.tipo || 'HOME_CARE',
-                hospital: body?.hospital || null,
-                quarto: body?.quarto || null,
-                prioridade: body?.prioridade || 'NORMAL',
-                status: body?.status || 'LEAD',
+                nome: data.nome || null,
+                telefone: data.telefone,
+                cidade: data.cidade || null,
+                bairro: data.bairro || null,
+                tipo: data.tipo,
+                hospital: data.hospital || null,
+                quarto: data.quarto || null,
+                prioridade: data.prioridade,
+                status: data.status,
             },
         });
 

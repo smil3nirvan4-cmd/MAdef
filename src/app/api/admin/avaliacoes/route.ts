@@ -6,6 +6,8 @@ import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { z } from 'zod';
+import { parseBody } from '@/lib/api/parse-body';
 
 const SORTABLE_FIELDS = ['createdAt', 'status'] as const;
 
@@ -94,25 +96,36 @@ const postHandler = async (request: NextRequest) => {
     if (guard instanceof NextResponse) return guard;
 
     try {
-        const body = await request.json();
-        const pacienteId = String(body?.pacienteId || '').trim();
-        if (!pacienteId) {
-            return fail(E.MISSING_FIELD, 'pacienteId is required', { status: 400, field: 'pacienteId' });
-        }
+        const createAvaliacaoSchema = z.object({
+            pacienteId: z.string().min(1, 'pacienteId is required'),
+            status: z.string().optional().default('PENDENTE'),
+            abemidScore: z.number().nullable().optional(),
+            katzScore: z.number().nullable().optional(),
+            lawtonScore: z.number().nullable().optional(),
+            gqp: z.number().nullable().optional(),
+            nivelSugerido: z.string().nullable().optional(),
+            cargaSugerida: z.string().nullable().optional(),
+            nivelFinal: z.string().nullable().optional(),
+            cargaFinal: z.string().nullable().optional(),
+            dadosDetalhados: z.unknown().optional(),
+        });
+
+        const { data, error } = await parseBody(request, createAvaliacaoSchema);
+        if (error) return error;
 
         const avaliacao = await prisma.avaliacao.create({
             data: {
-                pacienteId,
-                status: body?.status || 'PENDENTE',
-                abemidScore: body?.abemidScore ?? null,
-                katzScore: body?.katzScore ?? null,
-                lawtonScore: body?.lawtonScore ?? null,
-                gqp: body?.gqp ?? null,
-                nivelSugerido: body?.nivelSugerido ?? null,
-                cargaSugerida: body?.cargaSugerida ?? null,
-                nivelFinal: body?.nivelFinal ?? null,
-                cargaFinal: body?.cargaFinal ?? null,
-                dadosDetalhados: body?.dadosDetalhados ? JSON.stringify(body.dadosDetalhados) : null,
+                pacienteId: data.pacienteId,
+                status: data.status,
+                abemidScore: data.abemidScore ?? null,
+                katzScore: data.katzScore ?? null,
+                lawtonScore: data.lawtonScore ?? null,
+                gqp: data.gqp ?? null,
+                nivelSugerido: data.nivelSugerido ?? null,
+                cargaSugerida: data.cargaSugerida ?? null,
+                nivelFinal: data.nivelFinal ?? null,
+                cargaFinal: data.cargaFinal ?? null,
+                dadosDetalhados: data.dadosDetalhados ? JSON.stringify(data.dadosDetalhados) : null,
             },
             include: {
                 paciente: {

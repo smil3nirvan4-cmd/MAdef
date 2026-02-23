@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const createCandidatoSchema = z.object({
+    nome: z.string().optional(),
+    telefone: z.string().min(1),
+    area: z.string().optional(),
+    endereco: z.string().optional(),
+    competencias: z.string().optional(),
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -68,12 +78,9 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_RH');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { nome, telefone, area, endereco, competencias } = body;
-
-        if (!telefone) {
-            return NextResponse.json({ error: 'Telefone obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createCandidatoSchema);
+        if (error) return error;
+        const { nome, telefone, area, endereco, competencias } = data;
 
         const existing = await prisma.cuidador.findUnique({ where: { telefone } });
         if (existing) {

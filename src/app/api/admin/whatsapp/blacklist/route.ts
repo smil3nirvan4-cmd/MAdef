@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
 
 function normalizePhone(phone: string) {
     return String(phone || '').replace(/\D/g, '');
@@ -24,14 +26,21 @@ async function handleGet(_request: NextRequest) {
     }
 }
 
+const addBlacklistSchema = z.object({
+    phone: z.string().min(1),
+    reason: z.string().optional(),
+});
+
 async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const phone = normalizePhone(body?.phone);
-        const reason = body?.reason ? String(body.reason) : null;
+        const { data, error } = await parseBody(request, addBlacklistSchema);
+        if (error) return error;
+
+        const phone = normalizePhone(data.phone);
+        const reason = data.reason ? String(data.reason) : null;
 
         if (!phone) {
             return NextResponse.json({ success: false, error: 'phone é obrigatório' }, { status: 400 });

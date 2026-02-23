@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const patchPacienteSchema = z.object({
+    nome: z.string().optional(),
+    cidade: z.string().optional(),
+    bairro: z.string().optional(),
+    tipo: z.string().optional(),
+    hospital: z.string().optional(),
+    quarto: z.string().optional(),
+    status: z.string().optional(),
+    prioridade: z.string().optional(),
+}).passthrough();
 
 async function handleGet(
     request: NextRequest,
@@ -91,7 +104,8 @@ async function handlePatch(
         if (guard instanceof NextResponse) return guard;
 
         const { id } = await params;
-        const body = await request.json();
+        const { data: body, error } = await parseBody(request, patchPacienteSchema);
+        if (error) return error;
 
         const existing = await prisma.paciente.findUnique({ where: { id } });
         if (!existing) {

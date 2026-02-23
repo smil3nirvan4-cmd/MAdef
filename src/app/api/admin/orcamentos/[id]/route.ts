@@ -1,13 +1,25 @@
 ﻿export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const patchOrcamentoSchema = z.object({
+    action: z.string().optional(),
+    cenarioSelecionado: z.string().optional(),
+    valorFinal: z.union([z.string(), z.number()]).optional(),
+    aprovadoPor: z.string().optional(),
+    cenarioEconomico: z.string().optional(),
+    cenarioRecomendado: z.string().optional(),
+    cenarioPremium: z.string().optional(),
+}).passthrough();
 
 async function handleGet(
     _request: NextRequest,
@@ -97,7 +109,8 @@ async function handlePatch(
         if (guard instanceof NextResponse) return guard;
 
         const { id } = await params;
-        const body = await request.json();
+        const { data: body, error } = await parseBody(request, patchOrcamentoSchema);
+        if (error) return error;
         const { action, cenarioSelecionado, valorFinal, aprovadoPor } = body;
 
         if (action === 'enviar') {

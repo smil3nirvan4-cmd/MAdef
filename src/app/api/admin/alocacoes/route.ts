@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const createAlocacaoSchema = z.object({
+    cuidadorId: z.string().min(1),
+    pacienteId: z.string().optional(),
+    slotId: z.string().min(1),
+    turno: z.string().optional().default('DIURNO'),
+    diaSemana: z.number().optional().default(0),
+    dataInicio: z.string().optional(),
+    hospital: z.string().optional(),
+    quarto: z.string().optional(),
+});
 
 async function handleGet(request: NextRequest) {
     try {
@@ -73,20 +86,17 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_ALOCACOES');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = body;
-
-        if (!cuidadorId || !slotId) {
-            return NextResponse.json({ error: 'Cuidador e slot são obrigatórios' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createAlocacaoSchema);
+        if (error) return error;
+        const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = data;
 
         const alocacao = await prisma.alocacao.create({
             data: {
                 cuidadorId,
                 pacienteId,
                 slotId,
-                turno: turno || 'DIURNO',
-                diaSemana: diaSemana || 0,
+                turno,
+                diaSemana,
                 dataInicio: dataInicio ? new Date(dataInicio) : new Date(),
                 hospital,
                 quarto,

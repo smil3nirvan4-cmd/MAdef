@@ -1,9 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createTemplateSchema = z.object({
+    name: z.string().min(1),
+    category: z.string().min(1),
+    content: z.string().min(1),
+    isActive: z.boolean().optional(),
+});
+
+const updateTemplateSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().optional(),
+    category: z.string().optional(),
+    content: z.string().optional(),
+    isActive: z.boolean().optional(),
+});
 
 const DEFAULT_TEMPLATES = [
     { name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas.' },
@@ -44,19 +61,15 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { name, category, content, isActive } = body || {};
-
-        if (!name || !category || !content) {
-            return NextResponse.json({ success: false, error: 'name, category e content são obrigatórios' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createTemplateSchema);
+        if (error) return error;
 
         const template = await prisma.whatsAppTemplate.create({
             data: {
-                name: String(name).trim(),
-                category: String(category).trim(),
-                content: String(content),
-                isActive: isActive !== false,
+                name: String(data.name).trim(),
+                category: String(data.category).trim(),
+                content: String(data.content),
+                isActive: data.isActive !== false,
             },
         });
 
@@ -76,12 +89,9 @@ async function handlePut(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { id, ...updates } = body || {};
-
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, updateTemplateSchema);
+        if (error) return error;
+        const { id, ...updates } = data;
 
         const template = await prisma.whatsAppTemplate.update({
             where: { id: String(id) },

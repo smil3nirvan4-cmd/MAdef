@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const patchCandidatoSchema = z.object({
+    action: z.string().optional(),
+    scoreRH: z.number().optional(),
+}).passthrough();
 
 async function handleGet(
     request: NextRequest,
@@ -36,8 +43,9 @@ async function handlePatch(
         if (guard instanceof NextResponse) return guard;
 
         const { id } = await params;
-        const body = await request.json();
-        const { action, scoreRH, ...updateFields } = body;
+        const { data, error } = await parseBody(request, patchCandidatoSchema);
+        if (error) return error;
+        const { action, scoreRH, ...updateFields } = data;
 
         let updateData: any = {};
 

@@ -1,14 +1,18 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { generatePropostaPDF } from '@/lib/documents/pdf-generator';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const gerarPropostaSchema = z.object({}).passthrough();
 
 async function handlePost(
     request: NextRequest,
@@ -18,7 +22,8 @@ async function handlePost(
         const guard = await guardCapability('MANAGE_ORCAMENTOS');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json().catch(() => ({}));
+        const { data: body, error } = await parseBody(request, gerarPropostaSchema);
+        if (error) return error;
         let sendOptions;
         try {
             sendOptions = parseOrcamentoSendOptions(body);

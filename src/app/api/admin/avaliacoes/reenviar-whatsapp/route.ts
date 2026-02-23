@@ -1,28 +1,29 @@
 ﻿export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { buildAvaliacaoPropostaMessage } from '@/lib/whatsapp-sender';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const reenviarWhatsappSchema = z.object({
+    avaliacaoId: z.string().min(1),
+});
 
 async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('SEND_PROPOSTA');
         if (guard instanceof NextResponse) return guard;
 
-        const { avaliacaoId } = await request.json();
-
-        if (!avaliacaoId) {
-            return NextResponse.json(
-                { success: false, error: 'avaliacaoId e obrigatorio' },
-                { status: 400 }
-            );
-        }
+        const { data, error } = await parseBody(request, reenviarWhatsappSchema);
+        if (error) return error;
+        const { avaliacaoId } = data;
 
         const avaliacao = await prisma.avaliacao.findUnique({
             where: { id: avaliacaoId },

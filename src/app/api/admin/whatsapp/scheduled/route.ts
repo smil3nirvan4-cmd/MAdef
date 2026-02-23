@@ -1,10 +1,18 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createScheduledSchema = z.object({
+    phone: z.string().min(1),
+    message: z.string().min(1),
+    scheduledAt: z.string().min(1),
+});
 
 function normalizePhone(raw: string) {
     return String(raw || '').replace(/\D/g, '');
@@ -47,12 +55,13 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const phone = normalizePhone(body?.phone);
-        const message = body?.message ? String(body.message) : '';
-        const scheduledAt = body?.scheduledAt ? new Date(body.scheduledAt) : null;
+        const { data, error } = await parseBody(request, createScheduledSchema);
+        if (error) return error;
+        const phone = normalizePhone(data.phone);
+        const message = data.message;
+        const scheduledAt = new Date(data.scheduledAt);
 
-        if (!phone || !message || !scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+        if (!phone || Number.isNaN(scheduledAt.getTime())) {
             return NextResponse.json({ success: false, error: 'phone, message e scheduledAt sao obrigatorios' }, { status: 400 });
         }
 

@@ -1,6 +1,7 @@
 ﻿export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
@@ -9,6 +10,12 @@ import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const sendMessageSchema = z.object({
+    message: z.string().min(1),
+});
+
 
 async function handleGet(
     _request: NextRequest,
@@ -63,12 +70,9 @@ async function handlePost(
         if (guard instanceof NextResponse) return guard;
 
         const { phone } = await params;
-        const body = await request.json();
-        const message = body?.message ? String(body.message) : '';
-
-        if (!message) {
-            return NextResponse.json({ success: false, error: 'Mensagem e obrigatoria' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, sendMessageSchema);
+        if (error) return error;
+        const message = data.message;
 
         const normalized = normalizeOutboundPhoneBR(phone);
         const targetJid = normalized.isValid ? normalized.jid : (phone.includes('@') ? phone : `${phone}@s.whatsapp.net`);

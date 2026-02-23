@@ -10,6 +10,7 @@ import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 
 const actionSchema = z.object({
     action: z.enum(['reprocess', 'cancel', 'process']),
@@ -105,8 +106,8 @@ const postHandler = async (
         if (guard instanceof NextResponse) return guard;
 
         const { id } = await params;
-        const body = await request.json();
-        const parsed = actionSchema.parse(body || {});
+        const { data: parsed, error: parseError } = await parseBody(request, actionSchema);
+        if (parseError) return parseError;
 
         const current = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
         if (!current) {

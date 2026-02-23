@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const createQuickReplySchema = z.object({
+    shortcut: z.string().min(1),
+    content: z.string().min(1),
+    isActive: z.boolean().optional(),
+});
+
+const updateQuickReplySchema = z.object({
+    id: z.string().min(1),
+    shortcut: z.string().optional(),
+    content: z.string().optional(),
+    isActive: z.boolean().optional(),
+});
 
 const DEFAULT_REPLIES = [
     { shortcut: '/oi', content: 'Olá! Como posso ajudar você hoje?' },
@@ -38,18 +53,14 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { shortcut, content, isActive } = body || {};
-
-        if (!shortcut || !content) {
-            return NextResponse.json({ success: false, error: 'shortcut e content são obrigatórios' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, createQuickReplySchema);
+        if (error) return error;
 
         const reply = await prisma.whatsAppQuickReply.create({
             data: {
-                shortcut: String(shortcut).trim(),
-                content: String(content),
-                isActive: isActive !== false,
+                shortcut: String(data.shortcut).trim(),
+                content: String(data.content),
+                isActive: data.isActive !== false,
             },
         });
 
@@ -69,12 +80,9 @@ async function handlePut(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const { id, ...updates } = body || {};
-
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+        const { data, error } = await parseBody(request, updateQuickReplySchema);
+        if (error) return error;
+        const { id, ...updates } = data;
 
         const reply = await prisma.whatsAppQuickReply.update({
             where: { id: String(id) },

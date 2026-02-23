@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+
+const importSettingsSchema = z.object({
+    'automation-settings': z.unknown().optional(),
+    'templates': z.unknown().optional(),
+    'quick-replies': z.unknown().optional(),
+    'autoreplies': z.unknown().optional(),
+    'webhooks': z.unknown().optional(),
+    'labels': z.unknown().optional(),
+    'blacklist': z.unknown().optional(),
+}).passthrough();
 
 // Export all WhatsApp settings
 async function handleGet() {
@@ -45,7 +57,8 @@ async function handlePost(request: NextRequest) {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const data = await request.json();
+        const { data, error } = await parseBody(request, importSettingsSchema);
+        if (error) return error;
 
         const mappings: Record<string, string> = {
             'automation-settings': '.wa-automation-settings.json',

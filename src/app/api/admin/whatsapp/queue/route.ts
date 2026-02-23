@@ -12,6 +12,7 @@ import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { E, fail, ok, paginated } from '@/lib/api/response';
 import { parseFilter, parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 
 const allowedStatuses = ['pending', 'sending', 'sent', 'retrying', 'dead', 'canceled'] as const;
 const sortableFields = ['createdAt', 'scheduledAt', 'retries', 'lastAttemptAt'] as const;
@@ -23,6 +24,11 @@ const actionSchema = z.object({
     phone: z.string().optional(),
     message: z.string().optional(),
     limit: z.number().int().positive().max(100).optional(),
+});
+
+const patchQueueItemSchema = z.object({
+    id: z.string().min(1),
+    status: z.enum(allowedStatuses),
 });
 
 function parsePayload(payload: string): any {
@@ -224,8 +230,8 @@ const postHandler = async (request: NextRequest) => {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const parsed = actionSchema.parse(body || {});
+        const { data: parsed, error: parseError } = await parseBody(request, actionSchema);
+        if (parseError) return parseError;
         const action = parsed.action;
         const ids = parsed.ids || [];
 
@@ -292,17 +298,12 @@ const patchHandler = async (request: NextRequest) => {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
 
-        const body = await request.json();
-        const id = String(body?.id || '');
-        const status = String(body?.status || '');
-
-        if (!id || !(allowedStatuses as readonly string[]).includes(status)) {
-            return fail(E.VALIDATION_ERROR, 'id e status validos sao obrigatorios', { status: 400 });
-        }
+        const { data: body, error: parseError } = await parseBody(request, patchQueueItemSchema);
+        if (parseError) return parseError;
 
         const item = await prisma.whatsAppQueueItem.update({
-            where: { id },
-            data: { status },
+            where: { id: body.id },
+            data: { status: body.status },
         });
 
         return ok({ item });

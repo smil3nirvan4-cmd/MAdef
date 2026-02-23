@@ -1,16 +1,23 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, ok } from '@/lib/api/response';
+import { parseBody } from '@/lib/api/parse-body';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const sendPropostaSchema = z.object({
+    orcamentoId: z.string().optional(),
+    idempotencyKey: z.string().optional(),
+}).passthrough();
 
 function isMissingColumnError(error: unknown): boolean {
     return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === 'P2022');
@@ -39,7 +46,8 @@ async function handlePost(
         }
 
         const { id: avaliacaoId } = await params;
-        const body = await request.json().catch(() => ({}));
+        const { data: body, error } = await parseBody(request, sendPropostaSchema);
+        if (error) return error;
         let sendOptions;
         try {
             sendOptions = parseOrcamentoSendOptions(body);

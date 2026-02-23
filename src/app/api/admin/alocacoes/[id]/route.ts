@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const patchAlocacaoSchema = z.object({
+    action: z.string().optional(),
+}).passthrough();
 
 async function handlePatch(
     request: NextRequest,
@@ -13,8 +19,9 @@ async function handlePatch(
         if (guard instanceof NextResponse) return guard;
 
         const { id } = await params;
-        const body = await request.json();
-        const { action } = body;
+        const { data, error } = await parseBody(request, patchAlocacaoSchema);
+        if (error) return error;
+        const { action } = data;
 
         let updateData: any = {};
 
@@ -35,7 +42,7 @@ async function handlePatch(
                 updateData = { status: 'CANCELADO' };
                 break;
             default:
-                updateData = body;
+                updateData = data;
         }
 
         const alocacao = await prisma.alocacao.update({
