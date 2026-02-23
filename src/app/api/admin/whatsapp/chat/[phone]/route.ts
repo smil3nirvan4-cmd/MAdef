@@ -6,12 +6,16 @@ import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ phone: string }> }
 ) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { phone } = await params;
 
         const messages = await prisma.mensagem.findMany({
@@ -53,6 +57,9 @@ export async function POST(
     { params }: { params: Promise<{ phone: string }> }
 ) {
     try {
+        const guard = await guardCapability('SEND_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { phone } = await params;
         const body = await request.json();
         const message = body?.message ? String(body.message) : '';

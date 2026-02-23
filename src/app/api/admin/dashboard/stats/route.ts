@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET() {
     try {
+        const guard = await guardCapability('VIEW_ANALYTICS');
+        if (guard instanceof NextResponse) return guard;
+
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const startOfWeek = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);

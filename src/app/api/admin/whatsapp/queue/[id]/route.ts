@@ -1,12 +1,13 @@
 export const runtime = 'nodejs';
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok } from '@/lib/api/response';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const actionSchema = z.object({
     action: z.enum(['reprocess', 'cancel', 'process']),
@@ -35,6 +36,9 @@ const getHandler = async (
     { params }: { params: Promise<{ id: string }> }
 ) => {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
 
         const item = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
@@ -95,6 +99,9 @@ const postHandler = async (
     { params }: { params: Promise<{ id: string }> }
 ) => {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const body = await request.json();
         const parsed = actionSchema.parse(body || {});

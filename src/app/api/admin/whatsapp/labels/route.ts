@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const DEFAULT_LABELS = [
     { name: 'VIP', color: '#FFD700' },
@@ -25,6 +26,9 @@ function withDescription(label: any) {
 
 export async function GET(_request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         await ensureSeed();
         const labels = await prisma.whatsAppLabel.findMany({ orderBy: { name: 'asc' } });
         return NextResponse.json({ success: true, labels: labels.map(withDescription) });
@@ -36,6 +40,9 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { name, color } = body || {};
 
@@ -63,6 +70,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { id, ...updates } = body || {};
         if (!id) {
@@ -86,6 +96,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) {

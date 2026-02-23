@@ -6,12 +6,16 @@ import logger from '@/lib/observability/logger';
 import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { generateContratoPDF } from '@/lib/documents/pdf-generator';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_ORCAMENTOS');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json().catch(() => ({}));
         let sendOptions;
         try {

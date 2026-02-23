@@ -6,9 +6,13 @@ import logger from '@/lib/logger';
 import { buildAvaliacaoPropostaMessage } from '@/lib/whatsapp-sender';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('SEND_PROPOSTA');
+        if (guard instanceof NextResponse) return guard;
+
         const { avaliacaoId } = await request.json();
 
         if (!avaliacaoId) {

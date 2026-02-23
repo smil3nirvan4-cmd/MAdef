@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 function collectRouteFiles(basePath: string, relative = ''): string[] {
     const absolute = path.join(basePath, relative);
@@ -59,6 +60,9 @@ function toPagePath(pageFileRelative: string): string {
 }
 
 export async function GET() {
+    const guard = await guardCapability('MANAGE_USERS');
+    if (guard instanceof NextResponse) return guard;
+
     if (process.env.NODE_ENV !== 'development') {
         return NextResponse.json(
             { success: false, error: 'Route registry disponivel apenas em desenvolvimento.' },

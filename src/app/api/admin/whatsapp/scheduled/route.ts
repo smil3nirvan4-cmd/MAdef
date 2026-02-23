@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 function normalizePhone(raw: string) {
     return String(raw || '').replace(/\D/g, '');
@@ -9,6 +10,9 @@ function normalizePhone(raw: string) {
 
 export async function GET(request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status') || 'pending';
 
@@ -38,6 +42,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const phone = normalizePhone(body?.phone);
         const message = body?.message ? String(body.message) : '';
@@ -79,6 +86,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) {

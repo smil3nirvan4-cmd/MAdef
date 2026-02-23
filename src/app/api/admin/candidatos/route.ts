@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_RH');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const area = searchParams.get('area');
@@ -59,6 +63,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_RH');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { nome, telefone, area, endereco, competencias } = body;
 

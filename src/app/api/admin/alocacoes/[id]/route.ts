@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_ALOCACOES');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const body = await request.json();
         const { action } = body;

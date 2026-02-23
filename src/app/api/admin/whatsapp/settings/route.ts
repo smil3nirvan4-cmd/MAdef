@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const DEFAULT_SETTINGS: Record<string, string> = {
     autoReplyEnabled: 'true',
@@ -46,6 +47,9 @@ async function loadSettingsObject() {
 
 export async function GET(_request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         await ensureSeed();
         const settings = await loadSettingsObject();
 
@@ -66,6 +70,9 @@ export async function GET(_request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_SETTINGS');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const entries = Object.entries(body || {});
 
@@ -102,5 +109,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_SETTINGS');
+    if (guard instanceof NextResponse) return guard;
+
     return PATCH(request);
 }

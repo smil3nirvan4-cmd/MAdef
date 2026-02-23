@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('VIEW_RH');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const cuidador = await prisma.cuidador.findUnique({
             where: { id },
@@ -26,6 +30,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_RH');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const body = await request.json();
         const { action, scoreRH, ...updateFields } = body;
@@ -61,6 +68,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_RH');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         await prisma.mensagem.deleteMany({ where: { cuidadorId: id } });
         await prisma.alocacao.deleteMany({ where: { cuidadorId: id } });

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 // Export all WhatsApp settings
 export async function GET() {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const files = [
             '.wa-automation-settings.json',
             '.wa-templates.json',
@@ -36,6 +40,9 @@ export async function GET() {
 // Import settings
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const data = await request.json();
 
         const mappings: Record<string, string> = {

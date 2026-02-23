@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 function normalizePhone(phone: string) {
     return String(phone || '').replace(/\D/g, '');
@@ -8,6 +9,9 @@ function normalizePhone(phone: string) {
 
 export async function GET(_request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const blacklist = await prisma.whatsAppBlacklist.findMany({
             orderBy: { createdAt: 'desc' },
         });
@@ -20,6 +24,9 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const phone = normalizePhone(body?.phone);
         const reason = body?.reason ? String(body.reason) : null;
@@ -43,6 +50,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const phone = normalizePhone(searchParams.get('phone') || '');
         const id = searchParams.get('id');

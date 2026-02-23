@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('VIEW_PACIENTES');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const paciente = await prisma.paciente.findUnique({
             where: { id },
@@ -81,6 +85,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_PACIENTES');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const body = await request.json();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const TRIGGER_TYPES = ['exact', 'contains', 'startsWith', 'endsWith', 'regex'];
 
@@ -43,6 +44,9 @@ function toClientRule(rule: any) {
 
 export async function GET(_request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         await ensureSeed();
         const rules = await prisma.whatsAppAutoReply.findMany({
             orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
@@ -61,6 +65,9 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { trigger, triggerType, response, priority } = body || {};
 
@@ -87,6 +94,9 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { id, ...updates } = body || {};
 
@@ -116,6 +126,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) {

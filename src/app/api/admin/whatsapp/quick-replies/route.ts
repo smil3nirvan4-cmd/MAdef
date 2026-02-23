@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const DEFAULT_REPLIES = [
     { shortcut: '/oi', content: 'Olá! Como posso ajudar você hoje?' },
@@ -18,6 +19,9 @@ async function ensureSeed() {
 
 export async function GET(_request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         await ensureSeed();
         const replies = await prisma.whatsAppQuickReply.findMany({ orderBy: { shortcut: 'asc' } });
         return NextResponse.json({ success: true, replies });
@@ -29,6 +33,9 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { shortcut, content, isActive } = body || {};
 
@@ -57,6 +64,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { id, ...updates } = body || {};
 
@@ -82,6 +92,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         if (!id) {

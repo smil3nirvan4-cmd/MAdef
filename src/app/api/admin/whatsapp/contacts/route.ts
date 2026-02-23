@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 interface AdminWhatsappContact {
     telefone: string | null;
@@ -78,6 +79,9 @@ function dedupeContacts(rows: AdminWhatsappContact[]): AdminWhatsappContact[] {
 
 export async function GET(request: NextRequest) {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search');
         const type = searchParams.get('type'); // cuidador, paciente, all
@@ -178,6 +182,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const rawPhone = String(body?.phone || body?.telefone || '').trim();
         const name = body?.name ? String(body.name).trim() : null;

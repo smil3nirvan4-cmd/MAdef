@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ telefone: string }> }
 ) {
     try {
+        const guard = await guardCapability('VIEW_LOGS');
+        if (guard instanceof NextResponse) return guard;
+
         const { telefone } = await params;
 
         // Normalizar telefone

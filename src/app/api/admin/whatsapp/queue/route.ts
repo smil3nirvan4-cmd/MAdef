@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
@@ -9,6 +9,7 @@ import { OUTBOX_INTENTS } from '@/lib/whatsapp/outbox/types';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok, paginated } from '@/lib/api/response';
 import { parseFilter, parsePagination, parseSort } from '@/lib/api/query-params';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const allowedStatuses = ['pending', 'sending', 'sent', 'retrying', 'dead', 'canceled'] as const;
 const sortableFields = ['createdAt', 'scheduledAt', 'retries', 'lastAttemptAt'] as const;
@@ -65,6 +66,9 @@ function normalizeStatusFilter(rawStatus: string | null) {
 
 const getHandler = async (request: NextRequest) => {
     try {
+        const guard = await guardCapability('VIEW_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const url = new URL(request.url);
         const { searchParams } = url;
         const { page, pageSize } = parsePagination(url);
@@ -215,6 +219,9 @@ const getHandler = async (request: NextRequest) => {
 
 const postHandler = async (request: NextRequest) => {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const parsed = actionSchema.parse(body || {});
         const action = parsed.action;
@@ -280,6 +287,9 @@ const postHandler = async (request: NextRequest) => {
 
 const patchHandler = async (request: NextRequest) => {
     try {
+        const guard = await guardCapability('MANAGE_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const id = String(body?.id || '');
         const status = String(body?.status || '');

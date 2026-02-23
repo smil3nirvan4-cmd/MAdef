@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { E, fail } from '@/lib/api/response';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 function isMissingColumnError(error: unknown): boolean {
     return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === 'P2022');
@@ -25,6 +26,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('VIEW_AVALIACOES');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const schemaCapabilities = await getDbSchemaCapabilities();
         if (!schemaCapabilities.dbSchemaOk) {
@@ -88,6 +92,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_AVALIACOES');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         const body = await request.json();
         const { action } = body;
@@ -141,6 +148,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('MANAGE_AVALIACOES');
+        if (guard instanceof NextResponse) return guard;
+
         const { id } = await params;
         await prisma.avaliacao.delete({ where: { id } });
         return NextResponse.json({ success: true });

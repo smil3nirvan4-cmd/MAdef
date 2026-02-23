@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_ALOCACOES');
+        if (guard instanceof NextResponse) return guard;
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
         const cuidadorId = searchParams.get('cuidadorId');
@@ -64,6 +68,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_ALOCACOES');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = body;
 

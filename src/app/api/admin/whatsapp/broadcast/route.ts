@@ -4,9 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function POST(request: NextRequest) {
     try {
+        const guard = await guardCapability('SEND_WHATSAPP');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json();
         const phones = Array.isArray(body?.phones) ? body.phones.map((p: unknown) => String(p)) : [];
         const message = body?.message ? String(body.message) : body?.template ? String(body.template) : '';

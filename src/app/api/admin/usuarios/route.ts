@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function GET(request: NextRequest) {
     try {
+        const guard = await guardCapability('MANAGE_USERS');
+        if (guard instanceof NextResponse) return guard;
+
         // Buscar pacientes com mensagens
         const pacientes = await prisma.paciente.findMany({
             include: {

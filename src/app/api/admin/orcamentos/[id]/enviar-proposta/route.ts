@@ -6,12 +6,16 @@ import logger from '@/lib/logger';
 import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const guard = await guardCapability('SEND_PROPOSTA');
+        if (guard instanceof NextResponse) return guard;
+
         const body = await request.json().catch(() => ({}));
         let sendOptions;
         try {

@@ -27,6 +27,10 @@ vi.mock('@/lib/db/schema-capabilities', () => ({
     getDbSchemaCapabilities: mocks.getDbSchemaCapabilities,
 }));
 
+vi.mock('@/lib/auth/capability-guard', () => ({
+    guardCapability: vi.fn().mockResolvedValue({ role: 'ADMIN', userId: 'admin@test.com' }),
+}));
+
 import { GET } from './route';
 
 function req(): NextRequest {
