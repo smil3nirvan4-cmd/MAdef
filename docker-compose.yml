@@ -1,4 +1,33 @@
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: madef
+      POSTGRES_USER: madef
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-madef_dev_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U madef"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   app:
     build:
       context: .
@@ -16,4 +45,15 @@ services:
     environment:
       - NODE_ENV=development
       - WATCHPACK_POLLING=true
+      - DATABASE_URL=postgresql://madef:${POSTGRES_PASSWORD:-madef_dev_2026}@db:5432/madef
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
