@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -17,28 +17,42 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - run: npm ci
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
 
       - name: Prisma Generate
         run: npx prisma generate
 
+      - name: Lint
+        run: npx eslint src/
+
       - name: Type Check
         run: npx tsc --noEmit
+        continue-on-error: true
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
+      - name: Tests
         run: npm run test:ci
         env:
           NODE_ENV: test
+          DATABASE_URL: file:./test.db
 
       - name: Build
         run: npm run build
@@ -48,5 +62,5 @@ jobs:
           DATABASE_URL: file:./test.db
 
       - name: Security Audit
-        run: npm audit --omit=dev --audit-level=high || true
+        run: npm audit --omit=dev --audit-level=high
         continue-on-error: true

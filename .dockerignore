@@ -1,0 +1,63 @@
+# Dependencies
+node_modules
+whatsapp-bridge/node_modules
+
+# Version control
+.git
+.gitignore
+
+# Next.js build output
+.next
+out
+build
+
+# WhatsApp session and auth (secrets)
+auth_info
+.wa-*.json
+.wa-bridge-port
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and OS
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Testing and coverage
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Build logs and artifacts
+build-full.log
+build-log.txt
+build-output.txt
+lint_output.txt
+tsc-errors.txt
+ui_output.html
+tsconfig.tsbuildinfo
+
+# Documentation (not needed in image)
+*.md
+docs
+CLAUDE.md
+LICENSE
+
+# Database files
+prisma/dev.db
+prisma/*.db
+prisma/*.db-journal
+
+# Miscellaneous
+.agent
+.github
+.vercel
+inspect-db.ts
+*.pem

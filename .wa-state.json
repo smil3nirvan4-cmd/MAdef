@@ -1,5 +1,0 @@
-{
-  "state:226065603686505@lid": "{\"phone\":\"226065603686505@lid\",\"currentFlow\":\"MAIN_MENU\",\"currentStep\":\"SELECT_OPTION\",\"data\":{\"tipo\":\"PROFISSIONAL\",\"area\":\"ENFERMEIRO\",\"nome\":\"Jose Alves\",\"cpf\":\"86247362501\",\"email\":\"smilenfc@icloud.com\",\"coren\":\"nao\",\"cidade\":\"Toledo\",\"bairros\":[\"Toledo ou 30km\"],\"telefone\":\"226065603686505@lid\",\"score\":4,\"lastScore\":27},\"lastInteraction\":\"2026-01-26T18:08:37.592Z\"}",
-  "state:167782947782748@lid": "{\"phone\":\"167782947782748@lid\",\"currentFlow\":\"CADASTRO_PACIENTE\",\"currentStep\":\"AWAITING_URGENCY_TYPE\",\"data\":{\"tipo\":\"PACIENTE\"},\"lastInteraction\":\"2026-01-26T15:25:02.968Z\"}",
-  "state:226065603686505": "{\"phone\":\"226065603686505\",\"currentFlow\":\"MAIN_MENU\",\"currentStep\":\"SELECT_OPTION\",\"data\":{},\"lastInteraction\":\"2026-01-26T18:44:35.488Z\"}"
-}
