@@ -18,64 +18,59 @@ const broadcastSchema = z.object({
 });
 
 async function handlePost(request: NextRequest) {
-    try {
-        const guard = await guardCapability('SEND_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('SEND_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, broadcastSchema);
-        if (error) return error;
+    const { data, error } = await parseBody(request, broadcastSchema);
+    if (error) return error;
 
-        const phones = data.phones;
-        const message = data.message ? String(data.message) : data.template ? String(data.template) : '';
+    const phones = data.phones;
+    const message = data.message ? String(data.message) : data.template ? String(data.template) : '';
 
-        if (!message.trim()) {
-            return NextResponse.json({ success: false, error: 'Mensagem obrigatoria' }, { status: 400 });
-        }
-
-        const campaignId = String(data.campaignId || `broadcast_${Date.now()}`);
-        const enqueued: Array<{ queueItemId: string; phone: string; duplicated: boolean }> = [];
-        const failures: Array<{ phone: string; error: string }> = [];
-
-        for (const [index, phone] of phones.entries()) {
-            try {
-                const job = await enqueueWhatsAppTextJob({
-                    phone,
-                    text: message,
-                    idempotencyKey: `${campaignId}:${index}:${phone.replace(/\D/g, '')}`,
-                    context: {
-                        source: 'admin_broadcast',
-                    },
-                    metadata: {
-                        campaignId,
-                        type: 'BROADCAST',
-                    },
-                });
-
-                enqueued.push({ queueItemId: job.queueItemId, phone, duplicated: job.duplicated });
-            } catch (error) {
-                failures.push({
-                    phone,
-                    error: error instanceof Error ? error.message : 'Falha ao enfileirar',
-                });
-            }
-        }
-
-        const worker = await processWhatsAppOutboxOnce({ limit: Math.min(50, enqueued.length || 1) });
-
-        return NextResponse.json({
-            success: failures.length === 0,
-            campaignId,
-            enqueuedCount: enqueued.length,
-            failedCount: failures.length,
-            enqueued,
-            failures,
-            worker,
-            message: `Broadcast processado: ${enqueued.length} enfileiradas, ${failures.length} falhas`,
-        });
-    } catch (error) {
-        await logger.error('broadcast_post_error', 'Erro ao processar broadcast', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao processar broadcast' }, { status: 500 });
+    if (!message.trim()) {
+        return NextResponse.json({ success: false, error: 'Mensagem obrigatoria' }, { status: 400 });
     }
+
+    const campaignId = String(data.campaignId || `broadcast_${Date.now()}`);
+    const enqueued: Array<{ queueItemId: string; phone: string; duplicated: boolean }> = [];
+    const failures: Array<{ phone: string; error: string }> = [];
+
+    for (const [index, phone] of phones.entries()) {
+        try {
+            const job = await enqueueWhatsAppTextJob({
+                phone,
+                text: message,
+                idempotencyKey: `${campaignId}:${index}:${phone.replace(/\D/g, '')}`,
+                context: {
+                    source: 'admin_broadcast',
+                },
+                metadata: {
+                    campaignId,
+                    type: 'BROADCAST',
+                },
+            });
+
+            enqueued.push({ queueItemId: job.queueItemId, phone, duplicated: job.duplicated });
+        } catch (error) {
+            failures.push({
+                phone,
+                error: error instanceof Error ? error.message : 'Falha ao enfileirar',
+            });
+        }
+    }
+
+    const worker = await processWhatsAppOutboxOnce({ limit: Math.min(50, enqueued.length || 1) });
+
+    return NextResponse.json({
+        success: failures.length === 0,
+        campaignId,
+        enqueuedCount: enqueued.length,
+        failedCount: failures.length,
+        enqueued,
+        failures,
+        worker,
+        message: `Broadcast processado: ${enqueued.length} enfileiradas, ${failures.length} falhas`,
+    });
 }
 
 export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 3, windowMs: 300_000 });

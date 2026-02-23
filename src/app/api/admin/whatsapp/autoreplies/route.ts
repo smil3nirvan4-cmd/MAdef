@@ -47,24 +47,19 @@ function toClientRule(rule: any) {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await ensureSeed();
-        const rules = await prisma.whatsAppAutoReply.findMany({
-            orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
-        });
+    await ensureSeed();
+    const rules = await prisma.whatsAppAutoReply.findMany({
+        orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+    });
 
-        return NextResponse.json({
-            success: true,
-            rules: rules.map(toClientRule),
-            triggerTypes: TRIGGER_TYPES,
-        });
-    } catch (error) {
-        await logger.error('autoreplies_get_error', 'Erro ao listar auto-respostas', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar auto-respostas' }, { status: 500 });
-    }
+    return NextResponse.json({
+        success: true,
+        rules: rules.map(toClientRule),
+        triggerTypes: TRIGGER_TYPES,
+    });
 }
 
 const createAutoReplySchema = z.object({
@@ -75,28 +70,23 @@ const createAutoReplySchema = z.object({
 });
 
 async function handlePost(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, createAutoReplySchema);
-        if (error) return error;
+    const { data, error } = await parseBody(request, createAutoReplySchema);
+    if (error) return error;
 
-        const rule = await prisma.whatsAppAutoReply.create({
-            data: {
-                trigger: data.trigger.trim(),
-                condition: TRIGGER_TYPES.includes(String(data.triggerType)) ? String(data.triggerType) : 'contains',
-                response: data.response,
-                priority: Number(data.priority || 1),
-                isActive: true,
-            },
-        });
+    const rule = await prisma.whatsAppAutoReply.create({
+        data: {
+            trigger: data.trigger.trim(),
+            condition: TRIGGER_TYPES.includes(String(data.triggerType)) ? String(data.triggerType) : 'contains',
+            response: data.response,
+            priority: Number(data.priority || 1),
+            isActive: true,
+        },
+    });
 
-        return NextResponse.json({ success: true, rule: toClientRule(rule) });
-    } catch (error) {
-        await logger.error('autoreplies_post_error', 'Erro ao criar auto-resposta', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao criar auto-resposta' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, rule: toClientRule(rule) });
 }
 
 const updateAutoReplySchema = z.object({
@@ -109,52 +99,42 @@ const updateAutoReplySchema = z.object({
 });
 
 async function handlePatch(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, updateAutoReplySchema);
-        if (error) return error;
+    const { data, error } = await parseBody(request, updateAutoReplySchema);
+    if (error) return error;
 
-        const { id, ...updates } = data;
+    const { id, ...updates } = data;
 
-        const rule = await prisma.whatsAppAutoReply.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.trigger !== undefined && { trigger: String(updates.trigger).trim() }),
-                ...(updates.triggerType !== undefined && {
-                    condition: TRIGGER_TYPES.includes(String(updates.triggerType)) ? String(updates.triggerType) : 'contains',
-                }),
-                ...(updates.response !== undefined && { response: String(updates.response) }),
-                ...(updates.priority !== undefined && { priority: Number(updates.priority) }),
-                ...(updates.active !== undefined && { isActive: Boolean(updates.active) }),
-            },
-        });
+    const rule = await prisma.whatsAppAutoReply.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.trigger !== undefined && { trigger: String(updates.trigger).trim() }),
+            ...(updates.triggerType !== undefined && {
+                condition: TRIGGER_TYPES.includes(String(updates.triggerType)) ? String(updates.triggerType) : 'contains',
+            }),
+            ...(updates.response !== undefined && { response: String(updates.response) }),
+            ...(updates.priority !== undefined && { priority: Number(updates.priority) }),
+            ...(updates.active !== undefined && { isActive: Boolean(updates.active) }),
+        },
+    });
 
-        return NextResponse.json({ success: true, rule: toClientRule(rule) });
-    } catch (error) {
-        await logger.error('autoreplies_patch_error', 'Erro ao atualizar auto-resposta', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar auto-resposta' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, rule: toClientRule(rule) });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
-
-        await prisma.whatsAppAutoReply.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('autoreplies_delete_error', 'Erro ao excluir auto-resposta', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir auto-resposta' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
     }
+
+    await prisma.whatsAppAutoReply.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

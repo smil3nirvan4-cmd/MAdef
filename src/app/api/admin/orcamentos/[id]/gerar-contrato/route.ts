@@ -18,58 +18,53 @@ async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('MANAGE_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
+
+    const { data: body, error } = await parseBody(request, gerarContratoSchema);
+    if (error) return error;
+    let sendOptions;
     try {
-        const guard = await guardCapability('MANAGE_ORCAMENTOS');
-        if (guard instanceof NextResponse) return guard;
-
-        const { data: body, error } = await parseBody(request, gerarContratoSchema);
-        if (error) return error;
-        let sendOptions;
-        try {
-            sendOptions = parseOrcamentoSendOptions(body);
-        } catch (error) {
-            return NextResponse.json({
-                success: false,
-                error: error instanceof Error ? error.message : 'Opcoes de preview invalidas',
-            }, { status: 400 });
-        }
-
-        const { id } = await params;
-        const orcamento = await prisma.orcamento.findUnique({
-            where: { id },
-            include: { paciente: true },
-        });
-
-        if (!orcamento) {
-            return NextResponse.json({ success: false, error: 'Orcamento nao encontrado' }, { status: 404 });
-        }
-
-        const avaliacao = await prisma.avaliacao.findFirst({
-            where: { pacienteId: orcamento.pacienteId },
-            include: { paciente: true },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        const pdfData = buildOrcamentoPDFData(
-            avaliacao as unknown as Record<string, unknown> | null,
-            orcamento as unknown as Record<string, unknown>,
-            'CONTRATO',
-            sendOptions,
-        );
-        const buffer = await generateContratoPDF(pdfData);
-        const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
-        const fileName = `Contrato_${safeReference}_MaosAmigas.pdf`;
-
-        return new NextResponse(new Uint8Array(buffer), {
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${fileName}"`,
-            },
-        });
+        sendOptions = parseOrcamentoSendOptions(body);
     } catch (error) {
-        await logger.error('gerar_contrato_error', 'Erro ao gerar contrato', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao gerar contrato' }, { status: 500 });
+        return NextResponse.json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Opcoes de preview invalidas',
+        }, { status: 400 });
     }
+
+    const { id } = await params;
+    const orcamento = await prisma.orcamento.findUnique({
+        where: { id },
+        include: { paciente: true },
+    });
+
+    if (!orcamento) {
+        return NextResponse.json({ success: false, error: 'Orcamento nao encontrado' }, { status: 404 });
+    }
+
+    const avaliacao = await prisma.avaliacao.findFirst({
+        where: { pacienteId: orcamento.pacienteId },
+        include: { paciente: true },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    const pdfData = buildOrcamentoPDFData(
+        avaliacao as unknown as Record<string, unknown> | null,
+        orcamento as unknown as Record<string, unknown>,
+        'CONTRATO',
+        sendOptions,
+    );
+    const buffer = await generateContratoPDF(pdfData);
+    const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
+    const fileName = `Contrato_${safeReference}_MaosAmigas.pdf`;
+
+    return new NextResponse(new Uint8Array(buffer), {
+        headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${fileName}"`,
+        },
+    });
 }
 
 export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

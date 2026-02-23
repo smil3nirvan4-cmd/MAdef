@@ -99,73 +99,65 @@ async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const guard = await guardCapability('MANAGE_AVALIACOES');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
-        const { data, error } = await parseBody(request, patchAvaliacaoSchema);
-        if (error) return error;
-        const { action } = data;
+    const { id } = await params;
+    const { data, error } = await parseBody(request, patchAvaliacaoSchema);
+    if (error) return error;
+    const { action } = data;
 
-        let updateData: any = {};
+    let updateData: any = {};
 
-        switch (action) {
-            case 'enviar_proposta':
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: 'Use POST /api/admin/avaliacoes/[id]/send-proposta para enfileirar envio.',
-                    },
-                    { status: 400 }
-                );
-            case 'enviar_contrato':
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: 'Use POST /api/admin/avaliacoes/[id]/send-contrato para enfileirar envio.',
-                    },
-                    { status: 400 }
-                );
-            case 'aprovar':
-                updateData = { status: 'APROVADA', validadoEm: new Date() };
-                break;
-            case 'rejeitar':
-                updateData = { status: 'REJEITADA', validadoEm: new Date() };
-                break;
-            case 'concluir':
-                updateData = { status: 'CONCLUIDA' };
-                break;
-            default:
-                updateData = data;
-        }
-
-        const avaliacao = await prisma.avaliacao.update({
-            where: { id },
-            data: updateData,
-            include: { paciente: true },
-        });
-
-        return NextResponse.json({ success: true, avaliacao });
-    } catch {
-        return NextResponse.json({ error: 'Erro ao atualizar avaliacao' }, { status: 500 });
+    switch (action) {
+        case 'enviar_proposta':
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Use POST /api/admin/avaliacoes/[id]/send-proposta para enfileirar envio.',
+                },
+                { status: 400 }
+            );
+        case 'enviar_contrato':
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Use POST /api/admin/avaliacoes/[id]/send-contrato para enfileirar envio.',
+                },
+                { status: 400 }
+            );
+        case 'aprovar':
+            updateData = { status: 'APROVADA', validadoEm: new Date() };
+            break;
+        case 'rejeitar':
+            updateData = { status: 'REJEITADA', validadoEm: new Date() };
+            break;
+        case 'concluir':
+            updateData = { status: 'CONCLUIDA' };
+            break;
+        default:
+            updateData = data;
     }
+
+    const avaliacao = await prisma.avaliacao.update({
+        where: { id },
+        data: updateData,
+        include: { paciente: true },
+    });
+
+    return NextResponse.json({ success: true, avaliacao });
 }
 
 async function handleDelete(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const guard = await guardCapability('MANAGE_AVALIACOES');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
-        await prisma.avaliacao.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch {
-        return NextResponse.json({ error: 'Erro ao excluir avaliacao' }, { status: 500 });
-    }
+    const { id } = await params;
+    await prisma.avaliacao.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

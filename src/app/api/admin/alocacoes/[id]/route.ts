@@ -14,47 +14,43 @@ async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const guard = await guardCapability('MANAGE_ALOCACOES');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
-        const { data, error } = await parseBody(request, patchAlocacaoSchema);
-        if (error) return error;
-        const { action } = data;
+    const { id } = await params;
+    const { data, error } = await parseBody(request, patchAlocacaoSchema);
+    if (error) return error;
+    const { action } = data;
 
-        let updateData: any = {};
+    let updateData: any = {};
 
-        switch (action) {
-            case 'confirmar':
-                updateData = { status: 'CONFIRMADO', respondidoEm: new Date() };
-                break;
-            case 'confirmar_t24':
-                updateData = { confirmadoT24: new Date() };
-                break;
-            case 'confirmar_t2':
-                updateData = { confirmadoT2: new Date(), status: 'EM_ANDAMENTO' };
-                break;
-            case 'concluir':
-                updateData = { status: 'CONCLUIDO' };
-                break;
-            case 'cancelar':
-                updateData = { status: 'CANCELADO' };
-                break;
-            default:
-                updateData = data;
-        }
-
-        const alocacao = await prisma.alocacao.update({
-            where: { id },
-            data: updateData,
-            include: { cuidador: true, paciente: true }
-        });
-
-        return NextResponse.json({ success: true, alocacao });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
+    switch (action) {
+        case 'confirmar':
+            updateData = { status: 'CONFIRMADO', respondidoEm: new Date() };
+            break;
+        case 'confirmar_t24':
+            updateData = { confirmadoT24: new Date() };
+            break;
+        case 'confirmar_t2':
+            updateData = { confirmadoT2: new Date(), status: 'EM_ANDAMENTO' };
+            break;
+        case 'concluir':
+            updateData = { status: 'CONCLUIDO' };
+            break;
+        case 'cancelar':
+            updateData = { status: 'CANCELADO' };
+            break;
+        default:
+            updateData = data;
     }
+
+    const alocacao = await prisma.alocacao.update({
+        where: { id },
+        data: updateData,
+        include: { cuidador: true, paciente: true }
+    });
+
+    return NextResponse.json({ success: true, alocacao });
 }
 
 export const PATCH = withRateLimit(withErrorBoundary(handlePatch), { max: 10, windowMs: 60_000 });

@@ -25,25 +25,20 @@ async function handleGet(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const guard = await guardCapability('VIEW_ORCAMENTOS');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
-        const orcamento = await prisma.orcamento.findUnique({
-            where: { id },
-            include: { paciente: true },
-        });
+    const { id } = await params;
+    const orcamento = await prisma.orcamento.findUnique({
+        where: { id },
+        include: { paciente: true },
+    });
 
-        if (!orcamento) {
-            return NextResponse.json({ success: false, error: 'Orcamento nao encontrado' }, { status: 404 });
-        }
-
-        return NextResponse.json({ success: true, orcamento });
-    } catch (error) {
-        await logger.error('orcamento_fetch_error', 'Error fetching orcamento', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao buscar orcamento' }, { status: 500 });
+    if (!orcamento) {
+        return NextResponse.json({ success: false, error: 'Orcamento nao encontrado' }, { status: 404 });
     }
+
+    return NextResponse.json({ success: true, orcamento });
 }
 
 async function enviarProposta(orcamentoId: string) {
@@ -104,71 +99,66 @@ async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    try {
-        const guard = await guardCapability('MANAGE_ORCAMENTOS');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
-        const { data: body, error } = await parseBody(request, patchOrcamentoSchema);
-        if (error) return error;
-        const { action, cenarioSelecionado, valorFinal, aprovadoPor } = body;
+    const { id } = await params;
+    const { data: body, error } = await parseBody(request, patchOrcamentoSchema);
+    if (error) return error;
+    const { action, cenarioSelecionado, valorFinal, aprovadoPor } = body;
 
-        if (action === 'enviar') {
-            const envio = await enviarProposta(id);
-            if (!envio.success) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: envio.error,
-                    },
-                    { status: envio.status }
-                );
-            }
-
-            return NextResponse.json({
-                success: true,
-                orcamento: envio.orcamento,
-                queueItemId: envio.queueItemId,
-                internalMessageId: envio.internalMessageId,
-                queueStatus: envio.queueStatus,
-                providerMessageId: envio.providerMessageId,
-                worker: envio.worker,
-            });
+    if (action === 'enviar') {
+        const envio = await enviarProposta(id);
+        if (!envio.success) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: envio.error,
+                },
+                { status: envio.status }
+            );
         }
 
-        let updateData: any = {};
-        if (action === 'aceitar') {
-            updateData = { status: 'ACEITO', aceitoEm: new Date() };
-        } else if (action === 'aprovar') {
-            updateData = {
-                cenarioSelecionado,
-                valorFinal: valorFinal ? parseFloat(String(valorFinal)) : undefined,
-                aprovadoPor,
-                status: 'APROVADO',
-            };
-        } else if (action === 'cancelar') {
-            updateData = { status: 'CANCELADO' };
-        } else {
-            updateData = {
-                ...(body.cenarioEconomico && { cenarioEconomico: body.cenarioEconomico }),
-                ...(body.cenarioRecomendado && { cenarioRecomendado: body.cenarioRecomendado }),
-                ...(body.cenarioPremium && { cenarioPremium: body.cenarioPremium }),
-                ...(cenarioSelecionado && { cenarioSelecionado }),
-                ...(valorFinal && { valorFinal: parseFloat(String(valorFinal)) }),
-            };
-        }
-
-        const orcamento = await prisma.orcamento.update({
-            where: { id },
-            data: updateData,
-            include: { paciente: true },
+        return NextResponse.json({
+            success: true,
+            orcamento: envio.orcamento,
+            queueItemId: envio.queueItemId,
+            internalMessageId: envio.internalMessageId,
+            queueStatus: envio.queueStatus,
+            providerMessageId: envio.providerMessageId,
+            worker: envio.worker,
         });
-
-        return NextResponse.json({ success: true, orcamento });
-    } catch (error) {
-        await logger.error('orcamento_update_error', 'Error updating orcamento', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar orcamento' }, { status: 500 });
     }
+
+    let updateData: any = {};
+    if (action === 'aceitar') {
+        updateData = { status: 'ACEITO', aceitoEm: new Date() };
+    } else if (action === 'aprovar') {
+        updateData = {
+            cenarioSelecionado,
+            valorFinal: valorFinal ? parseFloat(String(valorFinal)) : undefined,
+            aprovadoPor,
+            status: 'APROVADO',
+        };
+    } else if (action === 'cancelar') {
+        updateData = { status: 'CANCELADO' };
+    } else {
+        updateData = {
+            ...(body.cenarioEconomico && { cenarioEconomico: body.cenarioEconomico }),
+            ...(body.cenarioRecomendado && { cenarioRecomendado: body.cenarioRecomendado }),
+            ...(body.cenarioPremium && { cenarioPremium: body.cenarioPremium }),
+            ...(cenarioSelecionado && { cenarioSelecionado }),
+            ...(valorFinal && { valorFinal: parseFloat(String(valorFinal)) }),
+        };
+    }
+
+    const orcamento = await prisma.orcamento.update({
+        where: { id },
+        data: updateData,
+        include: { paciente: true },
+    });
+
+    return NextResponse.json({ success: true, orcamento });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

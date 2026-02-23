@@ -8,12 +8,8 @@ async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_WHATSAPP');
     if (guard instanceof NextResponse) return guard;
 
-    try {
-        const messages = await getAllMessages(20);
-        return NextResponse.json(messages);
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
-    }
+    const messages = await getAllMessages(20);
+    return NextResponse.json(messages);
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

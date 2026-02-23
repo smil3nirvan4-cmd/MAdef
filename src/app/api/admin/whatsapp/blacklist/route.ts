@@ -12,18 +12,13 @@ function normalizePhone(phone: string) {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const blacklist = await prisma.whatsAppBlacklist.findMany({
-            orderBy: { createdAt: 'desc' },
-        });
-        return NextResponse.json({ success: true, blacklist });
-    } catch (error) {
-        await logger.error('blacklist_get_error', 'Erro ao listar blacklist', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar blacklist' }, { status: 500 });
-    }
+    const blacklist = await prisma.whatsAppBlacklist.findMany({
+        orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json({ success: true, blacklist });
 }
 
 const addBlacklistSchema = z.object({
@@ -32,57 +27,47 @@ const addBlacklistSchema = z.object({
 });
 
 async function handlePost(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, addBlacklistSchema);
-        if (error) return error;
+    const { data, error } = await parseBody(request, addBlacklistSchema);
+    if (error) return error;
 
-        const phone = normalizePhone(data.phone);
-        const reason = data.reason ? String(data.reason) : null;
+    const phone = normalizePhone(data.phone);
+    const reason = data.reason ? String(data.reason) : null;
 
-        if (!phone) {
-            return NextResponse.json({ success: false, error: 'phone é obrigatório' }, { status: 400 });
-        }
-
-        const entry = await prisma.whatsAppBlacklist.upsert({
-            where: { phone },
-            update: { reason },
-            create: { phone, reason },
-        });
-
-        return NextResponse.json({ success: true, entry });
-    } catch (error) {
-        await logger.error('blacklist_post_error', 'Erro ao adicionar blacklist', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao adicionar blacklist' }, { status: 500 });
+    if (!phone) {
+        return NextResponse.json({ success: false, error: 'phone é obrigatório' }, { status: 400 });
     }
+
+    const entry = await prisma.whatsAppBlacklist.upsert({
+        where: { phone },
+        update: { reason },
+        create: { phone, reason },
+    });
+
+    return NextResponse.json({ success: true, entry });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const phone = normalizePhone(searchParams.get('phone') || '');
-        const id = searchParams.get('id');
+    const { searchParams } = new URL(request.url);
+    const phone = normalizePhone(searchParams.get('phone') || '');
+    const id = searchParams.get('id');
 
-        if (!phone && !id) {
-            return NextResponse.json({ success: false, error: 'phone ou id é obrigatório' }, { status: 400 });
-        }
-
-        if (id) {
-            await prisma.whatsAppBlacklist.delete({ where: { id } });
-        } else {
-            await prisma.whatsAppBlacklist.delete({ where: { phone } });
-        }
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('blacklist_delete_error', 'Erro ao remover da blacklist', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao remover da blacklist' }, { status: 500 });
+    if (!phone && !id) {
+        return NextResponse.json({ success: false, error: 'phone ou id é obrigatório' }, { status: 400 });
     }
+
+    if (id) {
+        await prisma.whatsAppBlacklist.delete({ where: { id } });
+    } else {
+        await prisma.whatsAppBlacklist.delete({ where: { phone } });
+    }
+
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

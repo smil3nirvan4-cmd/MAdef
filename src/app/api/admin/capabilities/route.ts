@@ -9,24 +9,19 @@ import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const session = await auth();
-        const role = resolveUserRole(session?.user?.email);
-        const capabilities = await buildAdminCapabilities({ role });
-        const schema = await getDbSchemaCapabilities();
-        const dbInfo = resolveDatabaseTargetInfo(process.env.DATABASE_URL);
-        return NextResponse.json({
-            success: true,
-            ...capabilities,
-            dbSchemaOk: schema.dbSchemaOk,
-            missingColumns: schema.missingColumns,
-            databaseProvider: dbInfo.provider,
-            databaseTarget: dbInfo.target,
-        });
-    } catch (error) {
-        await logger.error('capabilities_fetch_error', 'Erro ao carregar capabilities', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao carregar capabilities' }, { status: 500 });
-    }
+    const session = await auth();
+    const role = resolveUserRole(session?.user?.email);
+    const capabilities = await buildAdminCapabilities({ role });
+    const schema = await getDbSchemaCapabilities();
+    const dbInfo = resolveDatabaseTargetInfo(process.env.DATABASE_URL);
+    return NextResponse.json({
+        success: true,
+        ...capabilities,
+        dbSchemaOk: schema.dbSchemaOk,
+        missingColumns: schema.missingColumns,
+        databaseProvider: dbInfo.provider,
+        databaseTarget: dbInfo.target,
+    });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

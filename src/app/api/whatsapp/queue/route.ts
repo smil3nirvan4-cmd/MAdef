@@ -14,18 +14,11 @@ async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_WHATSAPP');
     if (guard instanceof NextResponse) return guard;
 
-    try {
-        const status = getQueueStatus();
-        return NextResponse.json({
-            success: true,
-            queue: status
-        });
-    } catch (error: any) {
-        return NextResponse.json({
-            success: false,
-            error: error.message
-        }, { status: 500 });
-    }
+    const status = getQueueStatus();
+    return NextResponse.json({
+        success: true,
+        queue: status
+    });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
