@@ -298,7 +298,7 @@ export async function POST(req: Request) {
             dadosDetalhados,
         } = body;
 
-        console.log('Recebendo payload completo:', { nome, phone, hasDetails: !!dadosDetalhados });
+        await logger.info('proposta_payload_recebido', 'Recebendo payload completo para envio de proposta', { nome, phone, hasDetails: !!dadosDetalhados });
 
         if (!phone || !nome) {
             throw new Error('Nome e Telefone sao obrigatorios para salvar a avaliacao.');

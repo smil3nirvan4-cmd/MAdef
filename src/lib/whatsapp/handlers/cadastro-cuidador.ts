@@ -2,6 +2,7 @@ import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
 import { prisma } from '@/lib/db';
+import logger from '@/lib/observability/logger';
 
 const AREAS = {
     '1': 'CUIDADOR',
@@ -27,7 +28,7 @@ export async function handleCadastroCuidador(
     // Extrair número para armazenamento de estado (remover @lid ou @s.whatsapp.net)
     const phone = from.replace('@s.whatsapp.net', '').replace('@lid', '');
 
-    console.log(`🚀 HandleCadastroCuidador: Step atual = ${state.currentStep}, De = ${from} (phone: ${phone})`);
+    await logger.whatsapp('wa_cadastro_cuidador_step', 'Processando step de cadastro de cuidador', { phone, currentStep: state.currentStep, from });
 
     // Step 1: Área de atuação
     if (state.currentStep === 'AWAITING_AREA') {
@@ -149,9 +150,9 @@ export async function handleCadastroCuidador(
                     endereco: `${bairros}, ${cidade}`,
                 },
             });
-            console.log(`✅ [DB] Candidato cuidador salvo: ${cuidador.id} - ${phone}`);
+            await logger.whatsapp('wa_cuidador_cadastro_salvo', 'Candidato cuidador salvo no banco', { phone, cuidadorId: cuidador.id });
         } catch (error) {
-            console.error('❌ [DB] Erro ao salvar candidato cuidador:', error);
+            await logger.error('wa_cuidador_cadastro_erro', 'Erro ao salvar candidato cuidador', error instanceof Error ? error : undefined);
         }
 
         const areaLabel = AREA_LABELS[area] || area;

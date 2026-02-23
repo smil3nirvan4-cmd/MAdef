@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { resolveBridgeConfig } from './bridge-config';
+import logger from '@/lib/observability/logger';
 
 interface QueuedMessage {
     id: string;
@@ -32,10 +33,10 @@ export function loadQueue(): void {
         if (fs.existsSync(QUEUE_FILE)) {
             const data = fs.readFileSync(QUEUE_FILE, 'utf-8');
             messageQueue = JSON.parse(data);
-            console.log(`ðŸ“¦ [Queue] ${messageQueue.filter(m => m.status === 'PENDING').length} mensagens pendentes carregadas`);
+            void logger.whatsapp('wa_queue_loaded', `${messageQueue.filter(m => m.status === 'PENDING').length} mensagens pendentes carregadas`, { pendingCount: messageQueue.filter(m => m.status === 'PENDING').length });
         }
     } catch (_e) {
-        console.error('[Queue] Erro ao carregar fila:', _e);
+        void logger.error('wa_queue_load_error', 'Erro ao carregar fila', _e instanceof Error ? _e : undefined);
         messageQueue = [];
     }
 }
@@ -45,7 +46,7 @@ function saveQueue(): void {
     try {
         fs.writeFileSync(QUEUE_FILE, JSON.stringify(messageQueue, null, 2));
     } catch (_e) {
-        console.error('[Queue] Erro ao salvar fila:', _e);
+        void logger.error('wa_queue_save_error', 'Erro ao salvar fila', _e instanceof Error ? _e : undefined);
     }
 }
 
@@ -63,7 +64,7 @@ export function addToQueue(to: string, text: string): string {
 
     messageQueue.push(message);
     saveQueue();
-    console.log(`ðŸ“¥ [Queue] Mensagem adicionada Ã  fila: ${id} -> ${to}`);
+    void logger.whatsapp('wa_queue_message_added', `Mensagem adicionada na fila: ${id} -> ${to}`, { messageId: id, to });
 
     // Tentar processar imediatamente
     processQueue();
@@ -87,7 +88,7 @@ export async function processQueue(): Promise<void> {
             return;
         }
 
-        console.log(`ðŸ“¤ [Queue] Processando ${pendingMessages.length} mensagens via Bridge API...`);
+        await logger.whatsapp('wa_queue_processing', `Processando ${pendingMessages.length} mensagens via Bridge API`, { pendingCount: pendingMessages.length });
 
         const { bridgeUrl } = resolveBridgeConfig();
 
@@ -97,13 +98,13 @@ export async function processQueue(): Promise<void> {
             const status = await statusRes.json();
 
             if (!status.connected) {
-                console.log('â³ [Queue] Bridge nÃ£o conectado, reagendando...');
+                await logger.warn('wa_queue_bridge_disconnected', 'Bridge não conectado, reagendando');
                 isProcessing = false;
                 setTimeout(() => processQueue(), RETRY_DELAY);
                 return;
             }
         } catch (e) {
-            console.log('â³ [Queue] Bridge indisponÃ­vel, reagendando...');
+            await logger.warn('wa_queue_bridge_unavailable', 'Bridge indisponível, reagendando');
             isProcessing = false;
             setTimeout(() => processQueue(), RETRY_DELAY);
             return;
@@ -124,19 +125,19 @@ export async function processQueue(): Promise<void> {
 
                 if (res.ok) {
                     msg.status = 'SENT';
-                    console.log(`âœ… [Queue] Mensagem enviada via Bridge: ${msg.id}`);
+                    await logger.whatsapp('wa_queue_message_sent', `Mensagem enviada via Bridge: ${msg.id}`, { messageId: msg.id });
                 } else {
                     const err = await res.json();
                     throw new Error(err.error || 'Erro no Bridge');
                 }
 
             } catch (error: any) {
-                console.error(`âŒ [Queue] Erro ao enviar ${msg.id}:`, error.message);
+                await logger.error('wa_queue_send_error', `Erro ao enviar ${msg.id}: ${error.message}`);
                 msg.error = error.message;
 
                 if (msg.attempts >= MAX_RETRIES) {
                     msg.status = 'FAILED';
-                    console.log(`â›” [Queue] Mensagem ${msg.id} falhou apÃ³s ${MAX_RETRIES} tentativas`);
+                    await logger.error('wa_queue_message_failed', `Mensagem ${msg.id} falhou após ${MAX_RETRIES} tentativas`, undefined);
                 }
             }
 
@@ -149,12 +150,12 @@ export async function processQueue(): Promise<void> {
         // Verificar se ainda hÃ¡ pendentes
         const stillPending = messageQueue.filter(m => m.status === 'PENDING');
         if (stillPending.length > 0) {
-            console.log(`â³ [Queue] ${stillPending.length} mensagens ainda pendentes, reagendando...`);
+            await logger.whatsapp('wa_queue_still_pending', `${stillPending.length} mensagens ainda pendentes, reagendando`, { pendingCount: stillPending.length });
             setTimeout(() => processQueue(), RETRY_DELAY);
         }
 
     } catch (_e) {
-        console.error('[Queue] Erro ao processar fila:', _e);
+        await logger.error('wa_queue_process_error', 'Erro ao processar fila', _e instanceof Error ? _e : undefined);
     }
 
     isProcessing = false;
@@ -182,7 +183,7 @@ export function cleanOldMessages(): void {
 
     if (messageQueue.length !== before) {
         saveQueue();
-        console.log(`ðŸ—‘ï¸ [Queue] Removidas ${before - messageQueue.length} mensagens antigas`);
+        void logger.whatsapp('wa_queue_cleaned', `Removidas ${before - messageQueue.length} mensagens antigas`, { removedCount: before - messageQueue.length });
     }
 }
 

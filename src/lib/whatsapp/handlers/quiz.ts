@@ -1,6 +1,7 @@
 import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState, setCooldown } from '../state-manager';
 import { sendMessage } from '../client';
+import logger from '@/lib/observability/logger';
 
 interface Question {
     id: number;
@@ -301,7 +302,7 @@ async function finishQuiz(phone: string, score: number) {
             nome: state?.data?.nome || null
         });
     } catch (_e) {
-        console.error('Erro ao persistir resultado do quiz:', _e);
+        await logger.error('wa_quiz_persistencia_erro', 'Erro ao persistir resultado do quiz', _e instanceof Error ? _e : undefined);
     }
 
     if (passed) {

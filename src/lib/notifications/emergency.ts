@@ -1,3 +1,5 @@
+import logger from '@/lib/observability/logger';
+
 interface EmergencyNotificationData {
     telefone: string;
     timestamp: Date;
@@ -27,7 +29,7 @@ async function sendSlackNotification(data: EmergencyNotificationData): Promise<b
         });
         return response.ok;
     } catch (error) {
-        console.error('Erro ao enviar notificação Slack:', error);
+        await logger.error('slack_notification_failed', 'Erro ao enviar notificação Slack', error instanceof Error ? error : undefined);
         return false;
     }
 }
@@ -61,7 +63,7 @@ Um usuário reportou uma emergência médica via WhatsApp.
         );
         return response.ok;
     } catch (error) {
-        console.error('Erro ao enviar notificação Telegram:', error);
+        await logger.error('telegram_notification_failed', 'Erro ao enviar notificação Telegram', error instanceof Error ? error : undefined);
         return false;
     }
 }
@@ -70,7 +72,7 @@ async function sendEmailNotification(data: EmergencyNotificationData): Promise<b
     const emergencyEmail = process.env.EMERGENCY_NOTIFICATION_EMAIL;
     if (!emergencyEmail) return false;
 
-    console.log(`[EMAIL] Notificação de emergência para ${emergencyEmail}:`, {
+    await logger.info('email_emergency_notification', `Notificação de emergência para ${emergencyEmail}`, {
         telefone: data.telefone,
         timestamp: data.timestamp
     });
@@ -84,7 +86,7 @@ export async function notifyEmergencyTeam(telefone: string): Promise<void> {
         timestamp: new Date()
     };
 
-    console.log('🚨 [EMERGÊNCIA] Notificando equipe sobre emergência médica:', data);
+    await logger.info('emergency_team_notify', 'Notificando equipe sobre emergência médica', { telefone: data.telefone, timestamp: data.timestamp });
 
     const results = await Promise.allSettled([
         sendSlackNotification(data),
@@ -97,14 +99,14 @@ export async function notifyEmergencyTeam(telefone: string): Promise<void> {
     ).length;
 
     if (successCount === 0) {
-        console.warn('⚠️ [EMERGÊNCIA] Nenhum canal de notificação configurado ou disponível');
+        await logger.warn('emergency_no_channels', 'Nenhum canal de notificação configurado ou disponível');
     } else {
-        console.log(`✅ [EMERGÊNCIA] Notificação enviada para ${successCount} canal(is)`);
+        await logger.info('emergency_notification_sent', `Notificação enviada para ${successCount} canal(is)`, { successCount });
     }
 }
 
 export async function notifyAdminHelp(telefone: string): Promise<void> {
-    console.log(`📞 [AJUDA] Usuário ${telefone} solicitou falar com atendente`);
+    await logger.info('admin_help_requested', `Usuário ${telefone} solicitou falar com atendente`, { telefone });
 
     const webhookUrl = process.env.SLACK_WEBHOOK_URL;
     if (webhookUrl) {
@@ -117,7 +119,7 @@ export async function notifyAdminHelp(telefone: string): Promise<void> {
                 })
             });
         } catch (error) {
-            console.error('Erro ao notificar admin:', error);
+            await logger.error('admin_notification_failed', 'Erro ao notificar admin', error instanceof Error ? error : undefined);
         }
     }
 }

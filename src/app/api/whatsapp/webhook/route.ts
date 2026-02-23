@@ -9,6 +9,7 @@ import {
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
 import { E, fail, ok } from '@/lib/api/response';
+import logger from '@/lib/observability/logger';
 
 const ALLOWED_ORIGINS = process.env.WHATSAPP_ALLOWED_ORIGINS?.split(',').filter(Boolean) || [];
 const WEBHOOK_MAX_AGE_SECONDS = Number(process.env.WHATSAPP_WEBHOOK_MAX_AGE_SECONDS || 300);
@@ -92,7 +93,7 @@ const postHandler = async (request: NextRequest) => {
         await handleIncomingMessage(body);
         return ok({ handled: 'legacy' });
     } catch (error) {
-        console.error('[Webhook] error:', error);
+        await logger.error('webhook_erro', 'Erro ao processar mensagem do webhook', error instanceof Error ? error : undefined);
         const message = error instanceof Error ? error.message : 'Erro ao processar mensagem';
         return fail(E.INTERNAL_ERROR, message, { status: 500 });
     }

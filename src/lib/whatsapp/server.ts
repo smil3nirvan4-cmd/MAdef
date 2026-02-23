@@ -6,6 +6,7 @@ import { initializeWhatsApp, sendMessage, sendButtons, sendList, sendTemplateBut
 import http from 'http';
 import net from 'net';
 import { writeFileSync } from 'fs';
+import logger from '@/lib/observability/logger';
 
 // ============================================
 // FUNÇÃO PARA ENCONTRAR PORTA DISPONÍVEL
@@ -22,7 +23,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
 
             tester.once('error', (err: NodeJS.ErrnoException) => {
                 if (err.code === 'EADDRINUSE') {
-                    console.log(`⚠️ Porta ${port} em uso, tentando ${port + 1}...`);
+                    void logger.warn('wa_port_in_use', `Porta ${port} em uso, tentando ${port + 1}...`, { port, nextPort: port + 1 });
                     tryPort(port + 1);
                 } else {
                     reject(err);
@@ -42,7 +43,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
 }
 
 async function startWhatsAppServer() {
-    console.log('🚀 Iniciando servidor WhatsApp...');
+    void logger.whatsapp('wa_server_starting', 'Iniciando servidor WhatsApp...');
 
     try {
         // Encontrar porta disponível
@@ -50,11 +51,11 @@ async function startWhatsAppServer() {
 
         // Salvar porta para que o Next.js saiba qual usar
         writeFileSync('.wa-bridge-port', PORT.toString());
-        console.log(`✅ Porta ${PORT} disponível. Salvando em .wa-bridge-port`);
+        void logger.info('wa_port_found', `Porta ${PORT} disponível. Salvando em .wa-bridge-port`, { port: PORT });
 
         await initializeWhatsApp();
-        console.log('✅ Servidor WhatsApp rodando!');
-        console.log('📱 Escaneie o QR Code no terminal');
+        void logger.whatsapp('wa_server_started', 'Servidor WhatsApp rodando!');
+        void logger.info('wa_qr_code_prompt', 'Escaneie o QR Code no terminal');
 
         // Servidor HTTP para Bridge de Comandos do Admin
         const server = http.createServer(async (req, res) => {
@@ -101,7 +102,7 @@ async function startWhatsAppServer() {
                             jid = `${targetPhone.replace(/\D/g, '')}@s.whatsapp.net`;
                         }
 
-                        console.log(`📤 [Bridge] Enviando para ${jid}...`);
+                        void logger.whatsapp('wa_bridge_send', `Enviando mensagem para ${jid}`, { jid });
                         const result = await sendMessage(jid.split('@')[0], message);
 
                         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -110,7 +111,7 @@ async function startWhatsAppServer() {
                             timestamp: new Date().toISOString()
                         }));
                     } catch (e: any) {
-                        console.error('❌ [Bridge] Erro:', e);
+                        void logger.error('wa_bridge_send_error', 'Erro ao enviar mensagem via Bridge', e instanceof Error ? e : undefined);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: false, error: e.message || 'Internal Error' }));
                     }
@@ -133,13 +134,13 @@ async function startWhatsAppServer() {
                             return;
                         }
 
-                        console.log(`📤 [Bridge] Enviando botões para ${targetPhone}...`);
+                        void logger.whatsapp('wa_bridge_send_buttons', `Enviando botões para ${targetPhone}`, { phone: targetPhone });
                         const result = await sendButtons(targetPhone, text, buttons, footer);
 
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify(result));
                     } catch (e: any) {
-                        console.error('❌ [Bridge] Erro ao enviar botões:', e);
+                        void logger.error('wa_bridge_send_buttons_error', 'Erro ao enviar botões via Bridge', e instanceof Error ? e : undefined);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: false, error: e.message }));
                     }
@@ -162,13 +163,13 @@ async function startWhatsAppServer() {
                             return;
                         }
 
-                        console.log(`📤 [Bridge] Enviando lista para ${targetPhone}...`);
+                        void logger.whatsapp('wa_bridge_send_list', `Enviando lista para ${targetPhone}`, { phone: targetPhone });
                         const result = await sendList(targetPhone, text, buttonText || 'Ver opções', sections, footer);
 
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify(result));
                     } catch (e: any) {
-                        console.error('❌ [Bridge] Erro ao enviar lista:', e);
+                        void logger.error('wa_bridge_send_list_error', 'Erro ao enviar lista via Bridge', e instanceof Error ? e : undefined);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: false, error: e.message }));
                     }
@@ -191,13 +192,13 @@ async function startWhatsAppServer() {
                             return;
                         }
 
-                        console.log(`📤 [Bridge] Enviando template para ${targetPhone}...`);
+                        void logger.whatsapp('wa_bridge_send_template', `Enviando template para ${targetPhone}`, { phone: targetPhone });
                         const result = await sendTemplateButtons(targetPhone, text, templateButtons, footer);
 
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify(result));
                     } catch (e: any) {
-                        console.error('❌ [Bridge] Erro ao enviar template:', e);
+                        void logger.error('wa_bridge_send_template_error', 'Erro ao enviar template via Bridge', e instanceof Error ? e : undefined);
                         res.writeHead(500, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: false, error: e.message }));
                     }
@@ -210,18 +211,16 @@ async function startWhatsAppServer() {
         });
 
         server.on('error', (e: any) => {
-            console.error('❌ Erro no servidor HTTP:', e);
+            void logger.error('wa_http_server_error', 'Erro no servidor HTTP', e instanceof Error ? e : undefined);
         });
 
         server.listen(PORT, '0.0.0.0', () => {
-            console.log(`🌐 Bridge HTTP rodando em http://localhost:${PORT}`);
-            console.log(`📋 Endpoints:`);
-            console.log(`   GET  /status - Status da conexão`);
-            console.log(`   POST /send   - Enviar mensagem`);
+            void logger.whatsapp('wa_bridge_http_started', `Bridge HTTP rodando em http://localhost:${PORT}`, { port: PORT });
+            void logger.info('wa_bridge_endpoints', 'Endpoints disponíveis: GET /status, POST /send, POST /send-buttons, POST /send-list, POST /send-template', { port: PORT });
         });
 
     } catch (error) {
-        console.error('❌ Erro ao iniciar WhatsApp:', error);
+        void logger.error('wa_server_start_error', 'Erro ao iniciar WhatsApp', error instanceof Error ? error : undefined);
         process.exit(1);
     }
 }

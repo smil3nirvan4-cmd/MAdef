@@ -4,6 +4,7 @@ import { sendMessage } from '../client';
 import { notifyEmergencyTeam } from '@/lib/notifications/emergency';
 import { prisma } from '@/lib/db';
 import { buildAppUrl } from '@/lib/config/public-url';
+import logger from '@/lib/observability/logger';
 
 // Salvar lead de paciente no banco de dados
 async function savePatientLead(phone: string, data: Record<string, unknown>) {
@@ -31,10 +32,10 @@ async function savePatientLead(phone: string, data: Record<string, unknown>) {
                 status: 'LEAD',
             },
         });
-        console.log(`✅ [DB] Lead de paciente salvo: ${paciente.id} - ${phone}`);
+        await logger.whatsapp('wa_patient_lead_saved', 'Lead de paciente salvo no banco', { phone, pacienteId: paciente.id });
         return paciente;
     } catch (error) {
-        console.error('❌ [DB] Erro ao salvar lead de paciente:', error);
+        await logger.error('wa_patient_lead_save_error', 'Erro ao salvar lead de paciente', error instanceof Error ? error : undefined);
         return null;
     }
 }
@@ -56,10 +57,10 @@ async function saveCaregiverCandidate(phone: string, data: Record<string, unknow
                 status: 'CANDIDATO',
             },
         });
-        console.log(`✅ [DB] Candidato cuidador salvo: ${cuidador.id} - ${phone}`);
+        await logger.whatsapp('wa_caregiver_candidate_saved', 'Candidato cuidador salvo no banco', { phone, cuidadorId: cuidador.id });
         return cuidador;
     } catch (error) {
-        console.error('❌ [DB] Erro ao salvar candidato cuidador:', error);
+        await logger.error('wa_caregiver_candidate_save_error', 'Erro ao salvar candidato cuidador', error instanceof Error ? error : undefined);
         return null;
     }
 }
@@ -72,7 +73,7 @@ export async function handleOnboarding(
     // Extrair número para armazenamento de estado (remover @lid ou @s.whatsapp.net)
     const phone = from.replace('@s.whatsapp.net', '').replace('@lid', '');
 
-    console.log(`🚀 HandleOnboarding: Step atual = ${state.currentStep}, De = ${from} (phone: ${phone})`);
+    await logger.whatsapp('wa_onboarding_step', 'Processando step de onboarding', { phone, currentStep: state.currentStep, from });
 
     // Step 1: Welcome
     if (state.currentStep === 'WELCOME') {
@@ -208,7 +209,7 @@ Digite o número:
             try {
                 signupUrl = buildAppUrl(`/cadastro?ref=${encodeURIComponent(from)}`);
             } catch (error) {
-                console.error('Erro ao montar URL pública de cadastro:', error);
+                await logger.error('wa_onboarding_url_error', 'Erro ao montar URL pública de cadastro', error instanceof Error ? error : undefined);
                 await sendMessage(from, 'No momento, o link de cadastro está indisponível. Nossa equipe vai te atender por aqui.');
                 await setUserState(phone, {
                     currentStep: 'AWAITING_PATIENT_NAME'
