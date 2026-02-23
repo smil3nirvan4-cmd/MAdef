@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { guardCapability } from '@/lib/auth/capability-guard';
-import { prisma } from '@/lib/prisma';
+import { orcamentoRepository } from '@/lib/repositories';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { computeInputHash } from '@/lib/pricing/input-hash';
 import { z } from 'zod';
@@ -69,21 +69,9 @@ async function handleGet() {
         return guard;
     }
 
-    const orcamentos = await prisma.orcamento.findMany({
-        include: {
-            paciente: {
-                select: {
-                    id: true,
-                    nome: true,
-                    telefone: true,
-                },
-            },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-    });
+    const result = await orcamentoRepository.findAll({ pageSize: 100 });
 
-    return NextResponse.json({ success: true, data: orcamentos, orcamentos });
+    return NextResponse.json({ success: true, data: result.data, orcamentos: result.data });
 }
 
 async function handlePost(request: NextRequest) {
@@ -120,34 +108,29 @@ async function handlePost(request: NextRequest) {
         selectedScenario,
     });
 
-    const orcamento = await prisma.orcamento.create({
-        data: {
-            pacienteId: data.pacienteId,
-            unidadeId,
-            configVersionId,
-            avaliacaoId: data.avaliacaoId ?? null,
-            cenarioEconomico: data.cenarioEconomico ?? null,
-            cenarioRecomendado: data.cenarioRecomendado ?? null,
-            cenarioPremium: data.cenarioPremium ?? null,
-            cenarioSelecionado: selectedScenario,
-            valorFinal: data.valorFinal ?? null,
-            snapshotInput,
-            snapshotOutput,
-            planningInput,
-            normalizedSchedule,
-            pricingBreakdown,
-            engineVersion,
-            calculationHash,
-            descontoManualPercent: data.descontoManualPercent ?? null,
-            minicustosDesativados: data.minicustosDesativados?.length
-                ? JSON.stringify(data.minicustosDesativados)
-                : null,
-            moeda,
-            status: data.status,
-        },
-        include: {
-            paciente: true,
-        },
+    const orcamento = await orcamentoRepository.create({
+        paciente: { connect: { id: data.pacienteId } },
+        ...(unidadeId ? { unidade: { connect: { id: unidadeId } } } : {}),
+        ...(configVersionId ? { configVersion: { connect: { id: configVersionId } } } : {}),
+        ...(data.avaliacaoId ? { avaliacao: { connect: { id: data.avaliacaoId } } } : {}),
+        cenarioEconomico: data.cenarioEconomico ?? null,
+        cenarioRecomendado: data.cenarioRecomendado ?? null,
+        cenarioPremium: data.cenarioPremium ?? null,
+        cenarioSelecionado: selectedScenario,
+        valorFinal: data.valorFinal ?? null,
+        snapshotInput,
+        snapshotOutput,
+        planningInput,
+        normalizedSchedule,
+        pricingBreakdown,
+        engineVersion,
+        calculationHash,
+        descontoManualPercent: data.descontoManualPercent ?? null,
+        minicustosDesativados: data.minicustosDesativados?.length
+            ? JSON.stringify(data.minicustosDesativados)
+            : null,
+        moeda,
+        status: data.status,
     });
 
     return NextResponse.json({ success: true, data: orcamento, orcamento });

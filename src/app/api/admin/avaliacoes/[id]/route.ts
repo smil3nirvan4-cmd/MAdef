@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import { avaliacaoRepository } from '@/lib/repositories';
 import logger from '@/lib/logger';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { E, fail } from '@/lib/api/response';
@@ -57,17 +57,7 @@ async function handleGet(
             });
         }
 
-        const avaliacao = await prisma.avaliacao.findUnique({
-            where: { id },
-            include: {
-                paciente: {
-                    include: {
-                        mensagens: { orderBy: { timestamp: 'desc' }, take: 50 },
-                        orcamentos: { orderBy: { createdAt: 'desc' }, take: 5 },
-                    },
-                },
-            },
-        });
+        const avaliacao = await avaliacaoRepository.findById(id);
 
         if (!avaliacao) {
             return NextResponse.json({ error: 'Avaliacao nao encontrada' }, { status: 404 });
@@ -139,11 +129,7 @@ async function handlePatch(
             updateData = data;
     }
 
-    const avaliacao = await prisma.avaliacao.update({
-        where: { id },
-        data: updateData,
-        include: { paciente: true },
-    });
+    const avaliacao = await avaliacaoRepository.update(id, updateData);
 
     return NextResponse.json({ success: true, avaliacao });
 }
@@ -156,7 +142,7 @@ async function handleDelete(
     if (guard instanceof NextResponse) return guard;
 
     const { id } = await params;
-    await prisma.avaliacao.delete({ where: { id } });
+    await avaliacaoRepository.delete(id);
     return NextResponse.json({ success: true });
 }
 

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { orcamentoRepository, avaliacaoRepository } from '@/lib/repositories';
 import logger from '@/lib/logger';
 import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
@@ -29,10 +30,7 @@ async function handleGet(
     if (guard instanceof NextResponse) return guard;
 
     const { id } = await params;
-    const orcamento = await prisma.orcamento.findUnique({
-        where: { id },
-        include: { paciente: true },
-    });
+    const orcamento = await orcamentoRepository.findById(id);
 
     if (!orcamento) {
         return NextResponse.json({ success: false, error: 'Orcamento nao encontrado' }, { status: 404 });
@@ -42,20 +40,13 @@ async function handleGet(
 }
 
 async function enviarProposta(orcamentoId: string) {
-    const orcamento = await prisma.orcamento.findUnique({
-        where: { id: orcamentoId },
-        include: { paciente: true },
-    });
+    const orcamento = await orcamentoRepository.findById(orcamentoId);
 
     if (!orcamento) {
         return { success: false, status: 404, error: 'Orcamento nao encontrado' };
     }
 
-    const avaliacao = await prisma.avaliacao.findFirst({
-        where: { pacienteId: orcamento.pacienteId },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-    });
+    const avaliacao = await avaliacaoRepository.findLatestForPaciente(orcamento.pacienteId);
 
     const enqueue = await enqueueWhatsAppPropostaJob({
         phone: orcamento.paciente?.telefone || '',
@@ -152,11 +143,7 @@ async function handlePatch(
         };
     }
 
-    const orcamento = await prisma.orcamento.update({
-        where: { id },
-        data: updateData,
-        include: { paciente: true },
-    });
+    const orcamento = await orcamentoRepository.update(id, updateData);
 
     return NextResponse.json({ success: true, orcamento });
 }

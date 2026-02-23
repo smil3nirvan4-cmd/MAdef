@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { avaliacaoRepository } from '@/lib/repositories';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { ok, paginated } from '@/lib/api/response';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
@@ -29,61 +29,19 @@ const getHandler = async (request: NextRequest) => {
     const { field, direction } = parseSort(url, [...SORTABLE_FIELDS], 'createdAt', 'desc');
     const { status, tipo, search, createdFrom, createdTo } = parseSearchFilters(url.searchParams);
 
-    const where: any = {};
-    if (status && status !== 'ALL') {
-        where.status = status;
-    }
+    const result = await avaliacaoRepository.findAll({
+        page,
+        pageSize,
+        search: search || undefined,
+        status: status && status !== 'ALL' ? status : undefined,
+        tipo: tipo && tipo !== 'ALL' ? tipo : undefined,
+        createdFrom: createdFrom || undefined,
+        createdTo: createdTo || undefined,
+        sortField: field,
+        sortDirection: direction,
+    });
 
-    if (tipo && tipo !== 'ALL') {
-        where.paciente = {
-            is: {
-                tipo,
-            },
-        };
-    }
-
-    if (search) {
-        const currentPaciente = where.paciente?.is || {};
-        where.paciente = {
-            is: {
-                ...currentPaciente,
-                OR: [
-                    { nome: { contains: search } },
-                    { telefone: { contains: search.replace(/\D/g, '') || search } },
-                ],
-            },
-        };
-    }
-
-    if (createdFrom || createdTo) {
-        where.createdAt = {
-            ...(createdFrom ? { gte: new Date(createdFrom) } : {}),
-            ...(createdTo ? { lte: new Date(createdTo) } : {}),
-        };
-    }
-
-    const [avaliacoes, total] = await Promise.all([
-        prisma.avaliacao.findMany({
-            where,
-            include: {
-                paciente: {
-                    select: {
-                        id: true,
-                        nome: true,
-                        telefone: true,
-                        tipo: true,
-                        cidade: true,
-                    },
-                },
-            },
-            orderBy: [{ [field]: direction }, { createdAt: 'desc' }],
-            skip: (page - 1) * pageSize,
-            take: pageSize,
-        }),
-        prisma.avaliacao.count({ where }),
-    ]);
-
-    return paginated(avaliacoes, { page, pageSize, total });
+    return paginated(result.data, { page, pageSize, total: result.total });
 };
 
 const postHandler = async (request: NextRequest) => {
@@ -107,25 +65,18 @@ const postHandler = async (request: NextRequest) => {
     const { data, error } = await parseBody(request, createAvaliacaoSchema);
     if (error) return error;
 
-    const avaliacao = await prisma.avaliacao.create({
-        data: {
-            pacienteId: data.pacienteId,
-            status: data.status,
-            abemidScore: data.abemidScore ?? null,
-            katzScore: data.katzScore ?? null,
-            lawtonScore: data.lawtonScore ?? null,
-            gqp: data.gqp ?? null,
-            nivelSugerido: data.nivelSugerido ?? null,
-            cargaSugerida: data.cargaSugerida ?? null,
-            nivelFinal: data.nivelFinal ?? null,
-            cargaFinal: data.cargaFinal ?? null,
-            dadosDetalhados: data.dadosDetalhados ? JSON.stringify(data.dadosDetalhados) : null,
-        },
-        include: {
-            paciente: {
-                select: { id: true, nome: true, telefone: true },
-            },
-        },
+    const avaliacao = await avaliacaoRepository.create({
+        paciente: { connect: { id: data.pacienteId } },
+        status: data.status,
+        abemidScore: data.abemidScore ?? null,
+        katzScore: data.katzScore ?? null,
+        lawtonScore: data.lawtonScore ?? null,
+        gqp: data.gqp ?? null,
+        nivelSugerido: data.nivelSugerido ?? null,
+        cargaSugerida: data.cargaSugerida ?? null,
+        nivelFinal: data.nivelFinal ?? null,
+        cargaFinal: data.cargaFinal ?? null,
+        dadosDetalhados: data.dadosDetalhados ? JSON.stringify(data.dadosDetalhados) : null,
     });
 
     return ok({ avaliacao }, 201);

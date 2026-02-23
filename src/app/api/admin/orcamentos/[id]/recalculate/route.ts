@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { prisma } from '@/lib/prisma';
+import { orcamentoRepository } from '@/lib/repositories';
 import logger from '@/lib/observability/logger';
 import { calculateEnterprisePricing } from '@/lib/pricing/calculator';
 import { computeInputHash } from '@/lib/pricing/input-hash';
@@ -40,9 +41,7 @@ async function handlePost(
     }
 
     const { id } = await params;
-    const orcamento = await prisma.orcamento.findUnique({
-        where: { id },
-    });
+    const orcamento = await orcamentoRepository.findById(id);
 
     if (!orcamento) {
         return fail(E.NOT_FOUND, 'Orcamento nao encontrado', { status: 404 });
@@ -136,12 +135,9 @@ async function handlePost(
         },
     };
 
-    await prisma.orcamento.update({
-        where: { id: orcamento.id },
-        data: {
-            calculationHash: recalculatedHash,
-            engineVersion: orcamento.engineVersion ?? 'enterprise-pricing-v2',
-        },
+    await orcamentoRepository.update(orcamento.id, {
+        calculationHash: recalculatedHash,
+        engineVersion: orcamento.engineVersion ?? 'enterprise-pricing-v2',
     });
 
     const auditLogModel = (prisma as unknown as {
