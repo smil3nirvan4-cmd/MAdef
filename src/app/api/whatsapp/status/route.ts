@@ -1,8 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const SESSION_FILE = path.resolve(
     process.cwd(),
@@ -80,7 +83,12 @@ async function getBridgeStatus() {
     };
 }
 
-export async function GET() {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     const status = await getBridgeStatus();
     return NextResponse.json(status);
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

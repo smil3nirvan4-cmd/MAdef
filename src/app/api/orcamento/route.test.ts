@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     checkRateLimit: vi.fn(),
     getClientIp: vi.fn(),
     createOrcamento: vi.fn(),
+    guardCapability: vi.fn(),
 }));
 
 vi.mock('@/lib/pricing/calculator', () => ({
@@ -42,6 +43,14 @@ vi.mock('@/lib/prisma', () => ({
     },
 }));
 
+vi.mock('@/lib/auth/capability-guard', () => ({
+    guardCapability: mocks.guardCapability,
+}));
+
+vi.mock('@/lib/api/with-error-boundary', () => ({
+    withErrorBoundary: (handler: Function) => handler,
+}));
+
 import { POST } from './route';
 
 function req(body: unknown): NextRequest {
@@ -55,6 +64,7 @@ function req(body: unknown): NextRequest {
 describe('/api/orcamento', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.guardCapability.mockResolvedValue({ role: 'ADMIN', userId: 'test@example.com' });
         mocks.getClientIp.mockReturnValue('200.1.2.3');
         mocks.checkRateLimit.mockReturnValue({ allowed: true, retryAfterMs: 0, remaining: 10 });
         mocks.isEnterprisePricingEnabledForUnit.mockReturnValue(true);

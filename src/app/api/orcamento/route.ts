@@ -16,6 +16,8 @@ import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
 import { isEnterprisePricingEnabledForUnit } from '@/lib/enterprise/feature-flags';
 import { prisma } from '@/lib/prisma';
 import { parseBody } from '@/lib/api/parse-body';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 
 const ENGINE_VERSION = 'enterprise-pricing-v3';
 
@@ -261,7 +263,10 @@ async function tryPersistEnterpriseOrcamento(args: {
     return created.id;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const ip = getClientIp(request);
         const rateLimit = checkRateLimit(`orcamento:${ip}`, 40, 60_000);
@@ -426,3 +431,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

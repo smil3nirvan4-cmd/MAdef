@@ -1,9 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import logger from '@/lib/observability/logger';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function GET() {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const filePath = path.resolve(process.cwd(), '.wa-state.json');
 
@@ -37,3 +43,5 @@ export async function GET() {
         return NextResponse.json({ success: false, error: 'Erro ao carregar dados' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 5, windowMs: 60_000 });

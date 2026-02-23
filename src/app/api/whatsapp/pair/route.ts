@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 import { parseBody } from '@/lib/api/parse-body';
 import { pairSchema } from '@/lib/validations/whatsapp';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     const bridgeConfig = resolveBridgeConfig();
 
     const result = await parseBody(request, pairSchema);
@@ -54,3 +60,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 5, windowMs: 60_000 });

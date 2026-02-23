@@ -10,6 +10,8 @@ import { renderCommercialMessage } from '@/lib/documents/commercial-message';
 import type { OrcamentoSendOptions } from '@/lib/documents/send-options';
 import { parseBody } from '@/lib/api/parse-body';
 import { enviarPropostaSchema } from '@/lib/validations/proposta';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 
 type ScenarioKey = 'economico' | 'recomendado' | 'premium';
 
@@ -281,7 +283,10 @@ async function persistOrcamentoWithLegacyFallback(
     }
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
+    const guard = await guardCapability('SEND_PROPOSTA');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const result = await parseBody(req, enviarPropostaSchema);
         if (result.error) return result.error;
@@ -521,3 +526,5 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const POST = withErrorBoundary(handlePost);
