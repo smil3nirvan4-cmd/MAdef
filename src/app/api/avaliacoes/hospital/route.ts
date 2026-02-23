@@ -5,6 +5,8 @@ import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { ok, fail, E } from '@/lib/api/response';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
 import logger from '@/lib/observability/logger';
+import { parseBody } from '@/lib/api/parse-body';
+import { hospitalAvaliacaoSchema } from '@/lib/validations/avaliacao';
 
 export const POST = withErrorBoundary(async (request: NextRequest) => {
     const guard = await guardCapability('MANAGE_AVALIACOES');
@@ -16,12 +18,9 @@ export const POST = withErrorBoundary(async (request: NextRequest) => {
         return fail(E.RATE_LIMITED, 'Rate limit exceeded', { status: 429 });
     }
 
-    const body = await request.json();
-    const { nome, hospital, quarto, nivel, phone } = body;
-
-    if (!nome || !hospital || !nivel) {
-        return fail(E.VALIDATION_ERROR, 'Campos obrigatórios ausentes: nome, hospital, nivel', { status: 400 });
-    }
+    const { data, error } = await parseBody(request, hospitalAvaliacaoSchema);
+    if (error) return error;
+    const { nome, hospital, quarto, nivel, phone } = data;
 
     const telefone = phone || `HOSP-${Date.now()}`;
 

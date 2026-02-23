@@ -8,6 +8,8 @@ import { generatePropostaPDF } from '@/lib/documents/pdf-generator';
 import { sendDocumentViaBridge } from '@/lib/documents/whatsapp-documents';
 import { renderCommercialMessage } from '@/lib/documents/commercial-message';
 import type { OrcamentoSendOptions } from '@/lib/documents/send-options';
+import { parseBody } from '@/lib/api/parse-body';
+import { enviarPropostaSchema } from '@/lib/validations/proposta';
 
 type ScenarioKey = 'economico' | 'recomendado' | 'premium';
 
@@ -281,7 +283,8 @@ async function persistOrcamentoWithLegacyFallback(
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
+        const result = await parseBody(req, enviarPropostaSchema);
+        if (result.error) return result.error;
         const {
             phone,
             nome,
@@ -296,13 +299,9 @@ export async function POST(req: Request) {
             metodosPagamento,
             opcoesParcelamento,
             dadosDetalhados,
-        } = body;
+        } = result.data;
 
         await logger.info('proposta_payload_recebido', 'Recebendo payload completo para envio de proposta', { nome, phone, hasDetails: !!dadosDetalhados });
-
-        if (!phone || !nome) {
-            throw new Error('Nome e Telefone sao obrigatorios para salvar a avaliacao.');
-        }
 
         let paciente = await prisma.paciente.findUnique({ where: { telefone: phone } });
         if (!paciente) {

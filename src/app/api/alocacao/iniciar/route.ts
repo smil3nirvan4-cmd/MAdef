@@ -6,6 +6,8 @@ import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { ok, fail, E } from '@/lib/api/response';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
+import { parseBody } from '@/lib/api/parse-body';
+import { iniciarAlocacaoSchema } from '@/lib/validations/alocacao';
 
 export const POST = withErrorBoundary(async (request: NextRequest) => {
     const guard = await guardCapability('MANAGE_ALOCACOES');
@@ -17,11 +19,9 @@ export const POST = withErrorBoundary(async (request: NextRequest) => {
         return fail(E.RATE_LIMITED, 'Rate limit exceeded', { status: 429 });
     }
 
-    const { equipeId, pacienteId, modo, horasDiarias, duracaoDias, cuidadores } = await request.json();
-
-    if (!equipeId || !pacienteId || !modo) {
-        return fail(E.VALIDATION_ERROR, 'equipeId, pacienteId e modo são obrigatórios', { status: 400 });
-    }
+    const { data, error } = await parseBody(request, iniciarAlocacaoSchema);
+    if (error) return error;
+    const { equipeId, pacienteId, modo, horasDiarias, duracaoDias, cuidadores } = data;
 
     const slots = gerarSlots24h(equipeId, new Date(), duracaoDias);
 

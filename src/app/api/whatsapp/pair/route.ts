@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import { parseBody } from '@/lib/api/parse-body';
+import { pairSchema } from '@/lib/validations/whatsapp';
 
 export async function POST(request: NextRequest) {
     const bridgeConfig = resolveBridgeConfig();
 
-    let body: any = {};
-    try {
-        body = await request.json();
-    } catch {
-        body = {};
-    }
+    const result = await parseBody(request, pairSchema);
+    const body = result.data ?? {};
 
     try {
         const response = await fetch(`${bridgeConfig.bridgeUrl}/pair`, {

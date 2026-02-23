@@ -15,6 +15,7 @@ import { resolveUnitConfig } from '@/lib/enterprise/config-engine';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
 import { isEnterprisePricingEnabledForUnit } from '@/lib/enterprise/feature-flags';
 import { prisma } from '@/lib/prisma';
+import { parseBody } from '@/lib/api/parse-body';
 
 const ENGINE_VERSION = 'enterprise-pricing-v3';
 
@@ -275,7 +276,9 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const body = await request.json();
+        const jsonResult = await parseBody(request, z.record(z.string(), z.unknown()));
+        if (jsonResult.error) return jsonResult.error;
+        const body = jsonResult.data;
 
         if (body?.planningInput) {
             const parsedEnterprise = EnterpriseSchema.parse(body);
