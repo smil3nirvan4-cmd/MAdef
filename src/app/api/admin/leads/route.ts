@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import logger from '@/lib/observability/logger';
+import { pacienteRepository } from '@/lib/repositories';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+
+const LEAD_STATUSES = ['LEAD', 'AVALIACAO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'] as const;
 
 async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_PACIENTES');
@@ -15,7 +17,7 @@ async function handleGet(request: NextRequest) {
 
     const where: any = {
         // Leads = not yet patients (before contract signed)
-        status: { in: ['LEAD', 'AVALIACAO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'] }
+        status: { in: [...LEAD_STATUSES] }
     };
 
     if (status && status !== 'ALL') {
@@ -29,6 +31,8 @@ async function handleGet(request: NextRequest) {
         ];
     }
 
+    // findAll does not support multi-status { in: [...] } filter,
+    // so prisma.paciente.findMany is kept for the list query
     const leads = await prisma.paciente.findMany({
         where,
         include: {
@@ -38,12 +42,20 @@ async function handleGet(request: NextRequest) {
         take: 200
     });
 
+    const [total, leadsCount, avaliacaoCount, propostaCount, contratoCount] = await Promise.all([
+        pacienteRepository.count({ status: { in: [...LEAD_STATUSES] } }),
+        pacienteRepository.count({ status: 'LEAD' }),
+        pacienteRepository.count({ status: 'AVALIACAO' }),
+        pacienteRepository.count({ status: 'PROPOSTA_ENVIADA' }),
+        pacienteRepository.count({ status: 'CONTRATO_ENVIADO' }),
+    ]);
+
     const stats = {
-        total: await prisma.paciente.count({ where: { status: { in: ['LEAD', 'AVALIACAO', 'PROPOSTA_ENVIADA', 'CONTRATO_ENVIADO'] } } }),
-        leads: await prisma.paciente.count({ where: { status: 'LEAD' } }),
-        avaliacao: await prisma.paciente.count({ where: { status: 'AVALIACAO' } }),
-        proposta: await prisma.paciente.count({ where: { status: 'PROPOSTA_ENVIADA' } }),
-        contrato: await prisma.paciente.count({ where: { status: 'CONTRATO_ENVIADO' } }),
+        total,
+        leads: leadsCount,
+        avaliacao: avaliacaoCount,
+        proposta: propostaCount,
+        contrato: contratoCount,
     };
 
     return NextResponse.json({ leads, stats });

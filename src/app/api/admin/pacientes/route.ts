@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pacienteRepository } from '@/lib/repositories';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { ok, paginated } from '@/lib/api/response';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
@@ -30,54 +30,30 @@ const getHandler = async (request: NextRequest) => {
     const { field, direction } = parseSort(url, [...SORTABLE_FIELDS], 'createdAt', 'desc');
     const { search, status, tipo, cidade } = parseFilters(url.searchParams);
 
-    const where: any = {};
-    if (status && status !== 'ALL') where.status = status;
-    if (tipo && tipo !== 'ALL') where.tipo = tipo;
-    if (cidade) where.cidade = { contains: cidade };
-
-    if (search) {
-        where.OR = [
-            { nome: { contains: search } },
-            { telefone: { contains: search.replace(/\D/g, '') || search } },
-            { cidade: { contains: search } },
-            { bairro: { contains: search } },
-        ];
-    }
-
-    const [pacientes, total, totalGeral, totalAtivos, totalLeads, totalAvaliacao] = await Promise.all([
-        prisma.paciente.findMany({
-            where,
-            include: {
-                _count: {
-                    select: {
-                        avaliacoes: true,
-                        orcamentos: true,
-                        alocacoes: true,
-                        mensagens: true,
-                    },
-                },
-            },
-            orderBy: [{ [field]: direction }, { createdAt: 'desc' }],
-            skip: (page - 1) * pageSize,
-            take: pageSize,
+    const [result, stats] = await Promise.all([
+        pacienteRepository.findAll({
+            page,
+            pageSize,
+            search: search || undefined,
+            status: (status && status !== 'ALL') ? status : undefined,
+            tipo: (tipo && tipo !== 'ALL') ? tipo : undefined,
+            cidade: cidade || undefined,
+            sortField: field,
+            sortDirection: direction,
         }),
-        prisma.paciente.count({ where }),
-        prisma.paciente.count(),
-        prisma.paciente.count({ where: { status: 'ATIVO' } }),
-        prisma.paciente.count({ where: { status: 'LEAD' } }),
-        prisma.paciente.count({ where: { status: 'AVALIACAO' } }),
+        pacienteRepository.countByStatus(),
     ]);
 
     return paginated(
-        pacientes,
-        { page, pageSize, total },
+        result.data,
+        { page, pageSize, total: result.total },
         200,
         {
             stats: {
-                total: totalGeral,
-                ativos: totalAtivos,
-                leads: totalLeads,
-                avaliacao: totalAvaliacao,
+                total: stats.total,
+                ativos: stats.ativo,
+                leads: stats.lead,
+                avaliacao: stats.avaliacao,
             },
         }
     );
@@ -102,23 +78,21 @@ const postHandler = async (request: NextRequest) => {
     const { data, error } = await parseBody(request, createPacienteSchema);
     if (error) return error;
 
-    const existing = await prisma.paciente.findUnique({ where: { telefone: data.telefone } });
+    const existing = await pacienteRepository.findByPhone(data.telefone);
     if (existing) {
         throw new ConflictError('Paciente ja cadastrado com este telefone');
     }
 
-    const paciente = await prisma.paciente.create({
-        data: {
-            nome: data.nome || null,
-            telefone: data.telefone,
-            cidade: data.cidade || null,
-            bairro: data.bairro || null,
-            tipo: data.tipo,
-            hospital: data.hospital || null,
-            quarto: data.quarto || null,
-            prioridade: data.prioridade,
-            status: data.status,
-        },
+    const paciente = await pacienteRepository.create({
+        nome: data.nome || null,
+        telefone: data.telefone,
+        cidade: data.cidade || null,
+        bairro: data.bairro || null,
+        tipo: data.tipo,
+        hospital: data.hospital || null,
+        quarto: data.quarto || null,
+        prioridade: data.prioridade,
+        status: data.status,
     });
 
     return ok({ paciente }, 201);

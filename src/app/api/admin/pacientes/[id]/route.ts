@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { pacienteRepository } from '@/lib/repositories';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { parseBody } from '@/lib/api/parse-body';
@@ -26,28 +27,7 @@ async function handleGet(
     if (guard instanceof NextResponse) return guard;
 
     const { id } = await params;
-    const paciente = await prisma.paciente.findUnique({
-        where: { id },
-        include: {
-            avaliacoes: {
-                orderBy: { createdAt: 'desc' },
-                take: 20
-            },
-            orcamentos: {
-                orderBy: { createdAt: 'desc' },
-                take: 10
-            },
-            alocacoes: {
-                include: { cuidador: true },
-                orderBy: { createdAt: 'desc' },
-                take: 10
-            },
-            mensagens: {
-                orderBy: { timestamp: 'desc' },
-                take: 100
-            }
-        }
-    });
+    const paciente = await pacienteRepository.findById(id);
 
     if (!paciente) {
         return NextResponse.json({ error: 'Paciente não encontrado' }, { status: 404 });
@@ -101,36 +81,25 @@ async function handlePatch(
     const { data: body, error } = await parseBody(request, patchPacienteSchema);
     if (error) return error;
 
-    const existing = await prisma.paciente.findUnique({ where: { id } });
+    const existing = await pacienteRepository.findById(id);
     if (!existing) {
         return NextResponse.json({ success: false, error: 'Paciente não encontrado' }, { status: 404 });
     }
 
-    const paciente = await prisma.paciente.update({
-        where: { id },
-        data: {
-            ...(body.nome && { nome: body.nome }),
-            ...(body.cidade && { cidade: body.cidade }),
-            ...(body.bairro && { bairro: body.bairro }),
-            ...(body.tipo && { tipo: body.tipo }),
-            ...(body.hospital && { hospital: body.hospital }),
-            ...(body.quarto && { quarto: body.quarto }),
-            ...(body.status && { status: body.status }),
-            ...(body.prioridade && { prioridade: body.prioridade }),
-        }
+    await pacienteRepository.update(id, {
+        ...(body.nome && { nome: body.nome }),
+        ...(body.cidade && { cidade: body.cidade }),
+        ...(body.bairro && { bairro: body.bairro }),
+        ...(body.tipo && { tipo: body.tipo }),
+        ...(body.hospital && { hospital: body.hospital }),
+        ...(body.quarto && { quarto: body.quarto }),
+        ...(body.status && { status: body.status }),
+        ...(body.prioridade && { prioridade: body.prioridade }),
     });
 
-    const pacienteCompleto = await prisma.paciente.findUnique({
-        where: { id },
-        include: {
-            avaliacoes: { orderBy: { createdAt: 'desc' }, take: 20 },
-            orcamentos: { orderBy: { createdAt: 'desc' }, take: 20 },
-            alocacoes: { include: { cuidador: true }, orderBy: { createdAt: 'desc' }, take: 20 },
-            mensagens: { orderBy: { timestamp: 'desc' }, take: 100 },
-        },
-    });
+    const pacienteCompleto = await pacienteRepository.findById(id);
 
-    return NextResponse.json({ success: true, paciente: pacienteCompleto || paciente });
+    return NextResponse.json({ success: true, paciente: pacienteCompleto });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
