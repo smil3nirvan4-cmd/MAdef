@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
+import { validateOrigin } from '@/lib/csrf';
 
 const publicPaths = [
     '/api/auth',
@@ -29,6 +30,14 @@ export default auth((req) => {
         const loginUrl = new URL('/login', req.nextUrl.origin);
         loginUrl.searchParams.set('callbackUrl', pathname);
         return NextResponse.redirect(loginUrl);
+    }
+
+    // CSRF: Validate Origin header for mutation requests
+    if (pathname.startsWith('/api/') && !validateOrigin(req)) {
+        return NextResponse.json(
+            { success: false, error: { code: 'CSRF_FAILED', message: 'Origin validation failed' } },
+            { status: 403 }
+        );
     }
 
     return NextResponse.next();
