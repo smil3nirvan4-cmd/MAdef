@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import { cuidadorRepository } from '@/lib/repositories';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { parseBody } from '@/lib/api/parse-body';
@@ -26,43 +26,51 @@ async function handleGet(request: NextRequest) {
     const area = searchParams.get('area');
     const search = searchParams.get('search');
 
-    const where: any = {};
-
+    // When a specific status is selected, use it directly; otherwise fetch
+    // pending candidates by making individual calls per default status.
+    let cuidadores;
     if (status && status !== 'ALL') {
-        where.status = status;
+        const result = await cuidadorRepository.findAll({
+            status,
+            area: area && area !== 'ALL' ? area : undefined,
+            search: search || undefined,
+            pageSize: 200,
+        });
+        cuidadores = result.data;
     } else {
-        // Default: show pending candidates
-        where.status = { in: ['AGUARDANDO_RH', 'EM_ENTREVISTA', 'CRIADO'] };
+        // Default: show pending candidates (AGUARDANDO_RH, EM_ENTREVISTA, CRIADO)
+        const [aguardando, entrevista, criado] = await Promise.all([
+            cuidadorRepository.findAll({
+                status: 'AGUARDANDO_RH',
+                area: area && area !== 'ALL' ? area : undefined,
+                search: search || undefined,
+                pageSize: 200,
+            }),
+            cuidadorRepository.findAll({
+                status: 'EM_ENTREVISTA',
+                area: area && area !== 'ALL' ? area : undefined,
+                search: search || undefined,
+                pageSize: 200,
+            }),
+            cuidadorRepository.findAll({
+                status: 'CRIADO',
+                area: area && area !== 'ALL' ? area : undefined,
+                search: search || undefined,
+                pageSize: 200,
+            }),
+        ]);
+        cuidadores = [...aguardando.data, ...entrevista.data, ...criado.data]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 200);
     }
 
-    if (area && area !== 'ALL') {
-        where.area = area;
-    }
-
-    if (search) {
-        where.OR = [
-            { nome: { contains: search } },
-            { telefone: { contains: search } },
-        ];
-    }
-
-    const cuidadores = await prisma.cuidador.findMany({
-        where,
-        include: {
-            _count: {
-                select: { mensagens: true, alocacoes: true }
-            }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200
-    });
-
+    const statusCounts = await cuidadorRepository.countByStatus();
     const stats = {
-        total: await prisma.cuidador.count(),
-        aguardandoRH: await prisma.cuidador.count({ where: { status: 'AGUARDANDO_RH' } }),
-        emEntrevista: await prisma.cuidador.count({ where: { status: 'EM_ENTREVISTA' } }),
-        aprovados: await prisma.cuidador.count({ where: { status: 'APROVADO' } }),
-        rejeitados: await prisma.cuidador.count({ where: { status: 'REJEITADO' } }),
+        total: statusCounts.total,
+        aguardandoRH: statusCounts.aguardando,
+        emEntrevista: statusCounts.entrevista,
+        aprovados: statusCounts.aprovado,
+        rejeitados: statusCounts.rejeitado,
     };
 
     return NextResponse.json({ cuidadores, stats });
@@ -76,13 +84,13 @@ async function handlePost(request: NextRequest) {
     if (error) return error;
     const { nome, telefone, area, endereco, competencias } = data;
 
-    const existing = await prisma.cuidador.findUnique({ where: { telefone } });
+    const existing = await cuidadorRepository.findByPhone(telefone);
     if (existing) {
         return NextResponse.json({ error: 'Cuidador já cadastrado' }, { status: 400 });
     }
 
-    const cuidador = await prisma.cuidador.create({
-        data: { nome, telefone, area, endereco, competencias, status: 'CRIADO' }
+    const cuidador = await cuidadorRepository.create({
+        nome, telefone, area, endereco, competencias, status: 'CRIADO',
     });
 
     return NextResponse.json({ success: true, cuidador });
