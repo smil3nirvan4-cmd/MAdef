@@ -48,7 +48,17 @@ vi.mock('@/lib/auth/capability-guard', () => ({
 }));
 
 vi.mock('@/lib/api/with-error-boundary', () => ({
-    withErrorBoundary: (handler: Function) => handler,
+    withErrorBoundary: (handler: Function) => async (...args: unknown[]) => {
+        try {
+            return await handler(...args);
+        } catch (err: any) {
+            const message = err?.message || 'Internal server error';
+            return Response.json(
+                { success: false, error: message },
+                { status: 500 },
+            );
+        }
+    },
 }));
 
 import { POST } from './route';
