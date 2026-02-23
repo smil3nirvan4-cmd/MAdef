@@ -1,7 +1,7 @@
 # CLAUDE.md — MAdef (Mãos Amigas) Developer Guide
 
 > Comprehensive guide for AI assistants and developers working on the MAdef codebase.
-> Last updated: 2026-02-23
+> Last updated: 2026-02-23 (Phases 1-9 complete)
 
 ## Project Overview
 
@@ -16,23 +16,26 @@ MAdef is a **home care management platform** (Mãos Amigas) built for managing c
 | Framework | Next.js (App Router) | 16.1.4 |
 | UI | React + Tailwind CSS v4 | 19.2.3 |
 | Language | TypeScript (strict mode) | 5.9.3 |
-| Database | Prisma + SQLite | Prisma 6.x |
+| Database | Prisma + PostgreSQL | Prisma 6.x |
 | Auth | NextAuth v5 beta (Credentials) | 5.0.0-beta.30 |
 | WhatsApp | Baileys (unofficial API) | 7.x |
 | Testing | Vitest + Testing Library | Vitest 4.x |
 | State | TanStack Query + TanStack Table | 5.x / 8.x |
 | Validation | Zod | 4.x |
-| Logging | Custom structured logger → SystemLog table | — |
+| Logging | Pino structured logger + SystemLog table | — |
+| Cache | Redis (ioredis) + in-memory L1 | — |
+| Jobs | BullMQ background queues | — |
 | PDF | PDFKit | 0.17.x |
 | Icons | Lucide React | 0.563.x |
 
 ## Quick Start
 
 ```bash
-# Prerequisites: Node.js >= 20
+# Prerequisites: Node.js >= 20, PostgreSQL, Redis
 cp .env.example .env        # Edit with real values
+docker compose up -d db redis  # Start PostgreSQL + Redis
 npm install                  # Also runs prisma generate (postinstall)
-npx prisma db push           # Create/sync SQLite database
+npx prisma migrate deploy   # Run database migrations
 npm run dev                  # Starts Next.js + WhatsApp bridge
 ```
 
@@ -59,14 +62,16 @@ npm run dev                  # Starts Next.js + WhatsApp bridge
 ```
 MAdef/
 ├── prisma/
-│   ├── schema.prisma          # Database schema (37 models)
+│   ├── schema.prisma          # Database schema (40+ models)
 │   └── seed.ts                # Database seeder
 ├── src/
 │   ├── app/                   # Next.js App Router
-│   │   ├── api/               # API routes (67 endpoints)
-│   │   │   ├── admin/         # Protected admin API (53 endpoints)
+│   │   ├── api/               # API routes (72+ endpoints)
+│   │   │   │   ├── admin/         # Protected admin API (55+ endpoints)
 │   │   │   ├── auth/          # NextAuth handlers
-│   │   │   ├── health/        # Health check
+│   │   │   ├── health/        # Health check (DB, Redis, WhatsApp, memory)
+│   │   │   ├── metrics/       # Application metrics endpoint
+│   │   │   ├── openapi/       # OpenAPI 3.1 specification
 │   │   │   ├── whatsapp/      # WhatsApp API (10 endpoints)
 │   │   │   ├── alocacao/      # Allocation API
 │   │   │   ├── avaliacoes/    # Evaluations API
@@ -83,18 +88,24 @@ MAdef/
 │   │   ├── data-display/      # DataTable, StatCard, TanStackDataTable
 │   │   ├── layout/            # PageHeader
 │   │   └── admin/             # Admin-specific components
+│   ├── middleware.ts             # Request tracking + auth middleware
 │   ├── lib/                   # Core business logic
 │   │   ├── api/               # API helpers: response, rate-limit, error-codes
+│   │   ├── audit/             # Audit trail service (AuditLog)
 │   │   ├── auth/              # RBAC: roles, capabilities, guards
 │   │   ├── allocation/        # Caregiver allocation algorithms
+│   │   ├── cache/             # Two-level cache (L1 Map + L2 Redis)
 │   │   ├── contracts/         # Contract template rendering
 │   │   ├── documents/         # PDF generation, proposals, contracts
 │   │   ├── enterprise/        # Enterprise config, feature flags
 │   │   ├── evaluation/        # Clinical scales (ABEMID, Katz, Lawton)
+│   │   ├── jobs/              # BullMQ queues + workers
+│   │   ├── lgpd/              # LGPD compliance (export, anonymize, consent)
 │   │   ├── notifications/     # Emergency notifications
-│   │   ├── observability/     # Logger, request context
+│   │   ├── observability/     # Pino logger, request context, metrics
 │   │   ├── pricing/           # Pricing calculator, enterprise engine
-│   │   ├── repositories/      # Data access (Prisma + mock)
+│   │   ├── redis/             # Redis client singleton
+│   │   ├── repositories/      # Data access layer (10 repositories)
 │   │   ├── scheduling/        # Recurrence engine, presets
 │   │   ├── services/          # Signature service
 │   │   ├── state/             # State management (memory + Prisma)
@@ -134,6 +145,10 @@ WhatsAppSession, WhatsAppFlowState, WhatsAppContact, WhatsAppMessage, WhatsAppTe
 
 Unidade (business unit), UnidadeConfiguracaoVersao (pricing config versions), UnidadeDoencaRegra (disease rules), UnidadeRegraHora (hourly rules), UnidadeTaxaPagamento (payment taxes), UnidadeMinicusto (mini-costs), UnidadePercentualComissao (commissions), UnidadeDescontoPreset (discount presets), UnidadeContratoTemplate (contract templates)
 
+### Audit & LGPD Models
+
+AuditLog (generic audit trail), ConsentRecord (LGPD consent tracking), DataExportRequest, DataDeletionRequest
+
 ### System Models
 
 OrcamentoSimulacao, ConfigAuditLog, OrcamentoAuditLog, SystemLog
@@ -145,7 +160,7 @@ OrcamentoSimulacao, ConfigAuditLog, OrcamentoAuditLog, SystemLog
 - **NextAuth v5** with Credentials provider
 - **Single admin account** via `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars
 - **JWT-based sessions** (not database sessions)
-- Password comparison uses `crypto.timingSafeEqual` (but NO hashing)
+- Password supports bcrypt hash (`ADMIN_PASSWORD_HASH`) or legacy plaintext (`ADMIN_PASSWORD`)
 - Roles resolved from env var email lists at runtime
 
 ### RBAC System
@@ -212,7 +227,7 @@ if (!result.allowed) return fail(E.RATE_LIMITED, '...', { status: 429 });
 
 `src/lib/observability/request-context.ts` provides `RequestContext` with `runWithContext()` for automatic requestId, route, userId, and timing tracking through async operations.
 
-### Logging
+### Logging (Pino)
 
 ```typescript
 import logger from '@/lib/logger';
@@ -221,7 +236,37 @@ await logger.error('action_name', 'Error message', error);
 await logger.whatsapp('wa_event', 'WhatsApp specific log', { phone });
 ```
 
-Logs are persisted to the `SystemLog` table with automatic request context enrichment.
+Uses **Pino** for structured JSON logging (pino-pretty in dev). Logs are also persisted to the `SystemLog` table with automatic request context enrichment.
+
+### Metrics
+
+```typescript
+import { metrics } from '@/lib/observability/metrics';
+metrics.httpRequest('GET', '/api/pacientes', 200, 45);
+metrics.cacheHit();
+metrics.queueEnqueued('whatsapp');
+```
+
+In-process counters and histograms exposed via `GET /api/metrics`.
+
+### Caching (Redis)
+
+```typescript
+import { cached, invalidate } from '@/lib/cache/cache.service';
+const data = await cached('key', 300, async () => fetchFromDb());
+await invalidate('key');
+```
+
+Two-level cache: L1 (in-memory Map, 60s TTL) → L2 (Redis) → DB fetcher.
+
+### Background Jobs (BullMQ)
+
+```typescript
+import { whatsappQueue } from '@/lib/jobs/queue';
+await whatsappQueue.add('send-message', { phone, content });
+```
+
+Queues: `whatsapp` (rate-limited 20/min), `notification`, `pdf`.
 
 ## WhatsApp Integration
 
@@ -278,55 +323,60 @@ Patient and caregiver triage flows managed via `WhatsAppFlowState` and `WhatsApp
 - Tailwind CSS v4 for styling (utility-first)
 - Component library in `src/components/ui/` (Button, Card, Modal, Input, Badge, etc.)
 
-### Database Access
+### Database Access (Repository Pattern)
+
+Prefer repositories over direct Prisma calls in route handlers:
 
 ```typescript
-import { prisma } from '@/lib/prisma';
+import { pacienteRepository } from '@/lib/repositories';
 
-// Always use select/include to avoid over-fetching
-const patients = await prisma.paciente.findMany({
-  select: { id: true, nome: true, telefone: true },
-  orderBy: { createdAt: 'desc' },
+// Repository (preferred for routes)
+const patients = await pacienteRepository.findAll({ page: 1, pageSize: 20 });
+const patient = await pacienteRepository.findById(id);
+
+// Direct Prisma (for complex/one-off queries)
+import { prisma } from '@/lib/prisma';
+const custom = await prisma.paciente.findMany({
+  select: { id: true, nome: true },
+  where: { deletedAt: null },
 });
 ```
 
+Repositories: `pacienteRepository`, `cuidadorRepository`, `avaliacaoRepository`, `orcamentoRepository`, `alocacaoRepository`, `mensagemRepository`, `systemLogRepository`, `dashboardRepository`, `whatsappAdmin.*`
+
 ### Testing
 
-- Vitest for unit and integration tests
+- Vitest for unit and integration tests (537+ tests, 52 test files)
+- Coverage: v8 provider with 60% statement/line thresholds
 - Test files: `*.test.ts` co-located with source files
-- Existing tests cover: rate-limit, capability-guard, roles, phone-validator, pricing calculator, template-engine, circuit-breaker, webhook-security, and more
-- Run: `npm test` (watch) or `npm run test:ci` (single run)
+- Covers: repositories, API routes, rate-limit, capability-guard, roles, phone-validator, pricing calculator, template-engine, scheduling, clinical evaluations, circuit-breaker, webhook-security
+- Run: `npm test` (watch) or `npm run test:ci` (single run) or `npm run test:coverage`
 
 ## Known Issues & Technical Debt
 
-### Critical (P0)
+### Resolved
 
-1. **~6,500 TypeScript errors** — 5,388 are TS7026 (missing JSX IntrinsicElements, React 19 type config issue), 522 implicit `any`, 316 missing modules
-2. **Secrets in git history** — WhatsApp session data, PII (CPF, names, emails), encryption keys were committed. Removed from tracking but still in git history. Needs `git filter-branch` or BFG cleanup.
-3. **Plaintext password auth** — Admin password stored as env var, compared without hashing
+- ~~SQLite~~ → **PostgreSQL** (Phase 3)
+- ~~No security headers~~ → **CSP, HSTS, X-Frame-Options** in `next.config.ts` headers
+- ~~No CSRF protection~~ → **CSRF endpoint** at `/api/csrf`
+- ~~No soft delete~~ → **`deletedAt`** on 6 business models (Phase 5)
+- ~~No audit trail~~ → **AuditLog model** + `logAudit()` service (Phase 5)
+- ~~No Docker~~ → **`docker-compose.yml`** with PostgreSQL + Redis (Phase 3)
+- ~~Missing API docs~~ → **OpenAPI 3.1 spec** at `/api/openapi` (Phase 9)
+- ~~Console.log logging~~ → **Pino structured logging** (Phase 7)
+- ~~No multi-tenancy~~ → **`organizationId`** on Cuidador/Paciente (Phase 8)
+- ~~Plaintext password~~ → **bcrypt hash support** via `ADMIN_PASSWORD_HASH` env var
 
-### High (P1)
+### Remaining
 
-4. **SQLite** — Not suitable for production concurrent access. Migrate to PostgreSQL.
-5. **No security headers** — CSP, HSTS, X-Frame-Options, etc. not configured
-6. **No CSRF protection** on mutation endpoints
-7. **Unofficial WhatsApp API** — Baileys violates WhatsApp TOS; risk of account ban
-8. **No multi-tenancy isolation** — No organizationId filtering in queries
-
-### Medium (P2)
-
-9. **In-memory rate limiting** — Doesn't survive restarts or scale across instances
-10. **JSON strings in database** — Multiple fields store JSON as String instead of proper relations
-11. **No soft delete** on business models
-12. **47 `as any` type assertions** — Reduce for type safety
-13. **No User model** — Auth entirely env-var based
-
-### Low (P3)
-
-14. **No Docker configuration**
-15. **No CI/CD pipeline**
-16. **Missing API documentation** (OpenAPI/Swagger)
-17. **Console.log usage** in some files instead of structured logger
+1. **Secrets in git history** — Needs `git filter-branch` or BFG cleanup
+2. **Unofficial WhatsApp API** — Baileys violates WhatsApp TOS; risk of account ban
+3. **In-memory rate limiting** — Consider migrating to Redis-backed rate limiting
+4. **JSON strings in database** — Multiple fields store JSON as String instead of proper relations
+5. **`as any` type assertions** — Reduce for type safety
+6. **No User model** — Auth entirely env-var based
+7. **No CI/CD pipeline** — Add GitHub Actions or similar
+8. **~160 direct Prisma calls** — Continue migrating to repository pattern
 
 ## Environment Variables
 
@@ -334,13 +384,16 @@ See `.env.example` for the complete list. Critical variables:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | Database connection string |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `REDIS_URL` | Yes | Redis connection string |
 | `NEXTAUTH_SECRET` | Yes | NextAuth encryption secret |
 | `ADMIN_EMAIL` | Yes | Admin login email |
-| `ADMIN_PASSWORD` | Yes | Admin login password |
+| `ADMIN_PASSWORD` | Yes* | Admin login password (*or use `ADMIN_PASSWORD_HASH`) |
+| `ADMIN_PASSWORD_HASH` | No | Bcrypt hash of admin password (preferred) |
 | `NEXT_PUBLIC_URL` | Yes | Public-facing URL |
 | `WA_BRIDGE_URL` | No | WhatsApp bridge URL (default: http://127.0.0.1:3001) |
 | `WA_WEBHOOK_SECRET` | No | HMAC secret for webhook verification |
+| `LOG_LEVEL` | No | Pino log level (default: info in prod, debug in dev) |
 
 ## Security Notes
 
@@ -365,17 +418,27 @@ See `.env.example` for the complete list. Critical variables:
 |------|---------|
 | `src/auth.ts` | NextAuth setup, credentials provider, JWT/session callbacks |
 | `src/auth.config.ts` | Route protection middleware |
+| `src/middleware.ts` | Request tracking + auth middleware |
 | `src/lib/auth/roles.ts` | RBAC: roles, capabilities, route access control |
 | `src/lib/api/response.ts` | Standardized API response helpers |
 | `src/lib/api/rate-limit.ts` | Rate limiting implementation |
 | `src/lib/api/with-error-boundary.ts` | Error boundary for API routes |
-| `src/lib/observability/logger.ts` | Structured logging to SystemLog |
+| `src/lib/audit/audit.service.ts` | Audit trail logging |
+| `src/lib/cache/cache.service.ts` | Two-level cache (L1 + Redis L2) |
+| `src/lib/jobs/queue.ts` | BullMQ job queues (whatsapp, notification, pdf) |
+| `src/lib/lgpd/lgpd.service.ts` | LGPD: consent, export, anonymization |
+| `src/lib/observability/logger.ts` | Pino structured logging + SystemLog persistence |
+| `src/lib/observability/metrics.ts` | In-process metrics (counters, histograms) |
 | `src/lib/observability/request-context.ts` | Request context tracking |
+| `src/lib/redis/client.ts` | Redis client singleton |
+| `src/lib/repositories/index.ts` | Repository layer re-exports |
 | `src/lib/prisma.ts` | Prisma client singleton |
 | `src/lib/pricing/calculator.ts` | Core pricing calculation engine |
 | `src/lib/pricing/enterprise-engine.ts` | Enterprise multi-unit pricing |
 | `src/lib/whatsapp/client.ts` | WhatsApp bridge HTTP client |
 | `src/lib/whatsapp/conversation-bot.ts` | WhatsApp conversation state machine |
 | `src/lib/whatsapp/circuit-breaker.ts` | WhatsApp circuit breaker |
-| `prisma/schema.prisma` | Database schema (37 models) |
+| `prisma/schema.prisma` | Database schema (40+ models, PostgreSQL) |
+| `docker-compose.yml` | PostgreSQL + Redis containers |
 | `whatsapp-bridge/server.js` | Standalone WhatsApp bridge server |
+| `next.config.ts` | Next.js config with security headers |
