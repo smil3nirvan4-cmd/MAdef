@@ -8,46 +8,50 @@ datasource db {
 }
 
 model Cuidador {
-  id           String     @id @default(cuid())
-  telefone     String     @unique
-  nome         String?
-  area         String?
-  status       String     @default("CRIADO")
-  quizScore    Int?
-  scoreRH      Int?
-  competencias String?
-  endereco     String?
-  deletedAt    DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  alocacoes    Alocacao[]
-  mensagens    Mensagem[]
+  id             String     @id @default(cuid())
+  telefone       String     @unique
+  nome           String?
+  area           String?
+  status         String     @default("CRIADO")
+  quizScore      Int?
+  scoreRH        Int?
+  competencias   String?
+  endereco       String?
+  organizationId String?
+  deletedAt      DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  alocacoes      Alocacao[]
+  mensagens      Mensagem[]
 
   @@index([deletedAt])
+  @@index([organizationId])
 }
 
 model Paciente {
-  id         String               @id @default(cuid())
-  telefone   String               @unique
-  nome       String?
-  cidade     String?
-  bairro     String?
-  tipo       String               @default("HOME_CARE")
-  hospital   String?
-  quarto     String?
-  status     String               @default("LEAD")
-  prioridade String               @default("NORMAL")
-  gqpScore   Int?
-  deletedAt  DateTime?
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
-  alocacoes  Alocacao[]
-  avaliacoes Avaliacao[]
-  mensagens  Mensagem[]
-  orcamentos Orcamento[]
-  simulacoes OrcamentoSimulacao[]
+  id             String               @id @default(cuid())
+  telefone       String               @unique
+  nome           String?
+  cidade         String?
+  bairro         String?
+  tipo           String               @default("HOME_CARE")
+  hospital       String?
+  quarto         String?
+  status         String               @default("LEAD")
+  prioridade     String               @default("NORMAL")
+  gqpScore       Int?
+  organizationId String?
+  deletedAt      DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  alocacoes      Alocacao[]
+  avaliacoes     Avaliacao[]
+  mensagens      Mensagem[]
+  orcamentos     Orcamento[]
+  simulacoes     OrcamentoSimulacao[]
 
   @@index([deletedAt])
+  @@index([organizationId])
 }
 
 model Mensagem {
@@ -721,4 +725,51 @@ model SystemLog {
   @@index([createdAt])
   @@index([type, createdAt])
   @@index([unidadeId, createdAt])
+}
+
+// ==========================================
+// LGPD Consent Tracking
+// ==========================================
+
+model ConsentRecord {
+  id          String   @id @default(cuid())
+  subjectType String   // "PACIENTE" | "CUIDADOR"
+  subjectId   String
+  purpose     String   // "DATA_PROCESSING" | "MARKETING" | "WHATSAPP_CONTACT"
+  granted     Boolean  @default(true)
+  ipAddress   String?
+  userAgent   String?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([purpose])
+  @@index([createdAt])
+}
+
+model DataExportRequest {
+  id          String    @id @default(cuid())
+  subjectType String    // "PACIENTE" | "CUIDADOR"
+  subjectId   String
+  requestedBy String?
+  status      String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  exportUrl   String?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([status])
+}
+
+model DataDeletionRequest {
+  id          String    @id @default(cuid())
+  subjectType String    // "PACIENTE" | "CUIDADOR"
+  subjectId   String
+  requestedBy String?
+  status      String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([status])
 }

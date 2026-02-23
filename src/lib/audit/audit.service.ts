@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { NextRequest } from 'next/server';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LGPD_ANONYMIZE' | 'LGPD_EXPORT';
 
 export interface AuditParams {
     entity: string;
