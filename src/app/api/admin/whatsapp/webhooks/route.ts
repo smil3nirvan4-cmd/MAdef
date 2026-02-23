@@ -73,69 +73,54 @@ function toClientWebhook(webhook: any) {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await ensureSeed();
-        const webhooks = await prisma.whatsAppWebhook.findMany({ orderBy: { createdAt: 'desc' } });
-        return NextResponse.json({ success: true, webhooks: webhooks.map(toClientWebhook), events: EVENTS });
-    } catch (error) {
-        await logger.error('webhooks_get_error', 'Erro ao listar webhooks', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar webhooks' }, { status: 500 });
-    }
+    await ensureSeed();
+    const webhooks = await prisma.whatsAppWebhook.findMany({ orderBy: { createdAt: 'desc' } });
+    return NextResponse.json({ success: true, webhooks: webhooks.map(toClientWebhook), events: EVENTS });
 }
 
 async function handlePost(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, createWebhookSchema);
-        if (error) return error;
+    const { data, error } = await parseBody(request, createWebhookSchema);
+    if (error) return error;
 
-        const webhook = await prisma.whatsAppWebhook.create({
-            data: {
-                name: String(data.name || 'Webhook'),
-                url: String(data.url),
-                events: serializeEvents(data.events || []),
-                secret: data.secret ? String(data.secret) : null,
-                isActive: data.active !== false,
-            },
-        });
+    const webhook = await prisma.whatsAppWebhook.create({
+        data: {
+            name: String(data.name || 'Webhook'),
+            url: String(data.url),
+            events: serializeEvents(data.events || []),
+            secret: data.secret ? String(data.secret) : null,
+            isActive: data.active !== false,
+        },
+    });
 
-        return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
-    } catch (error) {
-        await logger.error('webhooks_post_error', 'Erro ao criar webhook', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao criar webhook' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
 }
 
 async function handlePut(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, updateWebhookSchema);
-        if (error) return error;
-        const { id, ...updates } = data;
+    const { data, error } = await parseBody(request, updateWebhookSchema);
+    if (error) return error;
+    const { id, ...updates } = data;
 
-        const webhook = await prisma.whatsAppWebhook.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.name !== undefined && { name: String(updates.name || 'Webhook') }),
-                ...(updates.url !== undefined && { url: String(updates.url) }),
-                ...(updates.events !== undefined && { events: serializeEvents(updates.events) }),
-                ...(updates.secret !== undefined && { secret: updates.secret ? String(updates.secret) : null }),
-                ...(updates.active !== undefined && { isActive: Boolean(updates.active) }),
-            },
-        });
+    const webhook = await prisma.whatsAppWebhook.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.name !== undefined && { name: String(updates.name || 'Webhook') }),
+            ...(updates.url !== undefined && { url: String(updates.url) }),
+            ...(updates.events !== undefined && { events: serializeEvents(updates.events) }),
+            ...(updates.secret !== undefined && { secret: updates.secret ? String(updates.secret) : null }),
+            ...(updates.active !== undefined && { isActive: Boolean(updates.active) }),
+        },
+    });
 
-        return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
-    } catch (error) {
-        await logger.error('webhooks_put_error', 'Erro ao atualizar webhook', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar webhook' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
 }
 
 async function handlePatch(request: NextRequest) {
@@ -146,22 +131,17 @@ async function handlePatch(request: NextRequest) {
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
-
-        await prisma.whatsAppWebhook.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('webhooks_delete_error', 'Erro ao excluir webhook', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir webhook' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
     }
+
+    await prisma.whatsAppWebhook.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

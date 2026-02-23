@@ -35,17 +35,12 @@ async function ensureSeed() {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await ensureSeed();
-        const replies = await prisma.whatsAppQuickReply.findMany({ orderBy: { shortcut: 'asc' } });
-        return NextResponse.json({ success: true, replies });
-    } catch (error) {
-        await logger.error('quick_replies_get_error', 'Erro ao listar respostas rapidas', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar respostas rápidas' }, { status: 500 });
-    }
+    await ensureSeed();
+    const replies = await prisma.whatsAppQuickReply.findMany({ orderBy: { shortcut: 'asc' } });
+    return NextResponse.json({ success: true, replies });
 }
 
 async function handlePost(request: NextRequest) {
@@ -76,47 +71,37 @@ async function handlePost(request: NextRequest) {
 }
 
 async function handlePut(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, updateQuickReplySchema);
-        if (error) return error;
-        const { id, ...updates } = data;
+    const { data, error } = await parseBody(request, updateQuickReplySchema);
+    if (error) return error;
+    const { id, ...updates } = data;
 
-        const reply = await prisma.whatsAppQuickReply.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.shortcut !== undefined && { shortcut: String(updates.shortcut).trim() }),
-                ...(updates.content !== undefined && { content: String(updates.content) }),
-                ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
-            },
-        });
+    const reply = await prisma.whatsAppQuickReply.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.shortcut !== undefined && { shortcut: String(updates.shortcut).trim() }),
+            ...(updates.content !== undefined && { content: String(updates.content) }),
+            ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
+        },
+    });
 
-        return NextResponse.json({ success: true, reply });
-    } catch (error) {
-        await logger.error('quick_replies_put_error', 'Erro ao atualizar resposta rapida', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar resposta rápida' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, reply });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
-
-        await prisma.whatsAppQuickReply.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('quick_replies_delete_error', 'Erro ao excluir resposta rapida', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir resposta rápida' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
     }
+
+    await prisma.whatsAppQuickReply.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

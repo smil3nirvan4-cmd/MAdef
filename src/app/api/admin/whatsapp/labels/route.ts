@@ -40,17 +40,12 @@ function withDescription(label: any) {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await ensureSeed();
-        const labels = await prisma.whatsAppLabel.findMany({ orderBy: { name: 'asc' } });
-        return NextResponse.json({ success: true, labels: labels.map(withDescription) });
-    } catch (error) {
-        await logger.error('labels_get_error', 'Erro ao listar labels', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar labels' }, { status: 500 });
-    }
+    await ensureSeed();
+    const labels = await prisma.whatsAppLabel.findMany({ orderBy: { name: 'asc' } });
+    return NextResponse.json({ success: true, labels: labels.map(withDescription) });
 }
 
 async function handlePost(request: NextRequest) {
@@ -80,46 +75,36 @@ async function handlePost(request: NextRequest) {
 }
 
 async function handlePut(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, updateLabelSchema);
-        if (error) return error;
-        const { id, ...updates } = data;
+    const { data, error } = await parseBody(request, updateLabelSchema);
+    if (error) return error;
+    const { id, ...updates } = data;
 
-        const label = await prisma.whatsAppLabel.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.name !== undefined && { name: String(updates.name).trim() }),
-                ...(updates.color !== undefined && { color: String(updates.color) }),
-            },
-        });
+    const label = await prisma.whatsAppLabel.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.name !== undefined && { name: String(updates.name).trim() }),
+            ...(updates.color !== undefined && { color: String(updates.color) }),
+        },
+    });
 
-        return NextResponse.json({ success: true, label: withDescription(label) });
-    } catch (error) {
-        await logger.error('labels_put_error', 'Erro ao atualizar etiqueta', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar etiqueta' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, label: withDescription(label) });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
-
-        await prisma.whatsAppLabel.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('labels_delete_error', 'Erro ao excluir etiqueta', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir etiqueta' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
     }
+
+    await prisma.whatsAppLabel.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

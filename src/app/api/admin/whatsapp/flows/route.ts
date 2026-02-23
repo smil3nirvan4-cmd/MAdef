@@ -12,69 +12,57 @@ const patchFlowSchema = z.object({
 });
 
 async function handleGet() {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const flowStates = await prisma.whatsAppFlowState.findMany({
-            orderBy: { lastInteraction: 'desc' },
-            take: 100
-        });
+    const flowStates = await prisma.whatsAppFlowState.findMany({
+        orderBy: { lastInteraction: 'desc' },
+        take: 100
+    });
 
-        const stats = {
-            totalActive: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
-            triagem: await prisma.whatsAppFlowState.count({ where: { currentFlow: 'TRIAGEM_CUIDADOR' } }),
-            avaliacao: await prisma.whatsAppFlowState.count({ where: { currentFlow: 'AVALIACAO_PACIENTE' } }),
-            idle: await prisma.whatsAppFlowState.count({ where: { currentFlow: 'IDLE' } }),
-        };
+    const stats = {
+        totalActive: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
+        triagem: await prisma.whatsAppFlowState.count({ where: { currentFlow: 'TRIAGEM_CUIDADOR' } }),
+        avaliacao: await prisma.whatsAppFlowState.count({ where: { currentFlow: 'AVALIACAO_PACIENTE' } }),
+        idle: await prisma.whatsAppFlowState.count({ where: { currentFlow: 'IDLE' } }),
+    };
 
-        return NextResponse.json({ flowStates, stats });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
-    }
+    return NextResponse.json({ flowStates, stats });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const phone = searchParams.get('phone');
+    const { searchParams } = new URL(request.url);
+    const phone = searchParams.get('phone');
 
-        if (phone) {
-            await prisma.whatsAppFlowState.delete({ where: { phone } });
-        } else {
-            // Clear all idle states
-            await prisma.whatsAppFlowState.deleteMany({ where: { currentFlow: 'IDLE' } });
-        }
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+    if (phone) {
+        await prisma.whatsAppFlowState.delete({ where: { phone } });
+    } else {
+        // Clear all idle states
+        await prisma.whatsAppFlowState.deleteMany({ where: { currentFlow: 'IDLE' } });
     }
+
+    return NextResponse.json({ success: true });
 }
 
 async function handlePatch(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, patchFlowSchema);
-        if (error) return error;
-        const { phone, action } = data;
+    const { data, error } = await parseBody(request, patchFlowSchema);
+    if (error) return error;
+    const { phone, action } = data;
 
-        if (action === 'reset') {
-            await prisma.whatsAppFlowState.update({
-                where: { phone },
-                data: { currentFlow: 'IDLE', currentStep: '', data: '{}' }
-            });
-        }
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        return NextResponse.json({ error: 'Erro' }, { status: 500 });
+    if (action === 'reset') {
+        await prisma.whatsAppFlowState.update({
+            where: { phone },
+            data: { currentFlow: 'IDLE', currentStep: '', data: '{}' }
+        });
     }
+
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

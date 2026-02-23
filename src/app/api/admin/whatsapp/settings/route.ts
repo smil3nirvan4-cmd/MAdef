@@ -52,67 +52,57 @@ async function loadSettingsObject() {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await ensureSeed();
-        const settings = await loadSettingsObject();
+    await ensureSeed();
+    const settings = await loadSettingsObject();
 
-        const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const stats = {
-            messagesIn24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'IN' } }),
-            messagesOut24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'OUT' } }),
-            activeFlows: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
-            cooldowns: await prisma.whatsAppCooldown.count(),
-        };
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const stats = {
+        messagesIn24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'IN' } }),
+        messagesOut24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'OUT' } }),
+        activeFlows: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
+        cooldowns: await prisma.whatsAppCooldown.count(),
+    };
 
-        return NextResponse.json({ success: true, settings, stats });
-    } catch (error) {
-        await logger.error('settings_get_error', 'Erro ao carregar configuracoes', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao carregar configuracoes' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, settings, stats });
 }
 
 async function handlePatch(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_SETTINGS');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_SETTINGS');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data: body, error: parseError } = await parseBody(request, updateSettingsSchema);
-        if (parseError) return parseError;
-        const entries = Object.entries(body);
+    const { data: body, error: parseError } = await parseBody(request, updateSettingsSchema);
+    if (parseError) return parseError;
+    const entries = Object.entries(body);
 
-        if (entries.length === 0) {
-            return NextResponse.json({ success: false, error: 'Nenhuma configuracao recebida' }, { status: 400 });
-        }
-
-        await prisma.$transaction(
-            entries.map(([key, value]) =>
-                prisma.whatsAppSetting.upsert({
-                    where: { key },
-                    update: { value: String(value) },
-                    create: { key, value: String(value) },
-                })
-            )
-        );
-
-        const settings = await loadSettingsObject();
-
-        await prisma.systemLog.create({
-            data: {
-                type: 'INFO',
-                action: 'automation_settings_updated',
-                message: 'Configuracoes de automacao atualizadas',
-                metadata: JSON.stringify(body),
-            },
-        });
-
-        return NextResponse.json({ success: true, settings });
-    } catch (error) {
-        await logger.error('settings_patch_error', 'Erro ao salvar configuracoes', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao salvar configuracoes' }, { status: 500 });
+    if (entries.length === 0) {
+        return NextResponse.json({ success: false, error: 'Nenhuma configuracao recebida' }, { status: 400 });
     }
+
+    await prisma.$transaction(
+        entries.map(([key, value]) =>
+            prisma.whatsAppSetting.upsert({
+                where: { key },
+                update: { value: String(value) },
+                create: { key, value: String(value) },
+            })
+        )
+    );
+
+    const settings = await loadSettingsObject();
+
+    await prisma.systemLog.create({
+        data: {
+            type: 'INFO',
+            action: 'automation_settings_updated',
+            message: 'Configuracoes de automacao atualizadas',
+            metadata: JSON.stringify(body),
+        },
+    });
+
+    return NextResponse.json({ success: true, settings });
 }
 
 async function handlePut(request: NextRequest) {

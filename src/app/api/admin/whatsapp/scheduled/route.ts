@@ -19,99 +19,84 @@ function normalizePhone(raw: string) {
 }
 
 async function handleGet(request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const status = searchParams.get('status') || 'pending';
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') || 'pending';
 
-        const scheduled = await prisma.whatsAppScheduled.findMany({
-            where: status ? { status } : undefined,
-            orderBy: { scheduledAt: 'asc' },
-            take: 200,
-        });
+    const scheduled = await prisma.whatsAppScheduled.findMany({
+        where: status ? { status } : undefined,
+        orderBy: { scheduledAt: 'asc' },
+        take: 200,
+    });
 
-        return NextResponse.json({
-            success: true,
-            scheduled: scheduled.map((item) => ({
-                id: item.id,
-                phone: item.to,
-                message: item.message,
-                scheduledAt: item.scheduledAt,
-                status: item.status,
-                sentAt: item.sentAt,
-                createdAt: item.createdAt,
-            })),
-        });
-    } catch (error) {
-        await logger.error('scheduled_get_error', 'Erro ao listar agendamentos', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar agendamentos' }, { status: 500 });
-    }
+    return NextResponse.json({
+        success: true,
+        scheduled: scheduled.map((item) => ({
+            id: item.id,
+            phone: item.to,
+            message: item.message,
+            scheduledAt: item.scheduledAt,
+            status: item.status,
+            sentAt: item.sentAt,
+            createdAt: item.createdAt,
+        })),
+    });
 }
 
 async function handlePost(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, createScheduledSchema);
-        if (error) return error;
-        const phone = normalizePhone(data.phone);
-        const message = data.message;
-        const scheduledAt = new Date(data.scheduledAt);
+    const { data, error } = await parseBody(request, createScheduledSchema);
+    if (error) return error;
+    const phone = normalizePhone(data.phone);
+    const message = data.message;
+    const scheduledAt = new Date(data.scheduledAt);
 
-        if (!phone || Number.isNaN(scheduledAt.getTime())) {
-            return NextResponse.json({ success: false, error: 'phone, message e scheduledAt sao obrigatorios' }, { status: 400 });
-        }
-
-        const scheduled = await prisma.whatsAppScheduled.create({
-            data: {
-                to: phone,
-                message,
-                scheduledAt,
-                status: 'pending',
-            },
-        });
-
-        const queue = await enqueueWhatsAppTextJob({
-            phone,
-            text: message,
-            scheduledAt,
-            context: {
-                source: 'admin_scheduled',
-                scheduledId: scheduled.id,
-            },
-            metadata: {
-                type: 'SCHEDULED',
-                scheduledId: scheduled.id,
-            },
-        });
-
-        return NextResponse.json({ success: true, scheduled, queue });
-    } catch (error) {
-        await logger.error('scheduled_post_error', 'Erro ao agendar mensagem', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao agendar mensagem' }, { status: 500 });
+    if (!phone || Number.isNaN(scheduledAt.getTime())) {
+        return NextResponse.json({ success: false, error: 'phone, message e scheduledAt sao obrigatorios' }, { status: 400 });
     }
+
+    const scheduled = await prisma.whatsAppScheduled.create({
+        data: {
+            to: phone,
+            message,
+            scheduledAt,
+            status: 'pending',
+        },
+    });
+
+    const queue = await enqueueWhatsAppTextJob({
+        phone,
+        text: message,
+        scheduledAt,
+        context: {
+            source: 'admin_scheduled',
+            scheduledId: scheduled.id,
+        },
+        metadata: {
+            type: 'SCHEDULED',
+            scheduledId: scheduled.id,
+        },
+    });
+
+    return NextResponse.json({ success: true, scheduled, queue });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id e obrigatorio' }, { status: 400 });
-        }
-
-        await prisma.whatsAppScheduled.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('scheduled_delete_error', 'Erro ao cancelar agendamento', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao cancelar agendamento' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return NextResponse.json({ success: false, error: 'id e obrigatorio' }, { status: 400 });
     }
+
+    await prisma.whatsAppScheduled.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

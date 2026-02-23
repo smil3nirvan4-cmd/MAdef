@@ -38,22 +38,17 @@ async function ensureSeed() {
 }
 
 async function handleGet(_request: NextRequest) {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await ensureSeed();
+    await ensureSeed();
 
-        const templates = await prisma.whatsAppTemplate.findMany({
-            orderBy: { createdAt: 'desc' },
-        });
-        const categories = [...new Set(templates.map((t) => t.category))];
+    const templates = await prisma.whatsAppTemplate.findMany({
+        orderBy: { createdAt: 'desc' },
+    });
+    const categories = [...new Set(templates.map((t) => t.category))];
 
-        return NextResponse.json({ success: true, templates, categories });
-    } catch (error) {
-        await logger.error('templates_get_error', 'Erro ao listar templates', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao listar templates' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, templates, categories });
 }
 
 async function handlePost(request: NextRequest) {
@@ -85,49 +80,39 @@ async function handlePost(request: NextRequest) {
 }
 
 async function handlePut(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { data, error } = await parseBody(request, updateTemplateSchema);
-        if (error) return error;
-        const { id, ...updates } = data;
+    const { data, error } = await parseBody(request, updateTemplateSchema);
+    if (error) return error;
+    const { id, ...updates } = data;
 
-        const template = await prisma.whatsAppTemplate.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.name !== undefined && { name: String(updates.name).trim() }),
-                ...(updates.category !== undefined && { category: String(updates.category).trim() }),
-                ...(updates.content !== undefined && { content: String(updates.content) }),
-                ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
-            },
-        });
+    const template = await prisma.whatsAppTemplate.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.name !== undefined && { name: String(updates.name).trim() }),
+            ...(updates.category !== undefined && { category: String(updates.category).trim() }),
+            ...(updates.content !== undefined && { content: String(updates.content) }),
+            ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
+        },
+    });
 
-        return NextResponse.json({ success: true, template });
-    } catch (error) {
-        await logger.error('templates_put_error', 'Erro ao atualizar template', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar template' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true, template });
 }
 
 async function handleDelete(request: NextRequest) {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
-
-        await prisma.whatsAppTemplate.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        await logger.error('templates_delete_error', 'Erro ao excluir template', error instanceof Error ? error : undefined);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir template' }, { status: 500 });
+    if (!id) {
+        return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
     }
+
+    await prisma.whatsAppTemplate.delete({ where: { id } });
+    return NextResponse.json({ success: true });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
