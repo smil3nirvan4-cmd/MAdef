@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authConfig } from './auth.config';
 import { DEFAULT_WHATSAPP_ADMIN_TAB, normalizeWhatsAppAdminTab } from '@/lib/whatsapp/admin-tabs';
+import { validateOrigin } from '@/lib/csrf';
 
 const { auth } = NextAuth(authConfig);
 
@@ -46,8 +47,10 @@ function buildCanonicalWhatsAppUrl(url: URL, tab: string): URL {
 
 export default auth((request) => {
     const requestId = resolveRequestId(request);
+    const { pathname } = request.nextUrl;
 
-    if (request.nextUrl.pathname === '/admin/whatsapp') {
+    // WhatsApp admin tab redirect (legacy URL support)
+    if (pathname === '/admin/whatsapp') {
         const legacyTab = request.nextUrl.searchParams.get('tab');
         if (legacyTab) {
             const tab = normalizeWhatsAppAdminTab(legacyTab) || DEFAULT_WHATSAPP_ADMIN_TAB;
@@ -55,9 +58,19 @@ export default auth((request) => {
         }
     }
 
+    // CSRF: Validate Origin header for API mutation requests (authenticated only)
+    if (pathname.startsWith('/api/') && request.auth && !validateOrigin(request)) {
+        return NextResponse.json(
+            { success: false, error: { code: 'CSRF_FAILED', message: 'Origin validation failed' } },
+            { status: 403 },
+        );
+    }
+
     return nextWithRequestId(request, requestId);
 });
 
 export const config = {
-    matcher: ['/admin/:path*', '/api/admin/:path*', '/api/whatsapp/:path*'],
+    matcher: [
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    ],
 };
