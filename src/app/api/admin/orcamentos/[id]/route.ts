@@ -23,7 +23,7 @@ export async function GET(
 
         return NextResponse.json({ success: true, orcamento });
     } catch (error) {
-        console.error('Error fetching orcamento:', error);
+        await logger.error('orcamento_fetch_error', 'Error fetching orcamento', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao buscar orcamento' }, { status: 500 });
     }
 }
@@ -144,7 +144,7 @@ export async function PATCH(
 
         return NextResponse.json({ success: true, orcamento });
     } catch (error) {
-        console.error('Error updating orcamento:', error);
+        await logger.error('orcamento_update_error', 'Error updating orcamento', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao atualizar orcamento' }, { status: 500 });
     }
 }

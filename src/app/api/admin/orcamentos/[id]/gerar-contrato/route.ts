@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { generateContratoPDF } from '@/lib/documents/pdf-generator';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
@@ -55,7 +56,7 @@ export async function POST(
             },
         });
     } catch (error) {
-        console.error('[API] gerar-contrato erro:', error);
+        await logger.error('gerar_contrato_error', 'Erro ao gerar contrato', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao gerar contrato' }, { status: 500 });
     }
 }

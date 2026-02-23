@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
+import logger from '@/lib/observability/logger';
 
 function normalizePhone(raw: string) {
     return String(raw || '').replace(/\D/g, '');
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
             })),
         });
     } catch (error) {
-        console.error('[API] scheduled GET erro:', error);
+        await logger.error('scheduled_get_error', 'Erro ao listar agendamentos', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar agendamentos' }, { status: 500 });
     }
 }
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, scheduled, queue });
     } catch (error) {
-        console.error('[API] scheduled POST erro:', error);
+        await logger.error('scheduled_post_error', 'Erro ao agendar mensagem', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao agendar mensagem' }, { status: 500 });
     }
 }
@@ -87,7 +88,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.whatsAppScheduled.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] scheduled DELETE erro:', error);
+        await logger.error('scheduled_delete_error', 'Erro ao cancelar agendamento', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao cancelar agendamento' }, { status: 500 });
     }
 }

@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { resolveUserRole } from '@/lib/auth/roles';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { resolveDatabaseTargetInfo } from '@/lib/db/database-target';
+import logger from '@/lib/observability/logger';
 
 export async function GET() {
     try {
@@ -21,7 +22,7 @@ export async function GET() {
             databaseTarget: dbInfo.target,
         });
     } catch (error) {
-        console.error('[API] capabilities GET erro:', error);
+        await logger.error('capabilities_fetch_error', 'Erro ao carregar capabilities', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao carregar capabilities' }, { status: 500 });
     }
 }

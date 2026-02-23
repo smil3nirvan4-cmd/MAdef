@@ -78,7 +78,7 @@ export async function POST(
             worker,
         });
     } catch (error) {
-        console.error('[API] enviar-proposta erro:', error);
+        await logger.error('enviar_proposta_error', 'Erro ao enfileirar proposta', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao enfileirar proposta' }, { status: 500 });
     }
 }

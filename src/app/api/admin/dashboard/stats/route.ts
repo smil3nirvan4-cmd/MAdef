@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export async function GET() {
     try {
@@ -73,7 +74,7 @@ export async function GET() {
             cuidadoresAprovados: candidatosAprovados,
         });
     } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
+        await logger.error('dashboard_stats_error', 'Error fetching dashboard stats', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao carregar estatísticas' }, { status: 500 });
     }
 }

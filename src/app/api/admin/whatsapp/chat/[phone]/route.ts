@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import logger from '@/lib/observability/logger';
 
 export async function GET(
     _request: NextRequest,
@@ -42,7 +43,7 @@ export async function GET(
             },
         });
     } catch (error) {
-        console.error('[API] chat GET erro:', error);
+        await logger.error('chat_get_error', 'Erro ao carregar conversa', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao carregar conversa' }, { status: 500 });
     }
 }
@@ -140,7 +141,7 @@ export async function POST(
             status: queueItem?.status,
         });
     } catch (error) {
-        console.error('[API] chat POST erro:', error);
+        await logger.error('chat_post_error', 'Erro ao enfileirar mensagem', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao enfileirar mensagem' }, { status: 500 });
     }
 }

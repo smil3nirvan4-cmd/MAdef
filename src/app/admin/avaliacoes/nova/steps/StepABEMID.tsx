@@ -21,9 +21,9 @@ export default function StepABEMID({ data, onUpdate, onNext, onBack }: StepABEMI
     const handleSelect = (key: keyof AbemidData, val: string) => {
         // Toggle logic: if same value selected, clear it
         if (data[key] === val) {
-            onUpdate({ [key]: '' } as any);
+            onUpdate({ [key]: '' } as Partial<AbemidData>);
         } else {
-            onUpdate({ [key]: val } as any);
+            onUpdate({ [key]: val } as Partial<AbemidData>);
         }
     };
 
@@ -131,8 +131,8 @@ export default function StepABEMID({ data, onUpdate, onNext, onBack }: StepABEMI
                             {section.options.map((opt) => (
                                 <button
                                     key={opt.val}
-                                    onClick={() => handleSelect(section.key as any, opt.val)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium border text-left transition-all active:scale-[0.98] flex-grow ${(data as any)[section.key] === opt.val
+                                    onClick={() => handleSelect(section.key as keyof AbemidData, opt.val)}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium border text-left transition-all active:scale-[0.98] flex-grow ${data[section.key as keyof AbemidData] === opt.val
                                         ? (opt.alert ? 'bg-error-50 text-error-700 border-error-500 ring-1 ring-error-500 shadow-sm' : 'bg-primary-50 text-primary border-primary-500 ring-1 ring-ring shadow-sm')
                                         : 'hover:bg-surface-subtle hover:border-primary/30 bg-card text-foreground border-border'
                                         }`}

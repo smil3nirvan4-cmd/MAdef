@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
     try {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
             WHERE timestamp >= ${startDate}
             GROUP BY DATE(timestamp)
             ORDER BY date ASC
-        ` as any[];
+        ` as { [key: string]: unknown }[];
 
         // Messages by flow
         const messagesByFlow = await prisma.mensagem.groupBy({
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
                 AND m2.timestamp < m1.timestamp
                 AND m2.timestamp > datetime(m1.timestamp, '-5 minutes')
             )
-        ` as any[];
+        ` as { [key: string]: unknown }[];
 
         // Unique contacts
         const uniqueContacts = await prisma.mensagem.groupBy({
@@ -69,20 +70,20 @@ export async function GET(request: NextRequest) {
             GROUP BY strftime('%H', timestamp)
             ORDER BY count DESC
             LIMIT 5
-        ` as any[];
+        ` as { [key: string]: unknown }[];
 
-        const safeMessagesByDay = messagesByDay.map((row: any) => ({
+        const safeMessagesByDay = messagesByDay.map((row) => ({
             date: row.date,
             inbound: Number(row.inbound || 0),
             outbound: Number(row.outbound || 0),
         }));
 
-        const safePeakHours = peakHours.map((p: any) => ({
+        const safePeakHours = peakHours.map((p) => ({
             hour: p.hour,
             count: Number(p.count || 0),
         }));
 
-        const quickResponseCount = Number((quickResponses[0] as any)?.count || 0);
+        const quickResponseCount = Number((quickResponses[0] as Record<string, unknown>)?.count || 0);
 
         return NextResponse.json({
             success: true,
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
             period,
         });
     } catch (error) {
-        console.error('Analytics error:', error);
+        await logger.error('whatsapp_analytics_error', 'Erro ao gerar analytics', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao gerar analytics' }, { status: 500 });
     }
 }

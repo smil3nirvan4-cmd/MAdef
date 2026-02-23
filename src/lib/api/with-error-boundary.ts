@@ -3,7 +3,8 @@ import { fail, serverError } from './response';
 import { E } from './error-codes';
 import logger from '@/lib/observability/logger';
 
-type RouteHandler = (request: NextRequest, context?: any) => Promise<NextResponse>;
+type RouteContext = { params: Promise<Record<string, string>> };
+type RouteHandler = (request: NextRequest, context?: RouteContext) => Promise<NextResponse>;
 
 /**
  * Wraps an API route handler with a consistent error boundary.
@@ -11,7 +12,7 @@ type RouteHandler = (request: NextRequest, context?: any) => Promise<NextRespons
  * Also logs errors to the system log for observability.
  */
 export function withErrorBoundary(handler: RouteHandler): RouteHandler {
-    return async (request: NextRequest, context?: any) => {
+    return async (request: NextRequest, context?: RouteContext) => {
         try {
             return await handler(request, context);
         } catch (error: unknown) {

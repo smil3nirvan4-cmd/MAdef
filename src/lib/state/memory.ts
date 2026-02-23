@@ -11,8 +11,8 @@ function saveToDisk(map: Map<string, string>) {
     try {
         const obj = Object.fromEntries(map);
         fs.writeFileSync(STATE_FILE, JSON.stringify(obj, null, 2));
-    } catch (_e) {
-        console.error('Erro ao salvar estado:', _e);
+    } catch {
+        // Silently fail on disk write errors in state persistence
     }
 }
 
@@ -23,27 +23,30 @@ function loadFromDisk(): Map<string, string> {
             const data = fs.readFileSync(STATE_FILE, 'utf-8');
             return new Map(Object.entries(JSON.parse(data)));
         }
-    } catch (_e) {
-        console.error('Erro ao carregar estado:', _e);
+    } catch {
+        // Silently fail on disk read errors
     }
     return new Map();
 }
 
-// Global storage
-const globalState = globalThis as any;
-if (!globalState.memoryStateStore) {
-    // Tenta carregar do disco primeiro
-    const loadedStates = loadFromDisk();
+interface MemoryStateStore {
+    states: Map<string, string>;
+    locks: Map<string, string>;
+    cooldowns: Map<string, number>;
+}
 
-    globalState.memoryStateStore = {
+declare const globalThis: typeof global & { memoryStateStore?: MemoryStateStore };
+
+if (!globalThis.memoryStateStore) {
+    const loadedStates = loadFromDisk();
+    globalThis.memoryStateStore = {
         states: loadedStates,
         locks: new Map<string, string>(),
         cooldowns: new Map<string, number>(),
     };
-    console.log(`📦 Estado carregado de ${STATE_FILE} (${loadedStates.size} registros)`);
 }
 
-const { states, locks, cooldowns } = globalState.memoryStateStore;
+const { states, locks, cooldowns } = globalThis.memoryStateStore;
 
 export const MemoryInMemState: IStateManager = {
     async getUserState(phone: string) {

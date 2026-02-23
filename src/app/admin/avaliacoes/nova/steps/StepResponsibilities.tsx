@@ -201,7 +201,7 @@ export default function StepResponsibilities({ data, onUpdate, onNext, onBack }:
                                 type="checkbox"
                                 className="w-4 h-4 text-secondary-600 rounded accent-secondary-600"
                                 checked={data.checklistAmbiente[k as keyof typeof data.checklistAmbiente] || false}
-                                onChange={() => handleChecklistToggle(k as any)}
+                                onChange={() => handleChecklistToggle(k as keyof ResponsibilitiesData['checklistAmbiente'])}
                             />
                             <span className="text-xs font-bold uppercase">{label}</span>
                         </label>

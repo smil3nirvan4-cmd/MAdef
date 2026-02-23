@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
             worker,
         });
     } catch (error) {
-        console.error('Erro ao reenviar WhatsApp:', error);
+        await logger.error('reenvio_whatsapp_error', 'Erro ao reenviar WhatsApp', error instanceof Error ? error : undefined);
         await logger.error('reenvio_erro', 'Erro ao reenviar proposta', error as Error);
 
         return NextResponse.json(

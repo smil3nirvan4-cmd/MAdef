@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import logger from '@/lib/observability/logger';
 
 const SESSION_FILE = path.resolve(
     process.cwd(),
@@ -62,7 +63,7 @@ async function getBridgeStatus() {
             };
         }
     } catch (error) {
-        console.error('Error reading WhatsApp session:', error);
+        await logger.error('whatsapp_session_read_error', 'Error reading WhatsApp session', error instanceof Error ? error : undefined);
     }
 
     return {

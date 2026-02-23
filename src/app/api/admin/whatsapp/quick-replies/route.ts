@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 const DEFAULT_REPLIES = [
     { shortcut: '/oi', content: 'Olá! Como posso ajudar você hoje?' },
@@ -21,7 +22,7 @@ export async function GET(_request: NextRequest) {
         const replies = await prisma.whatsAppQuickReply.findMany({ orderBy: { shortcut: 'asc' } });
         return NextResponse.json({ success: true, replies });
     } catch (error) {
-        console.error('[API] quick-replies GET erro:', error);
+        await logger.error('quick_replies_get_error', 'Erro ao listar respostas rapidas', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar respostas rápidas' }, { status: 500 });
     }
 }
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, reply });
     } catch (error: any) {
-        console.error('[API] quick-replies POST erro:', error);
+        await logger.error('quick_replies_post_error', 'Erro ao criar resposta rapida', error instanceof Error ? error : undefined);
         const message = String(error?.message || '');
         if (message.includes('Unique constraint')) {
             return NextResponse.json({ success: false, error: 'Atalho já cadastrado' }, { status: 409 });
@@ -74,7 +75,7 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json({ success: true, reply });
     } catch (error) {
-        console.error('[API] quick-replies PUT erro:', error);
+        await logger.error('quick_replies_put_error', 'Erro ao atualizar resposta rapida', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao atualizar resposta rápida' }, { status: 500 });
     }
 }
@@ -90,7 +91,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.whatsAppQuickReply.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] quick-replies DELETE erro:', error);
+        await logger.error('quick_replies_delete_error', 'Erro ao excluir resposta rapida', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao excluir resposta rápida' }, { status: 500 });
     }
 }

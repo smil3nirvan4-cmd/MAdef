@@ -188,7 +188,8 @@ export function canAccessAdminPage(role: AdminRole, pathname: string): boolean {
         return hasCapability(role, 'VIEW_RH');
     }
 
-    return true;
+    // Deny by default: unknown admin pages are not accessible
+    return false;
 }
 
 export function canAccessAdminApi(role: AdminRole, method: string, pathname: string): boolean {
@@ -240,7 +241,12 @@ export function canAccessAdminApi(role: AdminRole, method: string, pathname: str
         return hasCapability(role, 'VIEW_LOGS');
     }
 
-    return true;
+    if (pathname.startsWith('/api/admin/analytics')) {
+        return hasCapability(role, 'VIEW_ANALYTICS');
+    }
+
+    // Deny by default: unknown admin API routes are not accessible
+    return false;
 }
 
 export function isPublicWhatsAppRoute(pathname: string, method: string): boolean {

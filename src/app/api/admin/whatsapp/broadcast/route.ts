@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import logger from '@/lib/observability/logger';
 
 export async function POST(request: NextRequest) {
     try {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
             message: `Broadcast processado: ${enqueued.length} enfileiradas, ${failures.length} falhas`,
         });
     } catch (error) {
-        console.error('[API] broadcast POST erro:', error);
+        await logger.error('broadcast_post_error', 'Erro ao processar broadcast', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao processar broadcast' }, { status: 500 });
     }
 }

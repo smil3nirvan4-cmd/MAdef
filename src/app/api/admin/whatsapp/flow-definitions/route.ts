@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 const STEP_TYPES = ['message', 'question', 'buttons', 'list', 'media', 'condition', 'action', 'delay'];
 const MEDIA_TYPES = ['image', 'video', 'audio', 'document'];
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
             actionTypes: ACTION_TYPES,
         });
     } catch (error) {
-        console.error('[API] flow-definitions GET erro:', error);
+        await logger.error('flow_definitions_get_error', 'Erro ao listar fluxos', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar fluxos' }, { status: 500 });
     }
 }
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ success: true, flow: toClientFlow(flow) });
     } catch (error) {
-        console.error('[API] flow-definitions POST erro:', error);
+        await logger.error('flow_definitions_post_error', 'Erro ao criar fluxo', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao criar fluxo' }, { status: 500 });
     }
 }
@@ -150,7 +151,7 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true, flow: toClientFlow(flow) });
     } catch (error) {
-        console.error('[API] flow-definitions PATCH erro:', error);
+        await logger.error('flow_definitions_patch_error', 'Erro ao atualizar fluxo', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao atualizar fluxo' }, { status: 500 });
     }
 }
@@ -166,7 +167,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.whatsAppFlowDefinition.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] flow-definitions DELETE erro:', error);
+        await logger.error('flow_definitions_delete_error', 'Erro ao excluir fluxo', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao excluir fluxo' }, { status: 500 });
     }
 }

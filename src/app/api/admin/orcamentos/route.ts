@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { E, fail } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { computeInputHash } from '@/lib/pricing/input-hash';
 import { z } from 'zod';
@@ -84,7 +85,7 @@ export async function GET() {
 
         return NextResponse.json({ success: true, data: orcamentos, orcamentos });
     } catch (error) {
-        console.error('Error fetching orcamentos:', error);
+        await logger.error('orcamento_fetch_error', 'Error fetching orcamentos', error instanceof Error ? error : undefined);
         return fail(E.DATABASE_ERROR, 'Erro ao buscar orcamentos', { status: 500 });
     }
 }
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, data: orcamento, orcamento });
     } catch (error) {
-        console.error('Error creating orcamento:', error);
+        await logger.error('orcamento_create_error', 'Error creating orcamento', error instanceof Error ? error : undefined);
         return fail(E.DATABASE_ERROR, 'Erro ao criar orcamento', {
             status: 500,
             details: error instanceof Error ? error.message : undefined,

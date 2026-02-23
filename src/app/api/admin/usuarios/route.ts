@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import logger from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
     try {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ usuarios });
     } catch (error) {
-        console.error('Erro ao buscar usuários:', error);
+        await logger.error('usuario_fetch_error', 'Erro ao buscar usuários', error instanceof Error ? error : undefined);
         return NextResponse.json(
             { error: 'Falha ao buscar usuários', details: String(error) },
             { status: 500 }

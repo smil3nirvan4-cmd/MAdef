@@ -47,8 +47,8 @@ function dedupeContacts<T extends { phone?: string; telefone?: string }>(rows: T
         }
 
         const existing = map.get(phone)!;
-        const existingTotal = Number((existing as any).totalMessages || 0);
-        const nextTotal = Number((row as any).totalMessages || 0);
+        const existingTotal = Number((existing as Record<string, unknown>).totalMessages || 0);
+        const nextTotal = Number((row as Record<string, unknown>).totalMessages || 0);
         map.set(phone, nextTotal >= existingTotal ? ({ ...row, phone } as T) : existing);
     }
 
@@ -609,7 +609,7 @@ function BroadcastTab() {
         <div className="grid lg:grid-cols-2 gap-6">
             <Card>
                 <h3 className="font-semibold mb-4"><Send className="w-4 h-4 inline mr-2" />Enviar Broadcast</h3>
-                <div className="mb-4"><label className="text-sm text-foreground block mb-2">Destinatários</label><div className="flex flex-wrap gap-2">{[{ id: 'cuidadores', label: 'Cuidadores' }, { id: 'pacientes', label: 'Pacientes' }, { id: 'leads', label: 'Leads' }, { id: 'custom', label: 'Personalizado' }].map((opt) => (<button key={opt.id} onClick={() => setTargetType(opt.id as any)} className={`px-3 py-2 rounded-lg text-sm ${targetType === opt.id ? 'bg-info-100 text-primary border-blue-300' : 'bg-surface-subtle'} border`}>{opt.label}</button>))}</div></div>
+                <div className="mb-4"><label className="text-sm text-foreground block mb-2">Destinatários</label><div className="flex flex-wrap gap-2">{[{ id: 'cuidadores', label: 'Cuidadores' }, { id: 'pacientes', label: 'Pacientes' }, { id: 'leads', label: 'Leads' }, { id: 'custom', label: 'Personalizado' }].map((opt) => (<button key={opt.id} onClick={() => setTargetType(opt.id as typeof targetType)} className={`px-3 py-2 rounded-lg text-sm ${targetType === opt.id ? 'bg-info-100 text-primary border-blue-300' : 'bg-surface-subtle'} border`}>{opt.label}</button>))}</div></div>
                 {targetType === 'custom' && <div className="mb-4"><textarea className="w-full border rounded-lg p-2 h-24 font-mono text-sm" value={customPhones} onChange={(e) => setCustomPhones(e.target.value)} placeholder="5511999999999&#10;5521888888888" /></div>}
                 <div className="mb-4"><label className="text-sm text-foreground">Mensagem</label><textarea className="w-full border border-border-hover rounded-md p-3 h-32 mt-1 focus:outline-none focus:ring-2 focus:ring-ring" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Digite..." /><p className="text-xs text-muted-foreground mt-1">{message.length} caracteres</p></div>
                 <Button onClick={handleSend} isLoading={sending} className="w-full"><Send className="w-4 h-4" />Enviar</Button>

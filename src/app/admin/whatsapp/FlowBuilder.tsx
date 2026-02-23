@@ -109,7 +109,7 @@ export function FlowBuilderTab() {
 
     const addStep = (type: string) => {
         if (!selectedFlow) return;
-        const newStep: FlowStep = { id: `step_${Date.now()}`, type: type as any, content: '', nextStep: '' };
+        const newStep: FlowStep = { id: `step_${Date.now()}`, type: type as FlowStep['type'], content: '', nextStep: '' };
         setSelectedFlow({ ...selectedFlow, steps: [...selectedFlow.steps, newStep] });
     };
 

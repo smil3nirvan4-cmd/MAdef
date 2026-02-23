@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 const DEFAULT_TEMPLATES = [
     { name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas.' },
@@ -27,7 +28,7 @@ export async function GET(_request: NextRequest) {
 
         return NextResponse.json({ success: true, templates, categories });
     } catch (error) {
-        console.error('[API] templates GET erro:', error);
+        await logger.error('templates_get_error', 'Erro ao listar templates', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar templates' }, { status: 500 });
     }
 }
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, template });
     } catch (error: any) {
-        console.error('[API] templates POST erro:', error);
+        await logger.error('templates_post_error', 'Erro ao criar template', error instanceof Error ? error : undefined);
         const message = String(error?.message || '');
         if (message.includes('Unique constraint')) {
             return NextResponse.json({ success: false, error: 'Já existe template com este nome' }, { status: 409 });
@@ -82,7 +83,7 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json({ success: true, template });
     } catch (error) {
-        console.error('[API] templates PUT erro:', error);
+        await logger.error('templates_put_error', 'Erro ao atualizar template', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao atualizar template' }, { status: 500 });
     }
 }
@@ -99,7 +100,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.whatsAppTemplate.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] templates DELETE erro:', error);
+        await logger.error('templates_delete_error', 'Erro ao excluir template', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao excluir template' }, { status: 500 });
     }
 }

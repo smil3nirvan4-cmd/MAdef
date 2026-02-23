@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import logger from '@/lib/observability/logger';
 
 export async function GET(
     request: NextRequest,
@@ -12,7 +13,15 @@ export async function GET(
         const cleanPhone = telefone.replace(/\D/g, '');
 
         // Buscar usuário (paciente ou cuidador)
-        let usuario = await prisma.paciente.findFirst({
+        type UserWithMessages = {
+            id: string;
+            nome: string | null;
+            telefone: string;
+            status: string;
+            createdAt: Date;
+            mensagens: Array<{ id: string; conteudo: string; direcao: string; flow: string | null; step: string | null; timestamp: Date }>;
+        };
+        let usuario: UserWithMessages | null = await prisma.paciente.findFirst({
             where: {
                 telefone: { contains: cleanPhone.slice(-11) },
             },
@@ -40,7 +49,7 @@ export async function GET(
             });
 
             if (cuidador) {
-                usuario = cuidador as any;
+                usuario = cuidador as UserWithMessages;
                 tipo = 'CUIDADOR';
             }
         }
@@ -79,7 +88,7 @@ export async function GET(
             telefone: cleanPhone,
         });
     } catch (error) {
-        console.error('Erro ao buscar logs do usuário:', error);
+        await logger.error('usuario_logs_fetch_error', 'Erro ao buscar logs do usuário', error instanceof Error ? error : undefined);
         return NextResponse.json(
             { error: 'Falha ao buscar dados', details: String(error) },
             { status: 500 }

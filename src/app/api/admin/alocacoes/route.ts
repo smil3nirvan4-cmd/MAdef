@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
     try {
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ alocacoes, stats });
     } catch (error) {
-        console.error('Error fetching alocacoes:', error);
+        await logger.error('alocacao_fetch_error', 'Error fetching alocacoes', error instanceof Error ? error : undefined);
         return NextResponse.json({ error: 'Erro ao buscar alocações' }, { status: 500 });
     }
 }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, alocacao });
     } catch (error) {
-        console.error('Error creating alocacao:', error);
+        await logger.error('alocacao_create_error', 'Error creating alocacao', error instanceof Error ? error : undefined);
         return NextResponse.json({ error: 'Erro ao criar alocação' }, { status: 500 });
     }
 }

@@ -59,7 +59,7 @@ function normalizeStatusFilter(rawStatus: string | null) {
     if (rawStatus === 'pending') return { in: ['pending', 'retrying', 'sending'] };
     if (rawStatus === 'failed') return 'dead';
     if (rawStatus === 'sent') return 'sent';
-    if (rawStatus && rawStatus !== 'all' && allowedStatuses.includes(rawStatus as any)) return rawStatus;
+    if (rawStatus && rawStatus !== 'all' && (allowedStatuses as readonly string[]).includes(rawStatus)) return rawStatus;
     return undefined;
 }
 
@@ -84,12 +84,12 @@ const getHandler = async (request: NextRequest) => {
         const lastAttemptFrom = parseDate(searchParams.get('lastAttemptFrom'));
         const lastAttemptTo = parseDate(searchParams.get('lastAttemptTo'));
 
-        const where: any = { AND: [] as any[] };
+        const where: { AND: Record<string, unknown>[] } = { AND: [] };
         const statusFilter = normalizeStatusFilter(rawStatus);
         if (statusFilter) where.AND.push({ status: statusFilter });
         if (phone) where.AND.push({ phone: { contains: phone.replace(/\D/g, '') } });
         if (idempotencyKey) where.AND.push({ idempotencyKey: { contains: idempotencyKey } });
-        if (intent && allowedIntents.includes(intent as any) && intent !== 'all') {
+        if (intent && (allowedIntents as readonly string[]).includes(intent) && intent !== 'all') {
             where.AND.push({ payload: { contains: `"intent":"${intent}"` } });
         }
         if (!Number.isNaN(retriesMin)) where.AND.push({ retries: { gte: retriesMin } });
@@ -122,16 +122,16 @@ const getHandler = async (request: NextRequest) => {
             });
         }
 
-        if (!where.AND.length) delete where.AND;
+        const prismaWhere = where.AND.length > 0 ? where : {};
 
         const [items, total, grouped] = await Promise.all([
             prisma.whatsAppQueueItem.findMany({
-                where,
+                where: prismaWhere,
                 orderBy: [{ [sortBy]: sortDir }, { createdAt: 'desc' }],
                 skip: (page - 1) * pageSize,
                 take: pageSize,
             }),
-            prisma.whatsAppQueueItem.count({ where }),
+            prisma.whatsAppQueueItem.count({ where: prismaWhere }),
             prisma.whatsAppQueueItem.groupBy({
                 by: ['status'],
                 _count: { _all: true },
@@ -284,7 +284,7 @@ const patchHandler = async (request: NextRequest) => {
         const id = String(body?.id || '');
         const status = String(body?.status || '');
 
-        if (!id || !allowedStatuses.includes(status as any)) {
+        if (!id || !(allowedStatuses as readonly string[]).includes(status)) {
             return fail(E.VALIDATION_ERROR, 'id e status validos sao obrigatorios', { status: 400 });
         }
 

@@ -142,7 +142,7 @@ export async function POST(
             worker,
         });
     } catch (error) {
-        console.error('[API] send-contrato erro:', error);
+        await logger.error('send_contrato_error', 'Erro ao enfileirar contrato', error instanceof Error ? error : undefined);
         const message = error instanceof Error ? error.message : 'Erro ao enfileirar contrato';
         return fail(E.DATABASE_ERROR, message, { status: 500 });
     }

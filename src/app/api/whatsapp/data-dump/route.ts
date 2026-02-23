@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import logger from '@/lib/observability/logger';
 
 export async function GET() {
     try {
@@ -32,7 +33,7 @@ export async function GET() {
 
         return NextResponse.json({ success: true, count: formattedData.length, data: formattedData });
     } catch (error) {
-        console.error('Erro ao ler dados do WhatsApp:', error);
+        await logger.error('whatsapp_data_dump_error', 'Erro ao ler dados do WhatsApp', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao carregar dados' }, { status: 500 });
     }
 }

@@ -78,7 +78,7 @@ export async function POST(
             worker,
         });
     } catch (error) {
-        console.error('[API] enviar-contrato erro:', error);
+        await logger.error('enviar_contrato_error', 'Erro ao enfileirar contrato', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao enfileirar contrato' }, { status: 500 });
     }
 }

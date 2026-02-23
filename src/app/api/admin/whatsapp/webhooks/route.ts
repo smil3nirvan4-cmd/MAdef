@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 const EVENTS = [
     'message_received',
@@ -55,7 +56,7 @@ export async function GET(_request: NextRequest) {
         const webhooks = await prisma.whatsAppWebhook.findMany({ orderBy: { createdAt: 'desc' } });
         return NextResponse.json({ success: true, webhooks: webhooks.map(toClientWebhook), events: EVENTS });
     } catch (error) {
-        console.error('[API] webhooks GET erro:', error);
+        await logger.error('webhooks_get_error', 'Erro ao listar webhooks', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar webhooks' }, { status: 500 });
     }
 }
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
     } catch (error) {
-        console.error('[API] webhooks POST erro:', error);
+        await logger.error('webhooks_post_error', 'Erro ao criar webhook', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao criar webhook' }, { status: 500 });
     }
 }
@@ -107,7 +108,7 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json({ success: true, webhook: toClientWebhook(webhook) });
     } catch (error) {
-        console.error('[API] webhooks PUT erro:', error);
+        await logger.error('webhooks_put_error', 'Erro ao atualizar webhook', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao atualizar webhook' }, { status: 500 });
     }
 }
@@ -127,7 +128,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.whatsAppWebhook.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] webhooks DELETE erro:', error);
+        await logger.error('webhooks_delete_error', 'Erro ao excluir webhook', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao excluir webhook' }, { status: 500 });
     }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export async function GET(request: NextRequest) {
     try {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ leads, stats });
     } catch (error) {
-        console.error('Error fetching leads:', error);
+        await logger.error('lead_fetch_error', 'Error fetching leads', error instanceof Error ? error : undefined);
         return NextResponse.json({ error: 'Erro' }, { status: 500 });
     }
 }

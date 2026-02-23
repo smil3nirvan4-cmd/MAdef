@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ cuidadores, stats });
     } catch (error) {
-        console.error('Erro ao buscar candidatos:', error);
+        await logger.error('candidato_fetch_error', 'Erro ao buscar candidatos', error instanceof Error ? error : undefined);
         return NextResponse.json({ error: 'Erro ao buscar candidatos' }, { status: 500 });
     }
 }

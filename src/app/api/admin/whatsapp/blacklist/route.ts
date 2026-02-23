@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 function normalizePhone(phone: string) {
     return String(phone || '').replace(/\D/g, '');
@@ -12,7 +13,7 @@ export async function GET(_request: NextRequest) {
         });
         return NextResponse.json({ success: true, blacklist });
     } catch (error) {
-        console.error('[API] blacklist GET erro:', error);
+        await logger.error('blacklist_get_error', 'Erro ao listar blacklist', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar blacklist' }, { status: 500 });
     }
 }
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, entry });
     } catch (error) {
-        console.error('[API] blacklist POST erro:', error);
+        await logger.error('blacklist_post_error', 'Erro ao adicionar blacklist', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao adicionar blacklist' }, { status: 500 });
     }
 }
@@ -58,7 +59,7 @@ export async function DELETE(request: NextRequest) {
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] blacklist DELETE erro:', error);
+        await logger.error('blacklist_delete_error', 'Erro ao remover da blacklist', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao remover da blacklist' }, { status: 500 });
     }
 }

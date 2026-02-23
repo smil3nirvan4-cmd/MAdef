@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 interface AdminWhatsappContact {
     telefone: string | null;
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ success: true, contacts: filtered });
     } catch (error) {
-        console.error('Contacts API Error:', error);
+        await logger.error('contacts_get_error', 'Erro ao carregar contatos', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, contacts: [], error: 'Erro ao carregar contatos' }, { status: 500 });
     }
 }
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, contact });
     } catch (error) {
-        console.error('Contacts API POST Error:', error);
+        await logger.error('contacts_post_error', 'Erro ao criar contato', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao criar contato' }, { status: 500 });
     }
 }

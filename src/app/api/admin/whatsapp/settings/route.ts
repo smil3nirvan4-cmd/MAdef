@@ -1,5 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 const DEFAULT_SETTINGS: Record<string, string> = {
     autoReplyEnabled: 'true',
@@ -58,7 +59,7 @@ export async function GET(_request: NextRequest) {
 
         return NextResponse.json({ success: true, settings, stats });
     } catch (error) {
-        console.error('[API] settings GET erro:', error);
+        await logger.error('settings_get_error', 'Erro ao carregar configuracoes', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao carregar configuracoes' }, { status: 500 });
     }
 }
@@ -95,7 +96,7 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true, settings });
     } catch (error) {
-        console.error('[API] settings PATCH erro:', error);
+        await logger.error('settings_patch_error', 'Erro ao salvar configuracoes', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao salvar configuracoes' }, { status: 500 });
     }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export async function GET(
     request: NextRequest,
@@ -70,7 +71,7 @@ export async function GET(
             }
         });
     } catch (error) {
-        console.error('Error fetching paciente:', error);
+        await logger.error('paciente_fetch_error', 'Error fetching paciente', error instanceof Error ? error : undefined);
         return NextResponse.json({ error: 'Erro ao buscar paciente' }, { status: 500 });
     }
 }
@@ -114,7 +115,7 @@ export async function PATCH(
 
         return NextResponse.json({ success: true, paciente: pacienteCompleto || paciente });
     } catch (error) {
-        console.error('Error updating paciente:', error);
+        await logger.error('paciente_update_error', 'Error updating paciente', error instanceof Error ? error : undefined);
         return NextResponse.json({ error: 'Erro ao atualizar paciente' }, { status: 500 });
     }
 }

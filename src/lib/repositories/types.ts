@@ -76,6 +76,7 @@ export interface AvaliacaoCreateInput {
     nivelSugerido?: string;
     cargaSugerida?: string;
     status?: string;
+    dadosDetalhados?: string;
 }
 
 export interface IAvaliacaoRepository {
@@ -88,6 +89,27 @@ export interface OrcamentoCreateInput {
     cenarioEconomico?: string;
     cenarioRecomendado?: string;
     cenarioPremium?: string;
+    unidadeId?: string | null;
+    configVersionId?: string | null;
+    avaliacaoId?: string | null;
+    cenarioSelecionado?: string | null;
+    valorFinal?: number | null;
+    snapshotInput?: string | null;
+    snapshotOutput?: string | null;
+    planningInput?: string | null;
+    normalizedSchedule?: string | null;
+    pricingBreakdown?: string | null;
+    calculationHash?: string | null;
+    auditHash?: string | null;
+    engineVersion?: string | null;
+    createdBy?: string | null;
+    descontoManualPercent?: number | null;
+    minicustosDesativados?: string | null;
+    moeda?: string;
+    status?: string;
+    aprovadoPor?: string | null;
+    enviadoEm?: Date | null;
+    aceitoEm?: Date | null;
 }
 
 export interface IOrcamentoRepository {

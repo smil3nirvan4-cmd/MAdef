@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 const TRIGGER_TYPES = ['exact', 'contains', 'startsWith', 'endsWith', 'regex'];
 
@@ -53,7 +54,7 @@ export async function GET(_request: NextRequest) {
             triggerTypes: TRIGGER_TYPES,
         });
     } catch (error) {
-        console.error('[API] autoreplies GET erro:', error);
+        await logger.error('autoreplies_get_error', 'Erro ao listar auto-respostas', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao listar auto-respostas' }, { status: 500 });
     }
 }
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, rule: toClientRule(rule) });
     } catch (error) {
-        console.error('[API] autoreplies POST erro:', error);
+        await logger.error('autoreplies_post_error', 'Erro ao criar auto-resposta', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao criar auto-resposta' }, { status: 500 });
     }
 }
@@ -108,7 +109,7 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true, rule: toClientRule(rule) });
     } catch (error) {
-        console.error('[API] autoreplies PATCH erro:', error);
+        await logger.error('autoreplies_patch_error', 'Erro ao atualizar auto-resposta', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao atualizar auto-resposta' }, { status: 500 });
     }
 }
@@ -124,7 +125,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.whatsAppAutoReply.delete({ where: { id } });
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('[API] autoreplies DELETE erro:', error);
+        await logger.error('autoreplies_delete_error', 'Erro ao excluir auto-resposta', error instanceof Error ? error : undefined);
         return NextResponse.json({ success: false, error: 'Erro ao excluir auto-resposta' }, { status: 500 });
     }
 }

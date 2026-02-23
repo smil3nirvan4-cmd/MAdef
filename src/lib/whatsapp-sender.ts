@@ -215,7 +215,8 @@ class WhatsAppSenderService {
             };
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
-            const errorCode = (error as any)?.code ? String((error as any).code) : undefined;
+            const errorRecord = error as Record<string, unknown> | null;
+            const errorCode = errorRecord?.code ? String(errorRecord.code) : undefined;
             if (errorCode !== 'CIRCUIT_OPEN') {
                 whatsappCircuitBreaker.recordFailure();
             }
@@ -226,7 +227,7 @@ class WhatsAppSenderService {
                     deliveryStatus: 'FAILED',
                     error: errorMsg,
                     errorCode,
-                    circuitState: (error as any)?.circuitState || whatsappCircuitBreaker.toJSON(),
+                    circuitState: errorRecord?.circuitState || whatsappCircuitBreaker.toJSON(),
                     recommendedCommand: this.recommendedCommand,
                     timestamp: new Date(),
                     phoneFormatted: phoneResult.formatted,

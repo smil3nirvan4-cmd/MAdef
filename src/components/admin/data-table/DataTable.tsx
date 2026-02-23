@@ -10,8 +10,8 @@ function nodeToText(value: unknown): string {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
     if (Array.isArray(value)) return value.map(nodeToText).join(' ');
-    if (typeof value === 'object' && value && 'props' in (value as any)) {
-        return nodeToText((value as any).props?.children);
+    if (typeof value === 'object' && value && 'props' in value) {
+        return nodeToText((value as { props?: { children?: unknown } }).props?.children);
     }
     return '';
 }
