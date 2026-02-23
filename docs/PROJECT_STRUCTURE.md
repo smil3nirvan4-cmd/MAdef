@@ -6,7 +6,7 @@
 
 | Category | Count |
 |----------|-------|
-| Prisma Models | 29 |
+| Prisma Models | 37 |
 | API Endpoints | 67 route files |
 | Admin API Endpoints | 53 |
 | Public API Endpoints | 14 |

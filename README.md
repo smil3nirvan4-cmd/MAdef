@@ -86,7 +86,7 @@ Veja `.env.example` para a lista completa.
 
 ```
 MAdef/
-├── prisma/schema.prisma       # Schema do banco (29 modelos)
+├── prisma/schema.prisma       # Schema do banco (37 modelos)
 ├── src/
 │   ├── app/api/               # 67 endpoints API
 │   ├── app/admin/             # 32 páginas administrativas

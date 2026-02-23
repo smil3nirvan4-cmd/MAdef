@@ -59,7 +59,7 @@ npm run dev                  # Starts Next.js + WhatsApp bridge
 ```
 MAdef/
 ├── prisma/
-│   ├── schema.prisma          # Database schema (29 models)
+│   ├── schema.prisma          # Database schema (37 models)
 │   └── seed.ts                # Database seeder
 ├── src/
 │   ├── app/                   # Next.js App Router
@@ -377,5 +377,5 @@ See `.env.example` for the complete list. Critical variables:
 | `src/lib/whatsapp/client.ts` | WhatsApp bridge HTTP client |
 | `src/lib/whatsapp/conversation-bot.ts` | WhatsApp conversation state machine |
 | `src/lib/whatsapp/circuit-breaker.ts` | WhatsApp circuit breaker |
-| `prisma/schema.prisma` | Database schema (29 models) |
+| `prisma/schema.prisma` | Database schema (37 models) |
 | `whatsapp-bridge/server.js` | Standalone WhatsApp bridge server |
