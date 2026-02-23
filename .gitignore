@@ -66,3 +66,4 @@ auth_info/
 .wa-state.json
 .wa-automation-settings.json
 .wa-bridge-port
+.env.local

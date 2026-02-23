@@ -91,21 +91,8 @@ export function validateBrazilianPhone(input: string): PhoneValidationResult {
         if (['2', '3', '4', '5'].includes(firstDigit)) {
             type = 'fixo';
         } else if (firstDigit === '9') {
-            // Auto-correct: mobile number missing the leading 9 (e.g., 45+91233799 → 45+991233799)
-            const correctedNumber = `9${number}`;
-            const fullCorrected = `55${ddd}${correctedNumber}`;
-            const correctedFormatted = `(${ddd}) ${correctedNumber.slice(0, 5)}-${correctedNumber.slice(5)}`;
-            return {
-                isValid: true,
-                formatted: correctedFormatted,
-                whatsapp: fullCorrected,
-                jid: `${fullCorrected}@s.whatsapp.net`,
-                type: 'celular',
-                ddd,
-                number: correctedNumber,
-                corrected: true,
-                originalInput: digitsOnly,
-            };
+            // 8-digit number starting with 9 is a truncated mobile number — reject
+            return { ...invalidResult, error: 'Celular deve ter 9 digitos apos o DDD', ddd, number };
         } else {
             return { ...invalidResult, error: 'Numero fixo deve comecar com 2, 3, 4 ou 5', ddd, number };
         }
