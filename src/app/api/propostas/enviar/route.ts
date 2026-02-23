@@ -287,244 +287,235 @@ async function handlePost(req: Request) {
     const guard = await guardCapability('SEND_PROPOSTA');
     if (guard instanceof NextResponse) return guard;
 
-    try {
-        const result = await parseBody(req, enviarPropostaSchema);
-        if (result.error) return result.error;
-        const {
-            phone,
-            nome,
-            email,
-            valorTotal,
-            entrada,
-            parcelas,
-            valorParcela,
+    const result = await parseBody(req, enviarPropostaSchema);
+    if (result.error) return result.error;
+    const {
+        phone,
+        nome,
+        email,
+        valorTotal,
+        entrada,
+        parcelas,
+        valorParcela,
+        vencimento,
+        descontos,
+        acrescimos,
+        metodosPagamento,
+        opcoesParcelamento,
+        dadosDetalhados,
+    } = result.data;
+
+    await logger.info('proposta_payload_recebido', 'Recebendo payload completo para envio de proposta', { nome, phone, hasDetails: !!dadosDetalhados });
+
+    let paciente = await prisma.paciente.findUnique({ where: { telefone: phone } });
+    if (!paciente) {
+        paciente = await prisma.paciente.create({
+            data: {
+                nome: nome || stringOr(asRecord(asRecord(dadosDetalhados).patient).nome, 'Novo Paciente'),
+                telefone: phone,
+                status: 'AVALIACAO',
+            },
+        });
+    }
+
+    const dadosDetalhadosRecord = asRecord(dadosDetalhados);
+    const novaAvaliacao = await prisma.avaliacao.create({
+        data: {
+            pacienteId: paciente.id,
+            status: 'ENVIADA',
+            dadosDetalhados: JSON.stringify(dadosDetalhados || {}),
+            abemidScore: 0,
+            nivelSugerido: String(asRecord(dadosDetalhadosRecord.orcamento).complexidade || 'N/A'),
+        },
+    });
+
+    const orcamentoPayload = asRecord(dadosDetalhadosRecord.orcamento);
+    const planejamento360 = asRecord(orcamentoPayload.planejamento360);
+    const cenarioSelecionado = toScenarioKey(orcamentoPayload.cenarioSelecionado);
+    const valorTotalNumero = toFiniteNumber(valorTotal) ?? 0;
+
+    const cenarioEconomico = normalizeScenarioForStorage({
+        rawScenario: orcamentoPayload.cenarioEconomico,
+        fallbackName: 'Economico',
+        defaultTotal: valorTotalNumero,
+        planejamento360,
+        orcamentoPayload,
+    });
+    const cenarioRecomendado = normalizeScenarioForStorage({
+        rawScenario: orcamentoPayload.cenarioRecomendado,
+        fallbackName: 'Recomendado',
+        defaultTotal: valorTotalNumero,
+        planejamento360,
+        orcamentoPayload,
+    });
+    const cenarioPremium = normalizeScenarioForStorage({
+        rawScenario: orcamentoPayload.cenarioPremium,
+        fallbackName: 'Premium',
+        defaultTotal: valorTotalNumero,
+        planejamento360,
+        orcamentoPayload,
+    });
+
+    const createData: Prisma.OrcamentoUncheckedCreateInput = {
+        pacienteId: paciente.id,
+        avaliacaoId: novaAvaliacao.id,
+        cenarioEconomico: toJsonString(cenarioEconomico),
+        cenarioRecomendado: toJsonString(cenarioRecomendado),
+        cenarioPremium: toJsonString(cenarioPremium),
+        cenarioSelecionado,
+        valorFinal: toFiniteNumber(orcamentoPayload.valorFinal) ?? valorTotalNumero,
+        snapshotInput: toJsonString({
+            source: 'avaliacao_nova',
+            planejamento360: planejamento360 ?? null,
+            planejamentoResumoCalculo: orcamentoPayload.planejamentoResumoCalculo ?? null,
+            resumoSelecionado: orcamentoPayload.resumoSelecionado ?? null,
+        }),
+        snapshotOutput: toJsonString({
+            resumoSelecionado: orcamentoPayload.resumoSelecionado ?? null,
+            complexidade: orcamentoPayload.complexidade ?? null,
+            tipoProfissional: orcamentoPayload.tipoProfissional ?? null,
+            cargaHoraria: orcamentoPayload.cargaHoraria ?? null,
             vencimento,
             descontos,
             acrescimos,
-            metodosPagamento,
-            opcoesParcelamento,
-            dadosDetalhados,
-        } = result.data;
+            dadosDetalhados: dadosDetalhados ?? null,
+        }),
+        status: 'PROPOSTA_ENVIADA',
+        descontoManualPercent: toFiniteNumber(planejamento360.descontoManualPercent),
+        minicustosDesativados: toJsonString(
+            String(planejamento360.minicustosDesativadosCsv || '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean),
+        ),
+    };
 
-        await logger.info('proposta_payload_recebido', 'Recebendo payload completo para envio de proposta', { nome, phone, hasDetails: !!dadosDetalhados });
+    await persistOrcamentoWithLegacyFallback(createData);
 
-        let paciente = await prisma.paciente.findUnique({ where: { telefone: phone } });
-        if (!paciente) {
-            paciente = await prisma.paciente.create({
-                data: {
-                    nome: nome || stringOr(asRecord(asRecord(dadosDetalhados).patient).nome, 'Novo Paciente'),
-                    telefone: phone,
-                    status: 'AVALIACAO',
-                },
-            });
-        }
+    await logger.info('avaliacao_criada', `Nova avaliacao criada para paciente ${paciente.nome}`, {
+        avaliacaoId: novaAvaliacao.id,
+        pacienteId: paciente.id,
+        pacienteTelefone: phone,
+        valorTotal,
+    });
 
-        const dadosDetalhadosRecord = asRecord(dadosDetalhados);
-        const novaAvaliacao = await prisma.avaliacao.create({
-            data: {
-                pacienteId: paciente.id,
-                status: 'ENVIADA',
-                dadosDetalhados: JSON.stringify(dadosDetalhados || {}),
-                abemidScore: 0,
-                nivelSugerido: String(asRecord(dadosDetalhadosRecord.orcamento).complexidade || 'N/A'),
-            },
+    try {
+        const orcamentoPersistido = await prisma.orcamento.findFirst({
+            where: { avaliacaoId: novaAvaliacao.id },
+            orderBy: { createdAt: 'desc' },
         });
 
-        const orcamentoPayload = asRecord(dadosDetalhadosRecord.orcamento);
-        const planejamento360 = asRecord(orcamentoPayload.planejamento360);
-        const cenarioSelecionado = toScenarioKey(orcamentoPayload.cenarioSelecionado);
-        const valorTotalNumero = toFiniteNumber(valorTotal) ?? 0;
-
-        const cenarioEconomico = normalizeScenarioForStorage({
-            rawScenario: orcamentoPayload.cenarioEconomico,
-            fallbackName: 'Economico',
-            defaultTotal: valorTotalNumero,
-            planejamento360,
-            orcamentoPayload,
-        });
-        const cenarioRecomendado = normalizeScenarioForStorage({
-            rawScenario: orcamentoPayload.cenarioRecomendado,
-            fallbackName: 'Recomendado',
-            defaultTotal: valorTotalNumero,
-            planejamento360,
-            orcamentoPayload,
-        });
-        const cenarioPremium = normalizeScenarioForStorage({
-            rawScenario: orcamentoPayload.cenarioPremium,
-            fallbackName: 'Premium',
-            defaultTotal: valorTotalNumero,
-            planejamento360,
-            orcamentoPayload,
-        });
-
-        const createData: Prisma.OrcamentoUncheckedCreateInput = {
-            pacienteId: paciente.id,
-            avaliacaoId: novaAvaliacao.id,
-            cenarioEconomico: toJsonString(cenarioEconomico),
-            cenarioRecomendado: toJsonString(cenarioRecomendado),
-            cenarioPremium: toJsonString(cenarioPremium),
-            cenarioSelecionado,
-            valorFinal: toFiniteNumber(orcamentoPayload.valorFinal) ?? valorTotalNumero,
-            snapshotInput: toJsonString({
-                source: 'avaliacao_nova',
-                planejamento360: planejamento360 ?? null,
-                planejamentoResumoCalculo: orcamentoPayload.planejamentoResumoCalculo ?? null,
-                resumoSelecionado: orcamentoPayload.resumoSelecionado ?? null,
-            }),
-            snapshotOutput: toJsonString({
-                resumoSelecionado: orcamentoPayload.resumoSelecionado ?? null,
-                complexidade: orcamentoPayload.complexidade ?? null,
-                tipoProfissional: orcamentoPayload.tipoProfissional ?? null,
-                cargaHoraria: orcamentoPayload.cargaHoraria ?? null,
-                vencimento,
-                descontos,
-                acrescimos,
-                dadosDetalhados: dadosDetalhados ?? null,
-            }),
-            status: 'PROPOSTA_ENVIADA',
-            descontoManualPercent: toFiniteNumber(planejamento360.descontoManualPercent),
-            minicustosDesativados: toJsonString(
-                String(planejamento360.minicustosDesativadosCsv || '')
-                    .split(',')
-                    .map((item) => item.trim())
-                    .filter(Boolean),
-            ),
-        };
-
-        await persistOrcamentoWithLegacyFallback(createData);
-
-        await logger.info('avaliacao_criada', `Nova avaliacao criada para paciente ${paciente.nome}`, {
-            avaliacaoId: novaAvaliacao.id,
-            pacienteId: paciente.id,
-            pacienteTelefone: phone,
-            valorTotal,
-        });
-
-        try {
-            const orcamentoPersistido = await prisma.orcamento.findFirst({
-                where: { avaliacaoId: novaAvaliacao.id },
-                orderBy: { createdAt: 'desc' },
-            });
-
-            if (!orcamentoPersistido) {
-                await logger.warning('whatsapp_document_error', 'Orcamento nao encontrado apos persistencia para envio de proposta', {
-                    phone,
-                    avaliacaoId: novaAvaliacao.id,
-                });
-            } else {
-                const sendOptions: OrcamentoSendOptions = {
-                    cenarioSelecionado,
-                    descontoManualPercent: toFiniteNumber(planejamento360.descontoManualPercent) ?? undefined,
-                    valorPeriodo: toFiniteNumber(orcamentoPayload.valorBase) ?? valorTotalNumero,
-                    valorFinal: toFiniteNumber(orcamentoPayload.valorFinal) ?? valorTotalNumero,
-                    descontoValor: toFiniteNumber(descontos) ?? 0,
-                    acrescimosValor: toFiniteNumber(acrescimos) ?? 0,
-                    dataVencimento: stringOr(vencimento, ''),
-                    metodosPagamento: Array.isArray(metodosPagamento) && metodosPagamento.length
-                        ? metodosPagamento.map((item: unknown) => stringOr(item, '')).filter(Boolean)
-                        : ['PIX', 'CARTAO DE CREDITO'],
-                    opcoesParcelamento: Array.isArray(opcoesParcelamento) && opcoesParcelamento.length
-                        ? opcoesParcelamento.map((item: unknown) => stringOr(item, '')).filter(Boolean)
-                        : ['1x sem juros', '2x sem juros', '3x sem juros', '4x sem juros'],
-                    parcelas: Math.max(1, Math.round(toFiniteNumber(parcelas) ?? 1)),
-                    entrada: Math.max(0, toFiniteNumber(entrada) ?? 0),
-                    valorParcela: Math.max(0, toFiniteNumber(valorParcela) ?? 0),
-                    validadeHoras: 24,
-                };
-
-                const pdfData = buildOrcamentoPDFData(
-                    {
-                        ...novaAvaliacao,
-                        paciente,
-                    } as unknown as Record<string, unknown>,
-                    orcamentoPersistido as unknown as Record<string, unknown>,
-                    'PROPOSTA',
-                    sendOptions,
-                );
-                const mensagem = renderCommercialMessage({
-                    tipo: 'PROPOSTA',
-                    pacienteNome: String(nome || paciente.nome || 'Paciente'),
-                    pdfData,
-                    avaliacao: {
-                        ...novaAvaliacao,
-                        paciente,
-                    } as unknown as Record<string, unknown>,
-                    orcamento: orcamentoPersistido as unknown as Record<string, unknown>,
-                    sendOptions,
-                });
-                if (mensagem.missingVariables.length > 0) {
-                    throw new Error(`Variaveis ausentes no template: ${mensagem.missingVariables.join(', ')}`);
-                }
-
-                const pdfBuffer = await generatePropostaPDF(pdfData);
-                const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
-                const envio = await sendDocumentViaBridge({
-                    phone,
-                    fileName: `Proposta_${safeReference}_MaosAmigas.pdf`,
-                    caption: mensagem.rendered,
-                    buffer: pdfBuffer,
-                });
-
-                if (!envio.success) {
-                    await logger.warning('whatsapp_document_error', `Falha ao enviar PDF de proposta: ${envio.error || 'erro desconhecido'}`, {
-                        phone,
-                        avaliacaoId: novaAvaliacao.id,
-                        providerMessageId: envio.messageId || null,
-                    });
-                } else {
-                    await logger.whatsapp('proposta_enviada', `Proposta enviada para ${phone}`, {
-                        avaliacaoId: novaAvaliacao.id,
-                        pacienteId: paciente.id,
-                        valorTotal,
-                        providerMessageId: envio.messageId || null,
-                    });
-
-                    await prisma.paciente.update({
-                        where: { id: paciente.id },
-                        data: { status: 'PROPOSTA_ENVIADA' },
-                    });
-
-                    await prisma.whatsAppFlowState.upsert({
-                        where: { phone },
-                        update: {
-                            currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
-                            currentStep: 'ESPERANDO_CONFIRMACAO',
-                            data: JSON.stringify({
-                                avaliacaoId: novaAvaliacao.id,
-                                valorTotal,
-                                propostaEnviadaEm: new Date().toISOString(),
-                            }),
-                            lastInteraction: new Date(),
-                        },
-                        create: {
-                            phone,
-                            currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
-                            currentStep: 'ESPERANDO_CONFIRMACAO',
-                            data: JSON.stringify({
-                                avaliacaoId: novaAvaliacao.id,
-                                valorTotal,
-                                propostaEnviadaEm: new Date().toISOString(),
-                            }),
-                        },
-                    });
-                }
-            }
-        } catch (bridgeError) {
-            await logger.error('whatsapp_bridge_offline', 'Bridge offline na porta 4000', bridgeError as Error, {
+        if (!orcamentoPersistido) {
+            await logger.warning('whatsapp_document_error', 'Orcamento nao encontrado apos persistencia para envio de proposta', {
                 phone,
                 avaliacaoId: novaAvaliacao.id,
             });
-        }
+        } else {
+            const sendOptions: OrcamentoSendOptions = {
+                cenarioSelecionado,
+                descontoManualPercent: toFiniteNumber(planejamento360.descontoManualPercent) ?? undefined,
+                valorPeriodo: toFiniteNumber(orcamentoPayload.valorBase) ?? valorTotalNumero,
+                valorFinal: toFiniteNumber(orcamentoPayload.valorFinal) ?? valorTotalNumero,
+                descontoValor: toFiniteNumber(descontos) ?? 0,
+                acrescimosValor: toFiniteNumber(acrescimos) ?? 0,
+                dataVencimento: stringOr(vencimento, ''),
+                metodosPagamento: Array.isArray(metodosPagamento) && metodosPagamento.length
+                    ? metodosPagamento.map((item: unknown) => stringOr(item, '')).filter(Boolean)
+                    : ['PIX', 'CARTAO DE CREDITO'],
+                opcoesParcelamento: Array.isArray(opcoesParcelamento) && opcoesParcelamento.length
+                    ? opcoesParcelamento.map((item: unknown) => stringOr(item, '')).filter(Boolean)
+                    : ['1x sem juros', '2x sem juros', '3x sem juros', '4x sem juros'],
+                parcelas: Math.max(1, Math.round(toFiniteNumber(parcelas) ?? 1)),
+                entrada: Math.max(0, toFiniteNumber(entrada) ?? 0),
+                valorParcela: Math.max(0, toFiniteNumber(valorParcela) ?? 0),
+                validadeHoras: 24,
+            };
 
-        return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Erro fatal ao processar proposta';
-        const errorObj = error instanceof Error ? error : new Error(message);
-        await logger.error('proposta_erro_fatal', 'Erro fatal ao processar proposta', errorObj, {
-            errorMessage: message,
+            const pdfData = buildOrcamentoPDFData(
+                {
+                    ...novaAvaliacao,
+                    paciente,
+                } as unknown as Record<string, unknown>,
+                orcamentoPersistido as unknown as Record<string, unknown>,
+                'PROPOSTA',
+                sendOptions,
+            );
+            const mensagem = renderCommercialMessage({
+                tipo: 'PROPOSTA',
+                pacienteNome: String(nome || paciente.nome || 'Paciente'),
+                pdfData,
+                avaliacao: {
+                    ...novaAvaliacao,
+                    paciente,
+                } as unknown as Record<string, unknown>,
+                orcamento: orcamentoPersistido as unknown as Record<string, unknown>,
+                sendOptions,
+            });
+            if (mensagem.missingVariables.length > 0) {
+                throw new Error(`Variaveis ausentes no template: ${mensagem.missingVariables.join(', ')}`);
+            }
+
+            const pdfBuffer = await generatePropostaPDF(pdfData);
+            const safeReference = pdfData.referencia.replace(/[^A-Za-z0-9_-]/g, '_');
+            const envio = await sendDocumentViaBridge({
+                phone,
+                fileName: `Proposta_${safeReference}_MaosAmigas.pdf`,
+                caption: mensagem.rendered,
+                buffer: pdfBuffer,
+            });
+
+            if (!envio.success) {
+                await logger.warning('whatsapp_document_error', `Falha ao enviar PDF de proposta: ${envio.error || 'erro desconhecido'}`, {
+                    phone,
+                    avaliacaoId: novaAvaliacao.id,
+                    providerMessageId: envio.messageId || null,
+                });
+            } else {
+                await logger.whatsapp('proposta_enviada', `Proposta enviada para ${phone}`, {
+                    avaliacaoId: novaAvaliacao.id,
+                    pacienteId: paciente.id,
+                    valorTotal,
+                    providerMessageId: envio.messageId || null,
+                });
+
+                await prisma.paciente.update({
+                    where: { id: paciente.id },
+                    data: { status: 'PROPOSTA_ENVIADA' },
+                });
+
+                await prisma.whatsAppFlowState.upsert({
+                    where: { phone },
+                    update: {
+                        currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
+                        currentStep: 'ESPERANDO_CONFIRMACAO',
+                        data: JSON.stringify({
+                            avaliacaoId: novaAvaliacao.id,
+                            valorTotal,
+                            propostaEnviadaEm: new Date().toISOString(),
+                        }),
+                        lastInteraction: new Date(),
+                    },
+                    create: {
+                        phone,
+                        currentFlow: 'AGUARDANDO_RESPOSTA_PROPOSTA',
+                        currentStep: 'ESPERANDO_CONFIRMACAO',
+                        data: JSON.stringify({
+                            avaliacaoId: novaAvaliacao.id,
+                            valorTotal,
+                            propostaEnviadaEm: new Date().toISOString(),
+                        }),
+                    },
+                });
+            }
+        }
+    } catch (bridgeError) {
+        await logger.error('whatsapp_bridge_offline', 'Bridge offline na porta 4000', bridgeError as Error, {
+            phone,
+            avaliacaoId: novaAvaliacao.id,
         });
-        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
+
+    return NextResponse.json({ success: true });
 }
 
 export const POST = withErrorBoundary(handlePost);

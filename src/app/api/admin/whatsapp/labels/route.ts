@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
@@ -65,12 +64,11 @@ async function handlePost(request: NextRequest) {
 
         return NextResponse.json({ success: true, label: withDescription(label) });
     } catch (error: any) {
-        await logger.error('labels_post_error', 'Erro ao criar etiqueta', error instanceof Error ? error : undefined);
         const message = String(error?.message || '');
         if (message.includes('Unique constraint')) {
             return NextResponse.json({ success: false, error: 'Etiqueta já existe' }, { status: 409 });
         }
-        return NextResponse.json({ success: false, error: 'Erro ao criar etiqueta' }, { status: 500 });
+        throw error;
     }
 }
 

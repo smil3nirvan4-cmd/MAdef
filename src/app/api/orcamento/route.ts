@@ -422,13 +422,7 @@ async function handlePost(request: NextRequest) {
             );
         }
 
-        return NextResponse.json(
-            {
-                success: false,
-                error: error instanceof Error ? error.message : 'Erro ao calcular orcamento',
-            },
-            { status: 500 },
-        );
+        throw error;
     }
 }
 
