@@ -91,7 +91,7 @@ async function handleGet(
             });
         }
 
-        return NextResponse.json({ error: 'Erro ao buscar avaliacao' }, { status: 500 });
+        throw error;
     }
 }
 
