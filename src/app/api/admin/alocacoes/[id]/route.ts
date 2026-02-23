@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import { alocacaoRepository } from '@/lib/repositories';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
@@ -44,11 +44,7 @@ async function handlePatch(
             updateData = data;
     }
 
-    const alocacao = await prisma.alocacao.update({
-        where: { id },
-        data: updateData,
-        include: { cuidador: true, paciente: true }
-    });
+    const alocacao = await alocacaoRepository.update(id, updateData);
 
     return NextResponse.json({ success: true, alocacao });
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
-import logger from '@/lib/observability/logger';
+import { alocacaoRepository } from '@/lib/repositories';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { parseBody } from '@/lib/api/parse-body';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
@@ -23,54 +22,25 @@ async function handleGet(request: NextRequest) {
     if (guard instanceof NextResponse) return guard;
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    const statusParam = searchParams.get('status');
     const cuidadorId = searchParams.get('cuidadorId');
     const pacienteId = searchParams.get('pacienteId');
 
-    const where: any = {};
+    const status = statusParam && statusParam !== 'ALL' ? statusParam : undefined;
 
-    if (status && status !== 'ALL') {
-        where.status = status;
-    }
-    if (cuidadorId) {
-        where.cuidadorId = cuidadorId;
-    }
-    if (pacienteId) {
-        where.pacienteId = pacienteId;
-    }
-
-    const alocacoes = await prisma.alocacao.findMany({
-        where,
-        include: {
-            cuidador: {
-                select: {
-                    id: true,
-                    nome: true,
-                    telefone: true,
-                    area: true,
-                }
-            },
-            paciente: {
-                select: {
-                    id: true,
-                    nome: true,
-                    telefone: true,
-                    hospital: true,
-                    quarto: true,
-                }
-            }
-        },
-        orderBy: { dataInicio: 'desc' },
-        take: 200
+    const { data: alocacoes } = await alocacaoRepository.findAll({
+        status: status || undefined,
+        cuidadorId: cuidadorId || undefined,
+        pacienteId: pacienteId || undefined,
     });
 
-    // Stats
+    const countByStatus = await alocacaoRepository.countByStatus();
     const stats = {
-        total: await prisma.alocacao.count(),
-        pendentes: await prisma.alocacao.count({ where: { status: 'PENDENTE_FEEDBACK' } }),
-        confirmadas: await prisma.alocacao.count({ where: { status: 'CONFIRMADO' } }),
-        emAndamento: await prisma.alocacao.count({ where: { status: 'EM_ANDAMENTO' } }),
-        concluidas: await prisma.alocacao.count({ where: { status: 'CONCLUIDO' } }),
+        total: countByStatus.total,
+        pendentes: countByStatus.pendente,
+        confirmadas: countByStatus.confirmado,
+        emAndamento: countByStatus.andamento,
+        concluidas: countByStatus.concluido,
     };
 
     return NextResponse.json({ alocacoes, stats });
@@ -84,22 +54,16 @@ async function handlePost(request: NextRequest) {
     if (error) return error;
     const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = data;
 
-    const alocacao = await prisma.alocacao.create({
-        data: {
-            cuidadorId,
-            pacienteId,
-            slotId,
-            turno,
-            diaSemana,
-            dataInicio: dataInicio ? new Date(dataInicio) : new Date(),
-            hospital,
-            quarto,
-            status: 'PENDENTE_FEEDBACK',
-        },
-        include: {
-            cuidador: true,
-            paciente: true,
-        }
+    const alocacao = await alocacaoRepository.create({
+        cuidador: { connect: { id: cuidadorId } },
+        ...(pacienteId ? { paciente: { connect: { id: pacienteId } } } : {}),
+        slotId,
+        turno,
+        diaSemana,
+        dataInicio: dataInicio ? new Date(dataInicio) : new Date(),
+        hospital,
+        quarto,
+        status: 'PENDENTE_FEEDBACK',
     });
 
     return NextResponse.json({ success: true, alocacao });

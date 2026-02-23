@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import { systemLogRepository } from '@/lib/repositories';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { paginated, ok } from '@/lib/api/response';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
@@ -26,25 +26,17 @@ const getHandler = async (request: NextRequest) => {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const where: any = {};
-    if (type) where.type = type;
-    if (action) where.action = { contains: action };
-    if (phone) where.metadata = { contains: phone.replace(/\D/g, '') };
-    if (startDate || endDate) {
-        where.createdAt = {};
-        if (startDate) where.createdAt.gte = new Date(startDate);
-        if (endDate) where.createdAt.lte = new Date(endDate);
-    }
-
-    const [logs, total] = await Promise.all([
-        prisma.systemLog.findMany({
-            where,
-            orderBy: [{ [field]: direction }, { createdAt: 'desc' }],
-            skip: (page - 1) * pageSize,
-            take: pageSize,
-        }),
-        prisma.systemLog.count({ where }),
-    ]);
+    const { data: logs, total } = await systemLogRepository.findAll({
+        page,
+        pageSize,
+        type: type || undefined,
+        action: action || undefined,
+        search: phone ? phone.replace(/\D/g, '') : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        sortField: field,
+        sortDirection: direction as 'asc' | 'desc',
+    });
 
     return paginated(logs, { page, pageSize, total }, 200, {
         filters: { type, action, phone, startDate, endDate },
@@ -65,9 +57,7 @@ const deleteHandler = async (request: NextRequest) => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-    const result = await prisma.systemLog.deleteMany({
-        where: { createdAt: { lt: cutoffDate } },
-    });
+    const result = await systemLogRepository.deleteOlderThan(cutoffDate);
 
     return ok({
         deleted: result.count,
