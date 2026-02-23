@@ -184,4 +184,297 @@ describe('ABEMID Evaluation Algorithm', () => {
             expect(resultado.pontuacaoTotal).toBe(8); // 1 + 2 + 5
         });
     });
+
+    describe('Boundary Conditions', () => {
+        it('all suporte items false with independente yields minimum score (1)', () => {
+            const avaliacao = createBaseEvaluation({
+                grauDependencia: 'independente', // 1 pt, 0 suporte
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(1);
+            expect(resultado.nivel).toBe('NAO_ELEGIVEL'); // < 7
+            expect(resultado.elegivel).toBe(false);
+        });
+
+        it('all suporte items true with total dependency yields maximum score', () => {
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    dialise: true,                    // 5
+                    traqueostomiaComAspiracao: true,  // 5
+                    traqueostomiaSemAspiracao: true,   // 3
+                    acessoVenosoContínuo: true,        // 5
+                    acessoVenosoIntermitente: true,     // 3
+                    sondaVesicalPermanente: true,       // 3
+                    sondaVesicalIntermitente: true,     // 3
+                    viaOral: true,                      // 1
+                    viaSubcutanea: true,                // 2
+                    viaIntravenosa: true,               // 3
+                    aspiracaoViasAereas: true,          // 3
+                },
+                grauDependencia: 'total', // 5
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            // 5+5+3+5+3+3+3+1+2+3+3 = 36, + 5 = 41
+            expect(resultado.pontuacaoTotal).toBe(41);
+            expect(resultado.nivel).toBe('ALTA');
+            expect(resultado.horasAssistencia).toBe(24);
+            expect(resultado.itensCriticos).toBe(3); // dialise, traqueo, acesso venoso continuo
+        });
+
+        it('score exactly 7 is classified as BAIXA', () => {
+            // Need suporte = 4 + grau parcial = 3 => total 7
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    viaOral: true,        // 1
+                    viaIntravenosa: true,  // 3
+                },
+                grauDependencia: 'parcial', // 3 => total = 7
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(7);
+            expect(resultado.nivel).toBe('BAIXA');
+            expect(resultado.horasAssistencia).toBe(6);
+        });
+
+        it('score exactly 6 (below threshold) is NAO_ELEGIVEL', () => {
+            // suporte = 1 + grau total = 5 => total = 6
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    viaOral: true, // 1
+                },
+                grauDependencia: 'total', // 5 => total = 6
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(6);
+            expect(resultado.nivel).toBe('NAO_ELEGIVEL');
+            expect(resultado.elegivel).toBe(false);
+        });
+
+        it('score exactly 12 is BAIXA (upper boundary)', () => {
+            // suporte = 9 + parcial = 3 => total = 12
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    sondaVesicalPermanente: true,    // 3
+                    acessoVenosoIntermitente: true,   // 3
+                    aspiracaoViasAereas: true,        // 3
+                },
+                grauDependencia: 'parcial', // 3 => total = 12
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(12);
+            expect(resultado.nivel).toBe('BAIXA');
+            expect(resultado.horasAssistencia).toBe(6);
+        });
+
+        it('score exactly 13 is MEDIA (lower boundary)', () => {
+            // suporte = 12 + independente = 1 => total = 13
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    sondaVesicalPermanente: true,    // 3
+                    acessoVenosoIntermitente: true,   // 3
+                    aspiracaoViasAereas: true,        // 3
+                    viaIntravenosa: true,              // 3
+                },
+                grauDependencia: 'independente', // 1 => total = 13
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(13);
+            expect(resultado.nivel).toBe('MEDIA');
+            expect(resultado.horasAssistencia).toBe(12);
+        });
+
+        it('score exactly 18 is MEDIA (upper boundary)', () => {
+            // suporte = 15 + parcial = 3 => total = 18
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    sondaVesicalPermanente: true,     // 3
+                    sondaVesicalIntermitente: true,    // 3
+                    acessoVenosoIntermitente: true,    // 3
+                    aspiracaoViasAereas: true,         // 3
+                    viaIntravenosa: true,               // 3
+                },
+                grauDependencia: 'parcial', // 3 => total = 18
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(18);
+            expect(resultado.nivel).toBe('MEDIA');
+            expect(resultado.horasAssistencia).toBe(12);
+        });
+
+        it('score exactly 19 is ALTA (lower boundary)', () => {
+            // suporte = 18 + independente = 1 => total = 19
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    sondaVesicalPermanente: true,     // 3
+                    sondaVesicalIntermitente: true,    // 3
+                    acessoVenosoIntermitente: true,    // 3
+                    aspiracaoViasAereas: true,         // 3
+                    viaIntravenosa: true,               // 3
+                    traqueostomiaSemAspiracao: true,    // 3
+                },
+                grauDependencia: 'independente', // 1 => total = 19
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(19);
+            expect(resultado.nivel).toBe('ALTA');
+            expect(resultado.horasAssistencia).toBe(24);
+        });
+    });
+
+    describe('Critical items special rules', () => {
+        it('1 critical item with score >= 13 uses normal classification', () => {
+            // 1 critical (dialise=5) + suporte extras + parcial => total >= 13
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    dialise: true,                    // 5 (critical)
+                    sondaVesicalPermanente: true,     // 3
+                    aspiracaoViasAereas: true,        // 3
+                },
+                grauDependencia: 'parcial', // 3 => total = 14
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.itensCriticos).toBe(1);
+            expect(resultado.pontuacaoTotal).toBe(14);
+            // Since score >= 13 and only 1 critical, the special rule does NOT apply
+            // Normal rule: 13-18 => MEDIA
+            expect(resultado.nivel).toBe('MEDIA');
+            expect(resultado.horasAssistencia).toBe(12);
+        });
+
+        it('3 critical items automatically classify as ALTA', () => {
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    dialise: true,                    // 5 - critical
+                    traqueostomiaComAspiracao: true,  // 5 - critical
+                    acessoVenosoContínuo: true,       // 5 - critical
+                },
+                grauDependencia: 'independente', // 1
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.itensCriticos).toBe(3);
+            expect(resultado.nivel).toBe('ALTA');
+            expect(resultado.horasAssistencia).toBe(24);
+        });
+
+        it('zero critical items uses normal pontuacao rules', () => {
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    viaOral: true,         // 1
+                    viaSubcutanea: true,   // 2
+                    viaIntravenosa: true,   // 3
+                },
+                grauDependencia: 'parcial', // 3 => total = 9
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.itensCriticos).toBe(0);
+            expect(resultado.nivel).toBe('BAIXA');
+        });
+    });
+
+    describe('All eligibility combinations', () => {
+        it('all three eligibility criteria false returns first failure message', () => {
+            const avaliacao = createBaseEvaluation({
+                elegibilidade: {
+                    cuidadorIntegral: false,
+                    domicilioSeguro: false,
+                    impedimentoDeslocamento: false,
+                },
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.elegivel).toBe(false);
+            // First check is cuidadorIntegral
+            expect(resultado.motivoInelegibilidade).toContain('cuidador');
+        });
+
+        it('eligible evaluation always has elegivel=true and no motivo', () => {
+            const avaliacao = createBaseEvaluation({
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    sondaVesicalPermanente: true, // 3
+                    viaIntravenosa: true,           // 3
+                },
+                grauDependencia: 'parcial', // 3 => total = 9 => BAIXA
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.elegivel).toBe(true);
+            expect(resultado.motivoInelegibilidade).toBeUndefined();
+        });
+
+        it('non-eligible evaluation always returns zero pontuacao', () => {
+            const avaliacao = createBaseEvaluation({
+                elegibilidade: {
+                    cuidadorIntegral: false,
+                    domicilioSeguro: true,
+                    impedimentoDeslocamento: true,
+                },
+                suporteTerapeutico: {
+                    ...createBaseEvaluation().suporteTerapeutico,
+                    dialise: true,
+                    traqueostomiaComAspiracao: true,
+                },
+                grauDependencia: 'total',
+            });
+
+            const resultado = calcularABEMID(avaliacao);
+
+            expect(resultado.pontuacaoTotal).toBe(0);
+            expect(resultado.itensCriticos).toBe(0);
+            expect(resultado.horasAssistencia).toBe(0);
+        });
+    });
+
+    describe('Dependency grades', () => {
+        it('independente adds 1 point', () => {
+            const avaliacao = createBaseEvaluation({ grauDependencia: 'independente' });
+            const resultado = calcularABEMID(avaliacao);
+            expect(resultado.pontuacaoTotal).toBe(1);
+        });
+
+        it('parcial adds 3 points', () => {
+            const avaliacao = createBaseEvaluation({ grauDependencia: 'parcial' });
+            const resultado = calcularABEMID(avaliacao);
+            expect(resultado.pontuacaoTotal).toBe(3);
+        });
+
+        it('total adds 5 points', () => {
+            const avaliacao = createBaseEvaluation({ grauDependencia: 'total' });
+            const resultado = calcularABEMID(avaliacao);
+            expect(resultado.pontuacaoTotal).toBe(5);
+        });
+    });
 });
