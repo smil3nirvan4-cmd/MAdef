@@ -17,10 +17,13 @@ model Cuidador {
   scoreRH      Int?
   competencias String?
   endereco     String?
+  deletedAt    DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   alocacoes    Alocacao[]
   mensagens    Mensagem[]
+
+  @@index([deletedAt])
 }
 
 model Paciente {
@@ -35,6 +38,7 @@ model Paciente {
   status     String               @default("LEAD")
   prioridade String               @default("NORMAL")
   gqpScore   Int?
+  deletedAt  DateTime?
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   alocacoes  Alocacao[]
@@ -42,6 +46,8 @@ model Paciente {
   mensagens  Mensagem[]
   orcamentos Orcamento[]
   simulacoes OrcamentoSimulacao[]
+
+  @@index([deletedAt])
 }
 
 model Mensagem {
@@ -83,8 +89,11 @@ model Avaliacao {
   whatsappErro       String?
   whatsappTentativas Int                  @default(0)
   valorProposto      String?
+  deletedAt          DateTime?
   orcamentos         Orcamento[]
   simulacoes         OrcamentoSimulacao[]
+
+  @@index([deletedAt])
 }
 
 model Orcamento {
@@ -128,6 +137,9 @@ model Orcamento {
   @@index([avaliacaoId])
   @@index([calculationHash])
   @@index([auditHash])
+  @@index([deletedAt])
+
+  deletedAt DateTime?
 }
 
 model Alocacao {
@@ -145,19 +157,46 @@ model Alocacao {
   respondidoEm  DateTime?
   confirmadoT24 DateTime?
   confirmadoT2  DateTime?
+  deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   paciente      Paciente? @relation(fields: [pacienteId], references: [id])
   cuidador      Cuidador  @relation(fields: [cuidadorId], references: [id])
+
+  @@index([deletedAt])
 }
 
 model FormSubmission {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   tipo      String
   dados     String
   telefone  String?
   ipAddress String?
   userAgent String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([deletedAt])
+}
+
+// ==========================================
+// AUDIT LOG (Generic)
+// ==========================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  entity    String
+  entityId  String
+  action    String   // CREATE, UPDATE, DELETE
+  changes   String?  // JSON: { field: { old, new } }
+  userId    String?
+  userEmail String?
+  ipAddress String?
+  userAgent String?
   createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model WhatsAppSession {
