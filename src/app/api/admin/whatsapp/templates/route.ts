@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const DEFAULT_TEMPLATES = [
     { name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas.' },
@@ -18,7 +20,7 @@ async function ensureSeed() {
     });
 }
 
-export async function GET(_request: NextRequest) {
+async function handleGet(_request: NextRequest) {
     try {
         const guard = await guardCapability('VIEW_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -37,7 +39,7 @@ export async function GET(_request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -98,7 +100,7 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -117,3 +119,8 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao excluir template' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });
+export const PUT = withRateLimit(withErrorBoundary(handlePut), { max: 10, windowMs: 60_000 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 5, windowMs: 60_000 });

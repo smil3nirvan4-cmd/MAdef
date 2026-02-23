@@ -7,6 +7,8 @@ import {
     validateRequiredPlaceholders,
 } from '@/lib/contracts/template-engine';
 import { buildContractRenderData, defaultContractTemplate } from '@/lib/contracts/render-data';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const renderSchema = z.object({
     templateId: z.string().optional(),
@@ -20,7 +22,7 @@ const renderSchema = z.object({
     cancellationPolicy: z.string().optional(),
 });
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -97,3 +99,5 @@ export async function POST(request: NextRequest) {
         },
     });
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const getHandler = async (
     _request: NextRequest,
@@ -25,5 +27,5 @@ const getHandler = async (
     }
 };
 
-export const GET = withRequestContext(getHandler);
+export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });
 

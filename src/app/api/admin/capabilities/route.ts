@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { buildAdminCapabilities } from '@/lib/admin/capabilities';
 import { auth } from '@/auth';
 import { resolveUserRole } from '@/lib/auth/roles';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { resolveDatabaseTargetInfo } from '@/lib/db/database-target';
 import logger from '@/lib/observability/logger';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
     try {
         const session = await auth();
         const role = resolveUserRole(session?.user?.email);
@@ -26,3 +28,5 @@ export async function GET() {
         return NextResponse.json({ success: false, error: 'Erro ao carregar capabilities' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

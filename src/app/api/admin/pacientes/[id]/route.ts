@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -80,7 +82,7 @@ export async function GET(
     }
 }
 
-export async function PATCH(
+async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -126,3 +128,6 @@ export async function PATCH(
         return NextResponse.json({ error: 'Erro ao atualizar paciente' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const PATCH = withRateLimit(withErrorBoundary(handlePatch), { max: 10, windowMs: 60_000 });

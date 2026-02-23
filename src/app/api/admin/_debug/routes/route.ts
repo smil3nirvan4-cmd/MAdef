@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 function collectRouteFiles(basePath: string, relative = ''): string[] {
     const absolute = path.join(basePath, relative);
@@ -59,7 +61,7 @@ function toPagePath(pageFileRelative: string): string {
     return normalized ? `/${normalized}` : '/';
 }
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
     const guard = await guardCapability('MANAGE_USERS');
     if (guard instanceof NextResponse) return guard;
 
@@ -108,3 +110,4 @@ export async function GET() {
     });
 }
 
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

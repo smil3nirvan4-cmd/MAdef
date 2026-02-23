@@ -3,12 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 function normalizePhone(raw: string) {
     return String(raw || '').replace(/\D/g, '');
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     try {
         const guard = await guardCapability('VIEW_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -102,3 +104,7 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao cancelar agendamento' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 5, windowMs: 60_000 });

@@ -6,6 +6,8 @@ import {
     extractPlaceholders,
     validateRequiredPlaceholders,
 } from '@/lib/contracts/template-engine';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const createTemplateSchema = z.object({
     unidadeId: z.string().min(1),
@@ -27,7 +29,7 @@ function parsePlaceholders(value: string | null): string[] {
     return [];
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
     });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -123,3 +125,6 @@ export async function POST(request: NextRequest) {
         },
     });
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

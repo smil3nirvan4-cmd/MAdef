@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function PATCH(
+async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -47,3 +49,5 @@ export async function PATCH(
         return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
     }
 }
+
+export const PATCH = withRateLimit(withErrorBoundary(handlePatch), { max: 10, windowMs: 60_000 });

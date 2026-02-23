@@ -5,8 +5,10 @@ import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('SEND_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -68,3 +70,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao processar broadcast' }, { status: 500 });
     }
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 3, windowMs: 300_000 });

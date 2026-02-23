@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { withRequestContext } from '@/lib/api/with-request-context';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
@@ -90,4 +92,4 @@ const postHandler = async (
     }
 };
 
-export const POST = withRequestContext(postHandler);
+export const POST = withRateLimit(withErrorBoundary(withRequestContext(postHandler)), { max: 10, windowMs: 60_000 });

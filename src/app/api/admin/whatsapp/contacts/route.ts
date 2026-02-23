@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 interface AdminWhatsappContact {
     telefone: string | null;
@@ -77,7 +79,7 @@ function dedupeContacts(rows: AdminWhatsappContact[]): AdminWhatsappContact[] {
     return deduped;
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     try {
         const guard = await guardCapability('VIEW_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -180,7 +182,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -219,3 +221,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao criar contato' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

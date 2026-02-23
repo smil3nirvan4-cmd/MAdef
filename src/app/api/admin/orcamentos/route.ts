@@ -6,6 +6,8 @@ import logger from '@/lib/observability/logger';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { computeInputHash } from '@/lib/pricing/input-hash';
 import { z } from 'zod';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const scenarioSnapshotSchema = z.object({
     input: z.unknown(),
@@ -62,7 +64,7 @@ function toJsonString(value: unknown): string | null {
     }
 }
 
-export async function GET() {
+async function handleGet() {
     const guard = await guardCapability('VIEW_ORCAMENTOS');
     if (guard instanceof NextResponse) {
         return guard;
@@ -90,7 +92,7 @@ export async function GET() {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) {
         return guard;
@@ -170,3 +172,6 @@ export async function POST(request: NextRequest) {
         });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

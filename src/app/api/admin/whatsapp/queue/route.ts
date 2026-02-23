@@ -7,6 +7,8 @@ import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { OUTBOX_INTENTS } from '@/lib/whatsapp/outbox/types';
 import { withRequestContext } from '@/lib/api/with-request-context';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { E, fail, ok, paginated } from '@/lib/api/response';
 import { parseFilter, parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
@@ -310,6 +312,6 @@ const patchHandler = async (request: NextRequest) => {
     }
 };
 
-export const GET = withRequestContext(getHandler);
-export const POST = withRequestContext(postHandler);
-export const PATCH = withRequestContext(patchHandler);
+export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(withRequestContext(postHandler)), { max: 10, windowMs: 60_000 });
+export const PATCH = withRateLimit(withErrorBoundary(withRequestContext(patchHandler)), { max: 10, windowMs: 60_000 });

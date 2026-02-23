@@ -7,8 +7,10 @@ import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function GET(
+async function handleGet(
     _request: NextRequest,
     { params }: { params: Promise<{ phone: string }> }
 ) {
@@ -52,7 +54,7 @@ export async function GET(
     }
 }
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ phone: string }> }
 ) {
@@ -152,3 +154,6 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Erro ao enfileirar mensagem' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

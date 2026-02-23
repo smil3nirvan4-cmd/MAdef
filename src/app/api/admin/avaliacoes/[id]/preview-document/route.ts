@@ -8,6 +8,8 @@ import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { renderCommercialMessage } from '@/lib/documents/commercial-message';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 type PreviewKind = 'proposta' | 'contrato';
 
@@ -32,7 +34,7 @@ function resolveMissingColumn(error: unknown): { table: string; column: string }
     };
 }
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
@@ -143,3 +145,5 @@ export async function POST(
         }, { status: 500 });
     }
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

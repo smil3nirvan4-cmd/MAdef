@@ -9,6 +9,8 @@ import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, ok } from '@/lib/api/response';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 function isMissingColumnError(error: unknown): boolean {
     return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === 'P2022');
@@ -26,7 +28,7 @@ function resolveMissingColumn(error: unknown): { table: string; column: string }
     };
 }
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -147,3 +149,5 @@ export async function POST(
         return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

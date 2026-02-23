@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 function parseJson<T = unknown>(value: string | null | undefined): T | null {
     if (!value) return null;
@@ -45,7 +47,7 @@ type ReportRow = {
     diseaseAddonLabel: string;
 };
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -287,3 +289,5 @@ export async function GET(request: NextRequest) {
         });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

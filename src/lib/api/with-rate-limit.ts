@@ -3,8 +3,8 @@ import { checkRateLimit, getClientIp } from './rate-limit';
 import { fail } from './response';
 import { E } from './error-codes';
 
-type RouteContext = { params: Promise<Record<string, string>> };
-type RouteHandler = (request: NextRequest, context?: RouteContext) => Promise<NextResponse>;
+type RouteContext = { params: Promise<Record<string, string | string[] | undefined>> };
+type RouteHandler = (request: NextRequest, context?: any) => Promise<NextResponse>;
 
 interface RateLimitOptions {
     /** Maximum requests allowed in the window */
@@ -22,7 +22,7 @@ interface RateLimitOptions {
 export function withRateLimit(handler: RouteHandler, options: RateLimitOptions): RouteHandler {
     return async (request: NextRequest, context?: RouteContext) => {
         const ip = getClientIp(request);
-        const prefix = options.prefix || request.nextUrl.pathname;
+        const prefix = options.prefix || request.nextUrl?.pathname || new URL(request.url).pathname;
         const key = `${prefix}:${ip}`;
 
         const result = checkRateLimit(key, options.max, options.windowMs);

@@ -3,8 +3,8 @@ import { fail, serverError } from './response';
 import { E } from './error-codes';
 import logger from '@/lib/observability/logger';
 
-type RouteContext = { params: Promise<Record<string, string>> };
-type RouteHandler = (request: NextRequest, context?: RouteContext) => Promise<NextResponse>;
+type RouteContext = { params: Promise<Record<string, string | string[] | undefined>> };
+type RouteHandler = (request: NextRequest, context?: any) => Promise<NextResponse>;
 
 /**
  * Wraps an API route handler with a consistent error boundary.

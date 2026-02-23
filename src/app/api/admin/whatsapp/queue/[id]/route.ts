@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
 import { withRequestContext } from '@/lib/api/with-request-context';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 
@@ -148,5 +150,5 @@ const postHandler = async (
     }
 };
 
-export const GET = withRequestContext(getHandler);
-export const POST = withRequestContext(postHandler);
+export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(withRequestContext(postHandler)), { max: 10, windowMs: 60_000 });

@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok } from '@/lib/api/response';
 import { getCapabilities, resolveUserRole } from '@/lib/auth/roles';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const getHandler = async (_request: NextRequest) => {
     const session = await auth();
@@ -19,4 +21,4 @@ const getHandler = async (_request: NextRequest) => {
     });
 };
 
-export const GET = withRequestContext(getHandler);
+export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });

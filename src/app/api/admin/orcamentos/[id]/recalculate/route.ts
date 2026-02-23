@@ -8,6 +8,8 @@ import { computeInputHash } from '@/lib/pricing/input-hash';
 import { calculateEnterprisePrice } from '@/lib/pricing/enterprise-engine';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 function parseJson<T = unknown>(value: string | null | undefined): T | null {
     if (!value) return null;
@@ -22,7 +24,7 @@ function round2(value: number): number {
     return Number(value.toFixed(2));
 }
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
@@ -223,3 +225,5 @@ export async function POST(
         diff: diffSnapshot,
     });
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

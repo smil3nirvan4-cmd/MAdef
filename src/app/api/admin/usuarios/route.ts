@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_USERS');
         if (guard instanceof NextResponse) return guard;
@@ -75,3 +77,5 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

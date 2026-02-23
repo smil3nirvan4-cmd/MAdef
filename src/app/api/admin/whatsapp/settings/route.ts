@@ -2,6 +2,8 @@
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const DEFAULT_SETTINGS: Record<string, string> = {
     autoReplyEnabled: 'true',
@@ -45,7 +47,7 @@ async function loadSettingsObject() {
     return settings;
 }
 
-export async function GET(_request: NextRequest) {
+async function handleGet(_request: NextRequest) {
     try {
         const guard = await guardCapability('VIEW_WHATSAPP');
         if (guard instanceof NextResponse) return guard;
@@ -68,7 +70,7 @@ export async function GET(_request: NextRequest) {
     }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
     try {
         const guard = await guardCapability('MANAGE_SETTINGS');
         if (guard instanceof NextResponse) return guard;
@@ -108,9 +110,13 @@ export async function PATCH(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
     const guard = await guardCapability('MANAGE_SETTINGS');
     if (guard instanceof NextResponse) return guard;
 
-    return PATCH(request);
+    return handlePatch(request);
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
+export const PATCH = withRateLimit(withErrorBoundary(handlePatch), { max: 10, windowMs: 60_000 });
+export const PUT = withRateLimit(withErrorBoundary(handlePut), { max: 10, windowMs: 60_000 });

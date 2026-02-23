@@ -1,9 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/observability/logger';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
     try {
         const guard = await guardCapability('VIEW_ANALYTICS');
         if (guard instanceof NextResponse) return guard;
@@ -82,3 +84,5 @@ export async function GET() {
         return NextResponse.json({ success: false, error: 'Erro ao carregar estatísticas' }, { status: 500 });
     }
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

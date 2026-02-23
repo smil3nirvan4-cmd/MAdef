@@ -7,8 +7,10 @@ import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { generatePropostaPDF } from '@/lib/documents/pdf-generator';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -64,4 +66,6 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Erro ao gerar proposta' }, { status: 500 });
     }
 }
+
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });
 

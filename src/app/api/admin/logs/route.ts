@@ -4,6 +4,8 @@ import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, paginated, ok } from '@/lib/api/response';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { withRequestContext } from '@/lib/api/with-request-context';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const SORTABLE_FIELDS = ['createdAt', 'type', 'action'] as const;
 
@@ -79,5 +81,5 @@ const deleteHandler = async (request: NextRequest) => {
     }
 };
 
-export const GET = withRequestContext(getHandler);
-export const DELETE = withRequestContext(deleteHandler);
+export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });
+export const DELETE = withRateLimit(withErrorBoundary(withRequestContext(deleteHandler)), { max: 5, windowMs: 60_000 });

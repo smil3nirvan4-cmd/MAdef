@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 import {
     type PricingCalculationInput,
     type PricingCalculationOutput,
@@ -125,7 +127,7 @@ interface ScenarioSnapshot {
     moeda: string;
 }
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
@@ -202,3 +204,5 @@ export async function GET(
         metadados,
     });
 }
+
+export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });

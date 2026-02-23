@@ -4,6 +4,8 @@ import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok, paginated } from '@/lib/api/response';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 
 const SORTABLE_FIELDS = ['createdAt', 'status'] as const;
 
@@ -126,5 +128,5 @@ const postHandler = async (request: NextRequest) => {
     }
 };
 
-export const GET = withRequestContext(getHandler);
-export const POST = withRequestContext(postHandler);
+export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });
+export const POST = withRateLimit(withErrorBoundary(withRequestContext(postHandler)), { max: 10, windowMs: 60_000 });
