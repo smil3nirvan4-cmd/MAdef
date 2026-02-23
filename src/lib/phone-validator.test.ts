@@ -12,10 +12,12 @@ describe('phone-validator', () => {
         expect(toJid('(11) 98556-8208')).toBe('5511985568208@s.whatsapp.net');
     });
 
-    it('rejects truncated mobile number with only 8 digits after DDD', () => {
+    it('auto-corrects truncated mobile number with only 8 digits after DDD', () => {
         const result = validateBrazilianPhone('551198556801');
-        expect(result.isValid).toBe(false);
-        expect(result.error).toContain('Celular deve ter 9 digitos');
+        expect(result.isValid).toBe(true);
+        expect(result.corrected).toBe(true);
+        expect(result.number).toBe('998556801');
+        expect(result.type).toBe('celular');
     });
 
     it('normalizes outbound target to canonical @s.whatsapp.net jid', () => {
