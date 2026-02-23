@@ -8,6 +8,7 @@ import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, ok } from '@/lib/api/response';
+import { NotFoundError } from '@/lib/errors';
 import { parseBody } from '@/lib/api/parse-body';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
@@ -39,123 +40,117 @@ async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('SEND_PROPOSTA');
+    if (guard instanceof NextResponse) {
+        return guard;
+    }
+
+    const { id: avaliacaoId } = await params;
+    const { data: body, error } = await parseBody(request, sendPropostaSchema);
+    if (error) return error;
+    let sendOptions;
     try {
-        const guard = await guardCapability('SEND_PROPOSTA');
-        if (guard instanceof NextResponse) {
-            return guard;
-        }
-
-        const { id: avaliacaoId } = await params;
-        const { data: body, error } = await parseBody(request, sendPropostaSchema);
-        if (error) return error;
-        let sendOptions;
-        try {
-            sendOptions = parseOrcamentoSendOptions(body);
-        } catch (error) {
-            return fail(E.VALIDATION_ERROR, error instanceof Error ? error.message : 'Opcoes de envio invalidas', {
-                status: 400,
-            });
-        }
-
-        const avaliacao = await prisma.avaliacao.findUnique({
-            where: { id: avaliacaoId },
-            include: { paciente: true },
+        sendOptions = parseOrcamentoSendOptions(body);
+    } catch (error) {
+        return fail(E.VALIDATION_ERROR, error instanceof Error ? error.message : 'Opcoes de envio invalidas', {
+            status: 400,
         });
+    }
 
-        if (!avaliacao) {
-            return fail(E.NOT_FOUND, 'Avaliacao nao encontrada', { status: 404 });
-        }
+    const avaliacao = await prisma.avaliacao.findUnique({
+        where: { id: avaliacaoId },
+        include: { paciente: true },
+    });
 
-        const schemaCapabilities = await getDbSchemaCapabilities();
-        if (!schemaCapabilities.dbSchemaOk) {
-            await logger.warning('db_schema_drift', 'Schema desatualizado ao consultar Orcamento para envio de proposta', {
+    if (!avaliacao) {
+        throw new NotFoundError('Avaliacao', avaliacaoId);
+    }
+
+    const schemaCapabilities = await getDbSchemaCapabilities();
+    if (!schemaCapabilities.dbSchemaOk) {
+        await logger.warning('db_schema_drift', 'Schema desatualizado ao consultar Orcamento para envio de proposta', {
+            table: 'Orcamento',
+            column: 'auditHash',
+            missingColumns: schemaCapabilities.missingColumns,
+        });
+        return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
+            status: 503,
+            details: {
+                action: 'db_schema_drift',
                 table: 'Orcamento',
                 column: 'auditHash',
                 missingColumns: schemaCapabilities.missingColumns,
-            });
-            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
-                status: 503,
-                details: {
-                    action: 'db_schema_drift',
-                    table: 'Orcamento',
-                    column: 'auditHash',
-                    missingColumns: schemaCapabilities.missingColumns,
-                },
-            });
-        }
+            },
+        });
+    }
 
-        let orcamento;
-        try {
-            orcamento = body?.orcamentoId
-                ? await prisma.orcamento.findUnique({ where: { id: String(body.orcamentoId) } })
-                : await prisma.orcamento.findFirst({
-                    where: { pacienteId: avaliacao.pacienteId },
-                    orderBy: { createdAt: 'desc' },
-                });
-        } catch (queryError) {
-            if (!isMissingColumnError(queryError)) throw queryError;
-            const resolved = resolveMissingColumn(queryError);
-            await logger.warning('db_schema_drift', 'P2022 ao consultar Orcamento para envio de proposta', {
+    let orcamento;
+    try {
+        orcamento = body?.orcamentoId
+            ? await prisma.orcamento.findUnique({ where: { id: String(body.orcamentoId) } })
+            : await prisma.orcamento.findFirst({
+                where: { pacienteId: avaliacao.pacienteId },
+                orderBy: { createdAt: 'desc' },
+            });
+    } catch (queryError) {
+        if (!isMissingColumnError(queryError)) throw queryError;
+        const resolved = resolveMissingColumn(queryError);
+        await logger.warning('db_schema_drift', 'P2022 ao consultar Orcamento para envio de proposta', {
+            table: resolved.table,
+            column: resolved.column,
+            avaliacaoId,
+        });
+        return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
+            status: 503,
+            details: {
+                action: 'db_schema_drift',
                 table: resolved.table,
                 column: resolved.column,
-                avaliacaoId,
-            });
-            return fail(E.DATABASE_ERROR, 'Schema do banco desatualizado para Orcamento. Aplique as migrations pendentes.', {
-                status: 503,
-                details: {
-                    action: 'db_schema_drift',
-                    table: resolved.table,
-                    column: resolved.column,
-                },
-            });
-        }
-
-        if (!orcamento) {
-            return fail(E.NOT_FOUND, 'Orcamento nao encontrado para esta avaliacao', { status: 404 });
-        }
-
-        const enqueue = await enqueueWhatsAppPropostaJob({
-            phone: avaliacao.paciente.telefone,
-            orcamentoId: orcamento.id,
-            context: {
-                source: 'admin_send_proposta',
-                avaliacaoId,
-                pacienteId: avaliacao.pacienteId,
-                orcamentoId: orcamento.id,
-                sendOptions,
             },
-            metadata: {
-                tipo: 'PROPOSTA',
-                avaliacaoId,
-                orcamentoId: orcamento.id,
-                sendOptions,
-            },
-            idempotencyKey: body?.idempotencyKey,
         });
+    }
 
-        const worker = await processWhatsAppOutboxOnce({ limit: 10 });
-        const queueItem = await prisma.whatsAppQueueItem.findUnique({ where: { id: enqueue.queueItemId } });
+    if (!orcamento) {
+        throw new NotFoundError('Orcamento');
+    }
 
-        await logger.whatsapp('avaliacao_send_proposta_enqueued', `Proposta enfileirada para avaliacao ${avaliacaoId}`, {
+    const enqueue = await enqueueWhatsAppPropostaJob({
+        phone: avaliacao.paciente.telefone,
+        orcamentoId: orcamento.id,
+        context: {
+            source: 'admin_send_proposta',
+            avaliacaoId,
+            pacienteId: avaliacao.pacienteId,
+            orcamentoId: orcamento.id,
+            sendOptions,
+        },
+        metadata: {
+            tipo: 'PROPOSTA',
             avaliacaoId,
             orcamentoId: orcamento.id,
-            queueItemId: enqueue.queueItemId,
-            status: queueItem?.status || 'pending',
-        });
+            sendOptions,
+        },
+        idempotencyKey: body?.idempotencyKey,
+    });
 
-        return ok({
-            queued: true,
-            queueItemId: enqueue.queueItemId,
-            status: queueItem?.status || 'pending',
-            providerMessageId: queueItem?.providerMessageId || null,
-            internalMessageId: enqueue.internalMessageId,
-            worker,
-        });
-    } catch (error) {
-        await logger.error('send_proposta_error', 'Erro ao enfileirar proposta', error instanceof Error ? error : undefined);
-        const message = error instanceof Error ? error.message : 'Erro ao enfileirar proposta';
-        return fail(E.DATABASE_ERROR, message, { status: 500 });
-    }
+    const worker = await processWhatsAppOutboxOnce({ limit: 10 });
+    const queueItem = await prisma.whatsAppQueueItem.findUnique({ where: { id: enqueue.queueItemId } });
+
+    await logger.whatsapp('avaliacao_send_proposta_enqueued', `Proposta enfileirada para avaliacao ${avaliacaoId}`, {
+        avaliacaoId,
+        orcamentoId: orcamento.id,
+        queueItemId: enqueue.queueItemId,
+        status: queueItem?.status || 'pending',
+    });
+
+    return ok({
+        queued: true,
+        queueItemId: enqueue.queueItemId,
+        status: queueItem?.status || 'pending',
+        providerMessageId: queueItem?.providerMessageId || null,
+        internalMessageId: enqueue.internalMessageId,
+        worker,
+    });
 }
 
 export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowMs: 60_000 });

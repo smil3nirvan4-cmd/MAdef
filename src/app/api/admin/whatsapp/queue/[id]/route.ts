@@ -8,7 +8,8 @@ import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
-import { E, fail, ok } from '@/lib/api/response';
+import { ok } from '@/lib/api/response';
+import { NotFoundError } from '@/lib/errors';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { parseBody } from '@/lib/api/parse-body';
 
@@ -38,117 +39,104 @@ const getHandler = async (
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    try {
-        const guard = await guardCapability('VIEW_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
+    const { id } = await params;
 
-        const item = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
-        if (!item) {
-            return fail(E.NOT_FOUND, 'Queue item not found', { status: 404 });
-        }
-
-        const payload = parsePayload(item.payload);
-        const resolvedMessageId = item.providerMessageId || item.internalMessageId || payload?.resolvedMessageId || null;
-        const correlationTerms = buildQueueCorrelationTerms({
-            queueItemId: id,
-            internalMessageId: item.internalMessageId || payload?.internalMessageId,
-            idempotencyKey: item.idempotencyKey || payload?.idempotencyKey,
-            providerMessageId: item.providerMessageId || payload?.providerMessageId,
-            resolvedMessageId,
-            phone: item.phone || payload?.phone || payload?.to || null,
-            jid: payload?.jid || null,
-        });
-
-        const logs = correlationTerms.length
-            ? await prisma.systemLog.findMany({
-                where: {
-                    OR: correlationTerms.map((term) => ({ metadata: { contains: term } })),
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 100,
-            })
-            : [];
-
-        const timeline = [
-            { event: 'created', status: 'pending', at: item.createdAt },
-            ...(item.lastAttemptAt ? [{ event: 'attempt', status: 'sending', at: item.lastAttemptAt }] : []),
-            ...(item.sentAt ? [{ event: 'sent', status: 'sent', at: item.sentAt }] : []),
-            ...((item.status === 'dead' || item.status === 'canceled' || item.status === 'retrying')
-                ? [{ event: item.status, status: item.status, at: item.updatedAt }]
-                : []),
-        ];
-
-        return ok({
-            item: {
-                ...item,
-                intent: String(payload?.intent || 'UNKNOWN'),
-                preview: parsePreview(item.payload),
-                payloadParsed: payload,
-                resolvedMessageId,
-            },
-            timeline,
-            logs,
-        });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Erro ao carregar queue item';
-        return fail(E.DATABASE_ERROR, message, { status: 500 });
+    const item = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
+    if (!item) {
+        throw new NotFoundError('Queue item', id);
     }
+
+    const payload = parsePayload(item.payload);
+    const resolvedMessageId = item.providerMessageId || item.internalMessageId || payload?.resolvedMessageId || null;
+    const correlationTerms = buildQueueCorrelationTerms({
+        queueItemId: id,
+        internalMessageId: item.internalMessageId || payload?.internalMessageId,
+        idempotencyKey: item.idempotencyKey || payload?.idempotencyKey,
+        providerMessageId: item.providerMessageId || payload?.providerMessageId,
+        resolvedMessageId,
+        phone: item.phone || payload?.phone || payload?.to || null,
+        jid: payload?.jid || null,
+    });
+
+    const logs = correlationTerms.length
+        ? await prisma.systemLog.findMany({
+            where: {
+                OR: correlationTerms.map((term) => ({ metadata: { contains: term } })),
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+        })
+        : [];
+
+    const timeline = [
+        { event: 'created', status: 'pending', at: item.createdAt },
+        ...(item.lastAttemptAt ? [{ event: 'attempt', status: 'sending', at: item.lastAttemptAt }] : []),
+        ...(item.sentAt ? [{ event: 'sent', status: 'sent', at: item.sentAt }] : []),
+        ...((item.status === 'dead' || item.status === 'canceled' || item.status === 'retrying')
+            ? [{ event: item.status, status: item.status, at: item.updatedAt }]
+            : []),
+    ];
+
+    return ok({
+        item: {
+            ...item,
+            intent: String(payload?.intent || 'UNKNOWN'),
+            preview: parsePreview(item.payload),
+            payloadParsed: payload,
+            resolvedMessageId,
+        },
+        timeline,
+        logs,
+    });
 };
 
 const postHandler = async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    try {
-        const guard = await guardCapability('MANAGE_WHATSAPP');
-        if (guard instanceof NextResponse) return guard;
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const { id } = await params;
-        const { data: parsed, error: parseError } = await parseBody(request, actionSchema);
-        if (parseError) return parseError;
+    const { id } = await params;
+    const { data: parsed, error: parseError } = await parseBody(request, actionSchema);
+    if (parseError) return parseError;
 
-        const current = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
-        if (!current) {
-            return fail(E.NOT_FOUND, 'Queue item not found', { status: 404 });
-        }
+    const current = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
+    if (!current) {
+        throw new NotFoundError('Queue item', id);
+    }
 
-        if (parsed.action === 'reprocess') {
-            await prisma.whatsAppQueueItem.update({
-                where: { id },
-                data: {
-                    status: 'pending',
-                    error: null,
-                    scheduledAt: null,
-                },
-            });
-            const worker = await processWhatsAppOutboxOnce({ limit: 20 });
-            const updated = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
-            return ok({ item: updated, worker });
-        }
-
-        if (parsed.action === 'cancel') {
-            const updated = await prisma.whatsAppQueueItem.update({
-                where: { id },
-                data: {
-                    status: 'canceled',
-                    scheduledAt: null,
-                },
-            });
-            return ok({ item: updated });
-        }
-
+    if (parsed.action === 'reprocess') {
+        await prisma.whatsAppQueueItem.update({
+            where: { id },
+            data: {
+                status: 'pending',
+                error: null,
+                scheduledAt: null,
+            },
+        });
         const worker = await processWhatsAppOutboxOnce({ limit: 20 });
         const updated = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
         return ok({ item: updated, worker });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return fail(E.VALIDATION_ERROR, 'Payload invalido', { status: 400, details: error.flatten() });
-        }
-        const message = error instanceof Error ? error.message : 'Erro ao executar acao no queue item';
-        return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
+
+    if (parsed.action === 'cancel') {
+        const updated = await prisma.whatsAppQueueItem.update({
+            where: { id },
+            data: {
+                status: 'canceled',
+                scheduledAt: null,
+            },
+        });
+        return ok({ item: updated });
+    }
+
+    const worker = await processWhatsAppOutboxOnce({ limit: 20 });
+    const updated = await prisma.whatsAppQueueItem.findUnique({ where: { id } });
+    return ok({ item: updated, worker });
 };
 
 export const GET = withRateLimit(withErrorBoundary(withRequestContext(getHandler)), { max: 30, windowMs: 60_000 });

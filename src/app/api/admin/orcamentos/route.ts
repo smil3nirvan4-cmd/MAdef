@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { E, fail } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { prisma } from '@/lib/prisma';
-import logger from '@/lib/observability/logger';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { computeInputHash } from '@/lib/pricing/input-hash';
 import { z } from 'zod';
@@ -71,26 +69,21 @@ async function handleGet() {
         return guard;
     }
 
-    try {
-        const orcamentos = await prisma.orcamento.findMany({
-            include: {
-                paciente: {
-                    select: {
-                        id: true,
-                        nome: true,
-                        telefone: true,
-                    },
+    const orcamentos = await prisma.orcamento.findMany({
+        include: {
+            paciente: {
+                select: {
+                    id: true,
+                    nome: true,
+                    telefone: true,
                 },
             },
-            orderBy: { createdAt: 'desc' },
-            take: 100,
-        });
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+    });
 
-        return NextResponse.json({ success: true, data: orcamentos, orcamentos });
-    } catch (error) {
-        await logger.error('orcamento_fetch_error', 'Error fetching orcamentos', error instanceof Error ? error : undefined);
-        return fail(E.DATABASE_ERROR, 'Erro ao buscar orcamentos', { status: 500 });
-    }
+    return NextResponse.json({ success: true, data: orcamentos, orcamentos });
 }
 
 async function handlePost(request: NextRequest) {
@@ -99,73 +92,65 @@ async function handlePost(request: NextRequest) {
         return guard;
     }
 
-    try {
-        const { data: parsedData, error } = await parseBody(request, createOrcamentoSchema);
-        if (error) return error;
+    const { data: parsedData, error } = await parseBody(request, createOrcamentoSchema);
+    if (error) return error;
 
-        const data = parsedData;
-        const selectedScenario = parseScenarioKey(data.cenarioSelecionado);
-        const scenarioSnapshot = data.snapshotsByScenario?.[selectedScenario];
-        const fallbackConfig = (!data.unidadeId || !data.configVersionId || !data.moeda)
-            ? await getPricingConfigSnapshot()
-            : null;
-        const unidadeId = data.unidadeId ?? scenarioSnapshot?.unidadeId ?? fallbackConfig?.unidadeId ?? null;
-        const configVersionId = data.configVersionId ?? scenarioSnapshot?.configVersionId ?? fallbackConfig?.configVersionId ?? null;
-        const moeda = data.moeda ?? scenarioSnapshot?.moeda ?? fallbackConfig?.currency ?? 'BRL';
-        const snapshotInput = data.snapshotInput ?? toJsonString(scenarioSnapshot?.input);
-        const snapshotOutput = data.snapshotOutput ?? toJsonString(scenarioSnapshot?.output);
-        const planningInput = toJsonString(data.planningInput);
-        const normalizedSchedule = toJsonString(data.normalizedSchedule);
-        const pricingBreakdown = toJsonString(data.pricingBreakdown);
-        const engineVersion = data.engineVersion ?? null;
-        const calculationHash = data.calculationHash ?? computeInputHash({
+    const data = parsedData;
+    const selectedScenario = parseScenarioKey(data.cenarioSelecionado);
+    const scenarioSnapshot = data.snapshotsByScenario?.[selectedScenario];
+    const fallbackConfig = (!data.unidadeId || !data.configVersionId || !data.moeda)
+        ? await getPricingConfigSnapshot()
+        : null;
+    const unidadeId = data.unidadeId ?? scenarioSnapshot?.unidadeId ?? fallbackConfig?.unidadeId ?? null;
+    const configVersionId = data.configVersionId ?? scenarioSnapshot?.configVersionId ?? fallbackConfig?.configVersionId ?? null;
+    const moeda = data.moeda ?? scenarioSnapshot?.moeda ?? fallbackConfig?.currency ?? 'BRL';
+    const snapshotInput = data.snapshotInput ?? toJsonString(scenarioSnapshot?.input);
+    const snapshotOutput = data.snapshotOutput ?? toJsonString(scenarioSnapshot?.output);
+    const planningInput = toJsonString(data.planningInput);
+    const normalizedSchedule = toJsonString(data.normalizedSchedule);
+    const pricingBreakdown = toJsonString(data.pricingBreakdown);
+    const engineVersion = data.engineVersion ?? null;
+    const calculationHash = data.calculationHash ?? computeInputHash({
+        snapshotInput,
+        snapshotOutput,
+        planningInput,
+        normalizedSchedule,
+        pricingBreakdown,
+        configVersionId,
+        selectedScenario,
+    });
+
+    const orcamento = await prisma.orcamento.create({
+        data: {
+            pacienteId: data.pacienteId,
+            unidadeId,
+            configVersionId,
+            avaliacaoId: data.avaliacaoId ?? null,
+            cenarioEconomico: data.cenarioEconomico ?? null,
+            cenarioRecomendado: data.cenarioRecomendado ?? null,
+            cenarioPremium: data.cenarioPremium ?? null,
+            cenarioSelecionado: selectedScenario,
+            valorFinal: data.valorFinal ?? null,
             snapshotInput,
             snapshotOutput,
             planningInput,
             normalizedSchedule,
             pricingBreakdown,
-            configVersionId,
-            selectedScenario,
-        });
+            engineVersion,
+            calculationHash,
+            descontoManualPercent: data.descontoManualPercent ?? null,
+            minicustosDesativados: data.minicustosDesativados?.length
+                ? JSON.stringify(data.minicustosDesativados)
+                : null,
+            moeda,
+            status: data.status,
+        },
+        include: {
+            paciente: true,
+        },
+    });
 
-        const orcamento = await prisma.orcamento.create({
-            data: {
-                pacienteId: data.pacienteId,
-                unidadeId,
-                configVersionId,
-                avaliacaoId: data.avaliacaoId ?? null,
-                cenarioEconomico: data.cenarioEconomico ?? null,
-                cenarioRecomendado: data.cenarioRecomendado ?? null,
-                cenarioPremium: data.cenarioPremium ?? null,
-                cenarioSelecionado: selectedScenario,
-                valorFinal: data.valorFinal ?? null,
-                snapshotInput,
-                snapshotOutput,
-                planningInput,
-                normalizedSchedule,
-                pricingBreakdown,
-                engineVersion,
-                calculationHash,
-                descontoManualPercent: data.descontoManualPercent ?? null,
-                minicustosDesativados: data.minicustosDesativados?.length
-                    ? JSON.stringify(data.minicustosDesativados)
-                    : null,
-                moeda,
-                status: data.status,
-            },
-            include: {
-                paciente: true,
-            },
-        });
-
-        return NextResponse.json({ success: true, data: orcamento, orcamento });
-    } catch (error) {
-        await logger.error('orcamento_create_error', 'Error creating orcamento', error instanceof Error ? error : undefined);
-        return fail(E.DATABASE_ERROR, 'Erro ao criar orcamento', {
-            status: 500,
-            details: error instanceof Error ? error.message : undefined,
-        });
-    }
+    return NextResponse.json({ success: true, data: orcamento, orcamento });
 }
 
 export const GET = withRateLimit(withErrorBoundary(handleGet), { max: 30, windowMs: 60_000 });
