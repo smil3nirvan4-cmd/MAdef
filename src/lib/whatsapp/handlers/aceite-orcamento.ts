@@ -2,6 +2,7 @@ import { assertPublicUrl } from '@/lib/config/public-url';
 import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
+import logger from '@/lib/observability/logger';
 
 export async function handleAceiteOrcamento(
     message: WhatsAppMessage,
@@ -61,7 +62,7 @@ Após assinar no site, digite *JÁ ASSINEI* aqui para liberarmos o início do at
                 }
             });
         } catch (error) {
-            console.error('Erro ao gerar contrato:', error);
+            logger.error('aceite_orcamento.contrato', 'Erro ao gerar contrato', error instanceof Error ? error : { error }, { module: 'aceite-orcamento' });
             await sendMessage(from, '❌ Erro ao gerar contrato. Nossa equipe entrará em contato manualmente.');
         }
         return;

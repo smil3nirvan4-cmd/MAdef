@@ -2,6 +2,7 @@ import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
 import { prisma } from '@/lib/db';
+import logger from '@/lib/observability/logger';
 
 /**
  * Handler para processar confirmação ou recusa de proposta
@@ -15,7 +16,7 @@ export async function handleConfirmacaoProposta(
     const phone = from.replace('@s.whatsapp.net', '').replace('@lid', '');
     const texto = body.trim().toLowerCase();
 
-    console.log(`📋 [Proposta] Processando resposta de ${phone}: "${texto}"`);
+    logger.whatsapp('proposta.resposta', `Processando resposta de ${phone}`, { module: 'confirmacao-proposta', phone, texto });
 
     // Verificar se é confirmação
     if (texto === 'confirmo' || texto === 'aceito' || texto === 'sim' || texto === 'ok') {
@@ -26,7 +27,7 @@ export async function handleConfirmacaoProposta(
                 data: { status: 'PROPOSTA_ACEITA' }
             });
 
-            console.log(`✅ [Proposta] Proposta ACEITA pelo paciente ${paciente.id}`);
+            logger.info('proposta.aceita', `Proposta ACEITA pelo paciente ${paciente.id}`, { module: 'confirmacao-proposta', pacienteId: paciente.id });
 
             await sendMessage(from, `
 ✅ *Proposta Confirmada!*
@@ -49,7 +50,7 @@ Se tiver dúvidas, digite *AJUDA*.
             });
 
         } catch (error) {
-            console.error('❌ [Proposta] Erro ao processar confirmação:', error);
+            logger.error('proposta.aceita', 'Erro ao processar confirmacao', error instanceof Error ? error : { error }, { module: 'confirmacao-proposta' });
             await sendMessage(from, 'Ocorreu um erro ao processar sua confirmação. Por favor, tente novamente ou digite AJUDA.');
         }
         return;
@@ -63,7 +64,7 @@ Se tiver dúvidas, digite *AJUDA*.
                 data: { status: 'PROPOSTA_RECUSADA' }
             });
 
-            console.log(`❌ [Proposta] Proposta RECUSADA pelo paciente ${paciente.id}`);
+            logger.info('proposta.recusada', `Proposta RECUSADA pelo paciente ${paciente.id}`, { module: 'confirmacao-proposta', pacienteId: paciente.id });
 
             await sendMessage(from, `
 Entendemos sua decisão.
@@ -83,7 +84,7 @@ Digite *MENU* para ver opções ou *AJUDA* para falar com um atendente.
             });
 
         } catch (error) {
-            console.error('❌ [Proposta] Erro ao processar recusa:', error);
+            logger.error('proposta.recusada', 'Erro ao processar recusa', error instanceof Error ? error : { error }, { module: 'confirmacao-proposta' });
         }
         return;
     }
@@ -109,7 +110,7 @@ export async function handleAssinaturaContrato(
     const phone = from.replace('@s.whatsapp.net', '').replace('@lid', '');
     const texto = body.trim().toLowerCase();
 
-    console.log(`📝 [Contrato] Processando resposta de ${phone}: "${texto}"`);
+    logger.whatsapp('contrato.resposta', `Processando resposta de ${phone}`, { module: 'confirmacao-proposta', phone, texto });
 
     if (texto === 'assinado' || texto === 'assinei' || texto === 'pronto') {
         try {
@@ -118,7 +119,7 @@ export async function handleAssinaturaContrato(
                 data: { status: 'ATIVO' }
             });
 
-            console.log(`🎉 [Contrato] Cliente ${paciente.id} agora é ATIVO!`);
+            logger.info('contrato.ativo', `Cliente ${paciente.id} agora e ATIVO`, { module: 'confirmacao-proposta', pacienteId: paciente.id });
 
             await sendMessage(from, `
 🎉 *Bem-vindo à família Mãos Amigas!*
@@ -143,7 +144,7 @@ Digite *MENU* para ver suas opções ou *AJUDA* se precisar de algo.
             });
 
         } catch (error) {
-            console.error('❌ [Contrato] Erro ao ativar cliente:', error);
+            logger.error('contrato.ativo', 'Erro ao ativar cliente', error instanceof Error ? error : { error }, { module: 'confirmacao-proposta' });
         }
         return;
     }

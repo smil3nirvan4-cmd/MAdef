@@ -2,6 +2,7 @@ import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState, acquireSlotLock } from '../state-manager';
 import { sendMessage } from '../client';
 import { prisma } from '@/lib/prisma';
+import logger from '@/lib/observability/logger';
 
 export async function handleEscolhaSlot(
     message: WhatsAppMessage,
@@ -84,7 +85,7 @@ Seja bem-vindo(a) à equipe! 🤝
         });
 
     } catch (error) {
-        console.error('Erro ao processar escolha de slot:', error);
+        logger.error('escolha_slot.process', 'Erro ao processar escolha de slot', error instanceof Error ? error : { error }, { module: 'escolha-slot' });
         await sendMessage(from, '❌ Desculpe, ocorreu um erro ao processar sua escolha. Tente novamente.');
     }
 }

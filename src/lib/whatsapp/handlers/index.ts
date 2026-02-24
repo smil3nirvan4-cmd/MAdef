@@ -316,7 +316,7 @@ Horário: Seg-Sex, 8h-18h
 Um atendente entrará em contato em breve!
   `.trim());
 
-    console.log(`📞 [AJUDA] Usuário ${replyJid} solicitou falar com atendente`);
+    logger.info('admin.help', `Usuario ${replyJid} solicitou falar com atendente`, { module: 'handlers', replyJid });
     await notifyAdminHelp(replyJid);
 }
 
