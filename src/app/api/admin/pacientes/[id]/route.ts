@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { pacienteRepository } from '@/lib/repositories/paciente.repository';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
@@ -15,49 +15,17 @@ async function handleGet(
     if (guard instanceof NextResponse) return guard;
 
     const { id } = await params;
-    const paciente = await prisma.paciente.findUnique({
-        where: { id },
-        include: {
-            avaliacoes: {
-                orderBy: { createdAt: 'desc' },
-                take: 20
-            },
-            orcamentos: {
-                orderBy: { createdAt: 'desc' },
-                take: 10
-            },
-            alocacoes: {
-                include: { cuidador: true },
-                orderBy: { createdAt: 'desc' },
-                take: 10
-            },
-            mensagens: {
-                orderBy: { timestamp: 'desc' },
-                take: 100
-            }
-        }
-    });
+    const paciente = await pacienteRepository.findById(id);
 
     if (!paciente) {
         return fail(E.NOT_FOUND, 'Paciente não encontrado', { status: 404 });
     }
 
     // Buscar mensagens adicionais pelo telefone (caso não estejam linkadas por pacienteId)
-    const mensagensPorTelefone = await prisma.mensagem.findMany({
-        where: {
-            telefone: paciente.telefone,
-            pacienteId: null // Apenas mensagens não linkadas
-        },
-        orderBy: { timestamp: 'desc' },
-        take: 100
-    });
+    const mensagensPorTelefone = await pacienteRepository.findUnlinkedMessages(paciente.telefone);
 
     // Buscar submissões de formulário pelo telefone
-    const formSubmissions = await prisma.formSubmission.findMany({
-        where: { telefone: paciente.telefone },
-        orderBy: { createdAt: 'desc' },
-        take: 10
-    });
+    const formSubmissions = await pacienteRepository.findFormSubmissions(paciente.telefone);
 
     // Combinar mensagens (linkadas + por telefone)
     const todasMensagens = [
@@ -101,36 +69,25 @@ async function handlePatch(
     const body = await parseBody(request, patchSchema);
     if (isFailResponse(body)) return body;
 
-    const existing = await prisma.paciente.findUnique({ where: { id } });
+    const existing = await pacienteRepository.findById(id);
     if (!existing) {
         return fail(E.NOT_FOUND, 'Paciente não encontrado', { status: 404 });
     }
 
-    const paciente = await prisma.paciente.update({
-        where: { id },
-        data: {
-            ...(body.nome && { nome: body.nome }),
-            ...(body.cidade && { cidade: body.cidade }),
-            ...(body.bairro && { bairro: body.bairro }),
-            ...(body.tipo && { tipo: body.tipo }),
-            ...(body.hospital && { hospital: body.hospital }),
-            ...(body.quarto && { quarto: body.quarto }),
-            ...(body.status && { status: body.status }),
-            ...(body.prioridade && { prioridade: body.prioridade }),
-        }
+    await pacienteRepository.update(id, {
+        ...(body.nome && { nome: body.nome }),
+        ...(body.cidade && { cidade: body.cidade }),
+        ...(body.bairro && { bairro: body.bairro }),
+        ...(body.tipo && { tipo: body.tipo }),
+        ...(body.hospital && { hospital: body.hospital }),
+        ...(body.quarto && { quarto: body.quarto }),
+        ...(body.status && { status: body.status }),
+        ...(body.prioridade && { prioridade: body.prioridade }),
     });
 
-    const pacienteCompleto = await prisma.paciente.findUnique({
-        where: { id },
-        include: {
-            avaliacoes: { orderBy: { createdAt: 'desc' }, take: 20 },
-            orcamentos: { orderBy: { createdAt: 'desc' }, take: 20 },
-            alocacoes: { include: { cuidador: true }, orderBy: { createdAt: 'desc' }, take: 20 },
-            mensagens: { orderBy: { timestamp: 'desc' }, take: 100 },
-        },
-    });
+    const pacienteCompleto = await pacienteRepository.findById(id);
 
-    return ok({ paciente: pacienteCompleto || paciente });
+    return ok({ paciente: pacienteCompleto });
 }
 
 export const GET = withErrorBoundary(handleGet);

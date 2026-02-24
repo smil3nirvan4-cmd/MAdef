@@ -17,10 +17,13 @@ model Cuidador {
   scoreRH      Int?
   competencias String?
   endereco     String?
+  deletedAt    DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   alocacoes    Alocacao[]
   mensagens    Mensagem[]
+
+  @@index([deletedAt])
 }
 
 model Paciente {
@@ -35,6 +38,7 @@ model Paciente {
   status     String               @default("LEAD")
   prioridade String               @default("NORMAL")
   gqpScore   Int?
+  deletedAt  DateTime?
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   alocacoes  Alocacao[]
@@ -42,6 +46,8 @@ model Paciente {
   mensagens  Mensagem[]
   orcamentos Orcamento[]
   simulacoes OrcamentoSimulacao[]
+
+  @@index([deletedAt])
 }
 
 model Mensagem {
@@ -72,6 +78,7 @@ model Avaliacao {
   avaliadorId     String?
   validadoEm      DateTime?
   status          String    @default("PENDENTE")
+  deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   paciente        Paciente  @relation(fields: [pacienteId], references: [id])
   dadosDetalhados String? // JSON com discovery, patient, clinical, abemid, etc
@@ -93,6 +100,7 @@ model Orcamento {
   unidadeId             String?
   configVersionId       String?
   avaliacaoId           String?
+  deletedAt             DateTime?
   cenarioEconomico      String?
   cenarioRecomendado    String?
   cenarioPremium        String?
@@ -141,6 +149,7 @@ model Alocacao {
   hospital      String?
   quarto        String?
   status        String    @default("PENDENTE_FEEDBACK")
+  deletedAt     DateTime?
   ofertadoEm    DateTime  @default(now())
   respondidoEm  DateTime?
   confirmadoT24 DateTime?
@@ -652,6 +661,26 @@ model OrcamentoAuditLog {
   @@index([configVersionId, createdAt])
   @@index([acao, createdAt])
   @@index([status, createdAt])
+  @@index([requestId])
+}
+
+// ==========================================
+// AUDIT LOG
+// ==========================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  entity    String
+  entityId  String
+  action    String   // CREATE, UPDATE, DELETE, ANONYMIZE
+  changes   String?  // JSON diff of changes
+  userId    String?
+  requestId String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@index([userId])
   @@index([requestId])
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { cuidadorRepository } from '@/lib/repositories/cuidador.repository';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
@@ -20,13 +20,7 @@ async function handleGet(
     if (guard instanceof NextResponse) return guard;
 
     const { id } = await params;
-    const cuidador = await prisma.cuidador.findUnique({
-        where: { id },
-        include: {
-            mensagens: { orderBy: { timestamp: 'desc' }, take: 50 },
-            alocacoes: { include: { paciente: true }, orderBy: { createdAt: 'desc' }, take: 20 }
-        }
-    });
+    const cuidador = await cuidadorRepository.findById(id);
     if (!cuidador) return fail(E.NOT_FOUND, 'Não encontrado', { status: 404 });
     return ok({ cuidador });
 }
@@ -63,7 +57,7 @@ async function handlePatch(
             updateData = updateFields;
     }
 
-    const cuidador = await prisma.cuidador.update({ where: { id }, data: updateData });
+    const cuidador = await cuidadorRepository.update(id, updateData);
     return ok({ cuidador });
 }
 
@@ -75,9 +69,7 @@ async function handleDelete(
     if (guard instanceof NextResponse) return guard;
 
     const { id } = await params;
-    await prisma.mensagem.deleteMany({ where: { cuidadorId: id } });
-    await prisma.alocacao.deleteMany({ where: { cuidadorId: id } });
-    await prisma.cuidador.delete({ where: { id } });
+    await cuidadorRepository.deleteWithRelations(id);
     return ok({ success: true });
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { cuidadorRepository } from '@/lib/repositories/cuidador.repository';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
@@ -22,48 +22,11 @@ async function handleGet(request: NextRequest) {
     if (guard instanceof NextResponse) return guard;
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const area = searchParams.get('area');
-    const search = searchParams.get('search');
+    const status = searchParams.get('status') || undefined;
+    const area = searchParams.get('area') || undefined;
+    const search = searchParams.get('search') || undefined;
 
-    const where: any = {};
-
-    if (status && status !== 'ALL') {
-        where.status = status;
-    } else {
-        // Default: show pending candidates
-        where.status = { in: ['AGUARDANDO_RH', 'EM_ENTREVISTA', 'CRIADO'] };
-    }
-
-    if (area && area !== 'ALL') {
-        where.area = area;
-    }
-
-    if (search) {
-        where.OR = [
-            { nome: { contains: search } },
-            { telefone: { contains: search } },
-        ];
-    }
-
-    const cuidadores = await prisma.cuidador.findMany({
-        where,
-        include: {
-            _count: {
-                select: { mensagens: true, alocacoes: true }
-            }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200
-    });
-
-    const stats = {
-        total: await prisma.cuidador.count(),
-        aguardandoRH: await prisma.cuidador.count({ where: { status: 'AGUARDANDO_RH' } }),
-        emEntrevista: await prisma.cuidador.count({ where: { status: 'EM_ENTREVISTA' } }),
-        aprovados: await prisma.cuidador.count({ where: { status: 'APROVADO' } }),
-        rejeitados: await prisma.cuidador.count({ where: { status: 'REJEITADO' } }),
-    };
+    const { cuidadores, stats } = await cuidadorRepository.findAll({ status, area, search });
 
     return ok({ cuidadores, stats });
 }
@@ -77,14 +40,12 @@ async function handlePost(request: NextRequest) {
 
     const { nome, telefone, area, endereco, competencias } = body;
 
-    const existing = await prisma.cuidador.findUnique({ where: { telefone } });
+    const existing = await cuidadorRepository.findByPhone(telefone);
     if (existing) {
         return fail(E.VALIDATION_ERROR, 'Cuidador já cadastrado');
     }
 
-    const cuidador = await prisma.cuidador.create({
-        data: { nome, telefone, area, endereco, competencias, status: 'CRIADO' }
-    });
+    const cuidador = await cuidadorRepository.create({ nome, telefone, area, endereco, competencias });
 
     return ok({ cuidador }, 201);
 }
