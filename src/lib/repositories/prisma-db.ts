@@ -1,14 +1,21 @@
 import { prisma } from '@/lib/prisma';
-import { logAudit, computeChanges } from '@/lib/audit';
+import { logAudit } from '@/lib/audit';
+import { cached, invalidate } from '@/lib/cache';
 import {
     IDatabaseFactory
 } from './types';
 
 export const PrismaRepository: IDatabaseFactory = {
     cuidador: {
-        async findById(id) { return prisma.cuidador.findUnique({ where: { id } }); },
-        async findByPhone(phone) { return prisma.cuidador.findUnique({ where: { telefone: phone } }); },
-        async findAllPending() { return prisma.cuidador.findMany({ where: { status: 'AGUARDANDO_RH' }, orderBy: { createdAt: 'desc' } }); },
+        async findById(id) {
+            return cached(`cuidador:id:${id}`, () => prisma.cuidador.findUnique({ where: { id } }), 30);
+        },
+        async findByPhone(phone) {
+            return cached(`cuidador:phone:${phone}`, () => prisma.cuidador.findUnique({ where: { telefone: phone } }), 30);
+        },
+        async findAllPending() {
+            return cached('cuidador:pending', () => prisma.cuidador.findMany({ where: { status: 'AGUARDANDO_RH' }, orderBy: { createdAt: 'desc' } }), 30);
+        },
         async upsert(phone, data) {
             const existing = await prisma.cuidador.findUnique({ where: { telefone: phone } });
             const result = await prisma.cuidador.upsert({
@@ -23,6 +30,7 @@ export const PrismaRepository: IDatabaseFactory = {
                 before: existing ? (existing as unknown as Record<string, unknown>) : null,
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('cuidador:');
             return result;
         },
         async update(id, data) {
@@ -35,14 +43,19 @@ export const PrismaRepository: IDatabaseFactory = {
                 before: before as unknown as Record<string, unknown>,
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('cuidador:');
             return result;
         }
     },
     paciente: {
-        async findByPhone(phone) { return prisma.paciente.findUnique({ where: { telefone: phone } }); },
-        async findAllHighPriority() { return prisma.paciente.findMany({ where: { prioridade: 'ALTA' }, orderBy: { createdAt: 'desc' } }); },
+        async findByPhone(phone) {
+            return cached(`paciente:phone:${phone}`, () => prisma.paciente.findUnique({ where: { telefone: phone } }), 30);
+        },
+        async findAllHighPriority() {
+            return cached('paciente:highpriority', () => prisma.paciente.findMany({ where: { prioridade: 'ALTA' }, orderBy: { createdAt: 'desc' } }), 30);
+        },
         async search(query) {
-            return prisma.paciente.findMany({
+            return cached(`paciente:search:${query}`, () => prisma.paciente.findMany({
                 where: {
                     OR: [
                         { nome: { contains: query } },
@@ -50,7 +63,7 @@ export const PrismaRepository: IDatabaseFactory = {
                     ]
                 },
                 take: 10
-            });
+            }), 30);
         },
         async upsert(phone, data) {
             const existing = await prisma.paciente.findUnique({ where: { telefone: phone } });
@@ -66,6 +79,7 @@ export const PrismaRepository: IDatabaseFactory = {
                 before: existing ? (existing as unknown as Record<string, unknown>) : null,
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('paciente:');
             return result;
         }
     },
@@ -128,14 +142,15 @@ export const PrismaRepository: IDatabaseFactory = {
                 action: 'CREATE',
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('avaliacao:');
             return result;
         },
         async findPending() {
-            return prisma.avaliacao.findMany({
+            return cached('avaliacao:pending', () => prisma.avaliacao.findMany({
                 where: { status: { in: ['PENDENTE', 'ENVIADA'] } },
                 include: { paciente: true },
                 orderBy: { createdAt: 'desc' }
-            });
+            }), 30);
         }
     },
     orcamento: {
@@ -147,6 +162,7 @@ export const PrismaRepository: IDatabaseFactory = {
                 action: 'CREATE',
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('orcamento:');
             return result;
         },
         async update(id, data) {
@@ -159,9 +175,12 @@ export const PrismaRepository: IDatabaseFactory = {
                 before: before as unknown as Record<string, unknown>,
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('orcamento:');
             return result;
         },
-        async findByPaciente(pacienteId) { return prisma.orcamento.findMany({ where: { pacienteId }, orderBy: { createdAt: 'desc' } }); }
+        async findByPaciente(pacienteId) {
+            return cached(`orcamento:paciente:${pacienteId}`, () => prisma.orcamento.findMany({ where: { pacienteId }, orderBy: { createdAt: 'desc' } }), 30);
+        }
     },
     alocacao: {
         async create(data) {
@@ -172,6 +191,7 @@ export const PrismaRepository: IDatabaseFactory = {
                 action: 'CREATE',
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('alocacao:');
             return result;
         },
         async update(id, data) {
@@ -184,21 +204,22 @@ export const PrismaRepository: IDatabaseFactory = {
                 before: before as unknown as Record<string, unknown>,
                 after: result as unknown as Record<string, unknown>,
             });
+            invalidate('alocacao:');
             return result;
         },
         async findByCuidador(cuidadorId) {
-            return prisma.alocacao.findMany({
+            return cached(`alocacao:cuidador:${cuidadorId}`, () => prisma.alocacao.findMany({
                 where: { cuidadorId },
                 orderBy: { createdAt: 'desc' },
                 include: { cuidador: true, paciente: true }
-            });
+            }), 30);
         },
         async findByPaciente(pacienteId) {
-            return prisma.alocacao.findMany({
+            return cached(`alocacao:paciente:${pacienteId}`, () => prisma.alocacao.findMany({
                 where: { pacienteId },
                 orderBy: { createdAt: 'desc' },
                 include: { cuidador: true, paciente: true }
-            });
+            }), 30);
         }
     }
 };
