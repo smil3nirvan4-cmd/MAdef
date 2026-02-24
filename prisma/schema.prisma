@@ -45,7 +45,8 @@ model Paciente {
   avaliacoes Avaliacao[]
   mensagens  Mensagem[]
   orcamentos Orcamento[]
-  simulacoes OrcamentoSimulacao[]
+  simulacoes      OrcamentoSimulacao[]
+  consentRecords  ConsentRecord[]
 
   @@index([deletedAt])
 }
@@ -711,4 +712,24 @@ model SystemLog {
   @@index([createdAt])
   @@index([type, createdAt])
   @@index([unidadeId, createdAt])
+}
+
+// ==========================================
+// LGPD (CONSENTIMENTO)
+// ==========================================
+
+model ConsentRecord {
+  id         String    @id @default(cuid())
+  pacienteId String
+  purpose    String
+  granted    Boolean   @default(false)
+  grantedAt  DateTime?
+  revokedAt  DateTime?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  paciente Paciente @relation(fields: [pacienteId], references: [id])
+
+  @@index([pacienteId])
 }

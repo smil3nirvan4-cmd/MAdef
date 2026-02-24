@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authConfig } from './auth.config';
 import { DEFAULT_WHATSAPP_ADMIN_TAB, normalizeWhatsAppAdminTab } from '@/lib/whatsapp/admin-tabs';
+import { applySecurityHeaders } from '@/lib/security/headers';
 
 const { auth } = NextAuth(authConfig);
 
@@ -19,12 +20,14 @@ function nextWithRequestId(request: Request, requestId: string): NextResponse {
         },
     });
     response.headers.set('x-request-id', requestId);
+    applySecurityHeaders(response);
     return response;
 }
 
 function redirectWithRequestId(url: URL, requestId: string): NextResponse {
     const response = NextResponse.redirect(url);
     response.headers.set('x-request-id', requestId);
+    applySecurityHeaders(response);
     return response;
 }
 
