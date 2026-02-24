@@ -1,6 +1,7 @@
 import { WhatsAppMessage } from '@/types/whatsapp';
 import { UserState, setUserState } from '../state-manager';
 import { sendMessage } from '../client';
+import logger from '@/lib/observability/logger';
 
 export async function handleAssinaturaContrato(
     message: WhatsAppMessage,
@@ -59,7 +60,7 @@ Se tiver dificuldades, digite *AJUDA*.
                 return;
             }
         } catch (_e) {
-            console.error('Erro ao validar assinatura:', _e);
+            logger.error('assinatura.validate', 'Erro ao validar assinatura', _e instanceof Error ? _e : { error: _e }, { module: 'assinatura-contrato' });
             await sendMessage(from, '❌ Erro técnico ao validar. Tente novamente em instantes.');
             return;
         }
