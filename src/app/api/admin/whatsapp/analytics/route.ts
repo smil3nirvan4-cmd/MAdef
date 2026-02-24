@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_ANALYTICS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const period = searchParams.get('period') || '7d';
@@ -15,7 +20,7 @@ export async function GET(request: NextRequest) {
 
         // Messages by day
         const messagesByDay = await prisma.$queryRaw`
-            SELECT 
+            SELECT
                 DATE(timestamp) as date,
                 SUM(CASE WHEN direcao = 'IN' THEN 1 ELSE 0 END) as inbound,
                 SUM(CASE WHEN direcao = 'OUT' THEN 1 ELSE 0 END) as outbound
@@ -36,11 +41,11 @@ export async function GET(request: NextRequest) {
         // Simplified: just count quick responses (< 5 min)
         const quickResponses = await prisma.$queryRaw`
             SELECT COUNT(*) as count FROM mensagem m1
-            WHERE m1.direcao = 'OUT' 
+            WHERE m1.direcao = 'OUT'
             AND m1.timestamp >= ${startDate}
             AND EXISTS (
-                SELECT 1 FROM mensagem m2 
-                WHERE m2.telefone = m1.telefone 
+                SELECT 1 FROM mensagem m2
+                WHERE m2.telefone = m1.telefone
                 AND m2.direcao = 'IN'
                 AND m2.timestamp < m1.timestamp
                 AND m2.timestamp > datetime(m1.timestamp, '-5 minutes')
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
 
         // Peak hours
         const peakHours = await prisma.$queryRaw`
-            SELECT 
+            SELECT
                 strftime('%H', timestamp) as hour,
                 COUNT(*) as count
             FROM mensagem
@@ -105,3 +110,5 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao gerar analytics' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);

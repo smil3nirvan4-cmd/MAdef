@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 // Export all WhatsApp settings
-export async function GET() {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const files = [
             '.wa-automation-settings.json',
@@ -34,7 +39,10 @@ export async function GET() {
 }
 
 // Import settings
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const data = await request.json();
 
@@ -62,3 +70,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Erro ao importar' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

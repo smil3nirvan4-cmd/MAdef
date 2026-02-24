@@ -1,10 +1,15 @@
-﻿export const runtime = 'nodejs';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('SEND_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const phones = Array.isArray(body?.phones) ? body.phones.map((p: unknown) => String(p)) : [];
@@ -63,3 +68,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao processar broadcast' }, { status: 500 });
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

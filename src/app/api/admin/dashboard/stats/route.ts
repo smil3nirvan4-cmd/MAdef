@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_PACIENTES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -77,3 +82,5 @@ export async function GET() {
         return NextResponse.json({ success: false, error: 'Erro ao carregar estatísticas' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);

@@ -1,4 +1,4 @@
-﻿export const runtime = 'nodejs';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -6,8 +6,13 @@ import logger from '@/lib/logger';
 import { buildAvaliacaoPropostaMessage } from '@/lib/whatsapp-sender';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('SEND_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { avaliacaoId } = await request.json();
 
@@ -79,3 +84,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

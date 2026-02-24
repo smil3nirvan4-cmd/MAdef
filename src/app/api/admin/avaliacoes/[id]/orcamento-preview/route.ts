@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { prisma } from '@/lib/prisma';
 import {
     type PricingCalculationInput,
@@ -125,7 +126,7 @@ interface ScenarioSnapshot {
     moeda: string;
 }
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
@@ -202,3 +203,5 @@ export async function GET(
         metadados,
     });
 }
+
+export const GET = withErrorBoundary(handleGet);

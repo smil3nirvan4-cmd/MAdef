@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok, paginated } from '@/lib/api/response';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { parsePagination, parseSort } from '@/lib/api/query-params';
 import { guardCapability } from '@/lib/auth/capability-guard';
 
@@ -16,7 +16,7 @@ function parseSearchFilters(searchParams: URLSearchParams) {
     return { status, tipo, search, createdFrom, createdTo };
 }
 
-const getHandler = async (request: NextRequest) => {
+async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_AVALIACOES');
     if (guard instanceof NextResponse) return guard;
 
@@ -85,9 +85,9 @@ const getHandler = async (request: NextRequest) => {
         const message = error instanceof Error ? error.message : 'Falha ao buscar avaliacoes';
         return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-};
+}
 
-const postHandler = async (request: NextRequest) => {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_AVALIACOES');
     if (guard instanceof NextResponse) return guard;
 
@@ -124,7 +124,7 @@ const postHandler = async (request: NextRequest) => {
         const message = error instanceof Error ? error.message : 'Falha ao criar avaliacao';
         return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-};
+}
 
-export const GET = withRequestContext(getHandler);
-export const POST = withRequestContext(postHandler);
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

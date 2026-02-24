@@ -11,6 +11,7 @@ import {
 import { buildContractRenderData, defaultContractTemplate } from '@/lib/contracts/render-data';
 import { generateContractTextPDF } from '@/lib/documents/pdf-generator';
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 
 const schema = z.object({
     templateId: z.string().optional(),
@@ -22,7 +23,7 @@ const schema = z.object({
     preview: z.boolean().optional(),
 });
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
@@ -121,3 +122,5 @@ export async function POST(
         },
     });
 }
+
+export const POST = withErrorBoundary(handlePost);

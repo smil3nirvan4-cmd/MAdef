@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { gerarSlots24h } from '@/lib/allocation/slots';
 import { executarAlocacaoImpositiva } from '@/lib/allocation/impositiva';
 import { inicializarSlotsParaEscolha } from '@/lib/allocation/escolha';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
-        // Note: This endpoint expects a body structure that matches what we're destructing.
-        // In a real app, use Zod to validate this body too.
         const { equipeId, pacienteId, modo, horasDiarias, duracaoDias, cuidadores } = await request.json();
 
         // Gerar slots
@@ -45,3 +48,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

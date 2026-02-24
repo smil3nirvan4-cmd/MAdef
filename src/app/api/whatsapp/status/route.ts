@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const SESSION_FILE = path.resolve(
     process.cwd(),
@@ -55,9 +57,9 @@ async function getBridgeStatus() {
                 connectedAt: session.connectedAt || null,
                 phone: session.phone || null,
                 bridgeRunning: false,
-                recommendedCommand: bridgeConfig.recommendedCommand,
-                bridgeUrlResolved: bridgeConfig.bridgeUrl,
-                bridgePortResolved: bridgeConfig.port,
+                recommendedCommand: resolveBridgeConfig().recommendedCommand,
+                bridgeUrlResolved: resolveBridgeConfig().bridgeUrl,
+                bridgePortResolved: resolveBridgeConfig().port,
                 error: 'Bridge is not running.'
             };
         }
@@ -65,6 +67,7 @@ async function getBridgeStatus() {
         console.error('Error reading WhatsApp session:', error);
     }
 
+    const config = resolveBridgeConfig();
     return {
         status: 'DISCONNECTED',
         connected: false,
@@ -72,14 +75,19 @@ async function getBridgeStatus() {
         connectedAt: null,
         phone: null,
         bridgeRunning: false,
-        recommendedCommand: bridgeConfig.recommendedCommand,
-        bridgeUrlResolved: bridgeConfig.bridgeUrl,
-        bridgePortResolved: bridgeConfig.port,
+        recommendedCommand: config.recommendedCommand,
+        bridgeUrlResolved: config.bridgeUrl,
+        bridgePortResolved: config.port,
         error: 'Bridge is not running.'
     };
 }
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     const status = await getBridgeStatus();
     return NextResponse.json(status);
 }
+
+export const GET = withErrorBoundary(handleGet);

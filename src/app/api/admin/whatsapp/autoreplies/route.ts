@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const TRIGGER_TYPES = ['exact', 'contains', 'startsWith', 'endsWith', 'regex'];
 
@@ -40,7 +42,10 @@ function toClientRule(rule: any) {
     };
 }
 
-export async function GET(_request: NextRequest) {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         await ensureSeed();
         const rules = await prisma.whatsAppAutoReply.findMany({
@@ -58,7 +63,10 @@ export async function GET(_request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { trigger, triggerType, response, priority } = body || {};
@@ -84,7 +92,10 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { id, ...updates } = body || {};
@@ -113,7 +124,10 @@ export async function PATCH(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
@@ -128,3 +142,8 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao excluir auto-resposta' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);
+export const PATCH = withErrorBoundary(handlePatch);
+export const DELETE = withErrorBoundary(handleDelete);

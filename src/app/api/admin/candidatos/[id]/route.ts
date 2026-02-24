@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('VIEW_RH');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const cuidador = await prisma.cuidador.findUnique({
@@ -21,10 +26,13 @@ export async function GET(
     }
 }
 
-export async function PATCH(
+async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('MANAGE_RH');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -56,10 +64,13 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
+async function handleDelete(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('MANAGE_RH');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         await prisma.mensagem.deleteMany({ where: { cuidadorId: id } });
@@ -70,3 +81,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erro ao excluir' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const PATCH = withErrorBoundary(handlePatch);
+export const DELETE = withErrorBoundary(handleDelete);

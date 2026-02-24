@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET() {
+async function handleGet() {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const flowStates = await prisma.whatsAppFlowState.findMany({
             orderBy: { lastInteraction: 'desc' },
@@ -21,7 +26,10 @@ export async function GET() {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const phone = searchParams.get('phone');
@@ -39,7 +47,10 @@ export async function DELETE(request: NextRequest) {
     }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { phone, action } = body;
@@ -56,3 +67,7 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Erro' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const DELETE = withErrorBoundary(handleDelete);
+export const PATCH = withErrorBoundary(handlePatch);

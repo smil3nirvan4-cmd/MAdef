@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const DEFAULT_TEMPLATES = [
     { name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas.' },
@@ -16,7 +18,10 @@ async function ensureSeed() {
     });
 }
 
-export async function GET(_request: NextRequest) {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         await ensureSeed();
 
@@ -32,7 +37,10 @@ export async function GET(_request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { name, category, content, isActive } = body || {};
@@ -61,7 +69,10 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { id, ...updates } = body || {};
@@ -87,7 +98,10 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
@@ -103,3 +117,8 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao excluir template' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);
+export const PUT = withErrorBoundary(handlePut);
+export const DELETE = withErrorBoundary(handleDelete);

@@ -1,15 +1,20 @@
-﻿export const runtime = 'nodejs';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(
+async function handleGet(
     _request: NextRequest,
     { params }: { params: Promise<{ phone: string }> }
 ) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { phone } = await params;
 
@@ -47,10 +52,13 @@ export async function GET(
     }
 }
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ phone: string }> }
 ) {
+    const guard = await guardCapability('SEND_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { phone } = await params;
         const body = await request.json();
@@ -144,3 +152,6 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Erro ao enfileirar mensagem' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

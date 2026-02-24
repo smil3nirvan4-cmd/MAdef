@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { withRequestContext } from '@/lib/api/with-request-context';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
 
-const getHandler = async (
+async function handleGet(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
-) => {
+) {
     const guard = await guardCapability('VIEW_LOGS');
     if (guard instanceof NextResponse) return guard;
 
@@ -23,7 +23,7 @@ const getHandler = async (
         const message = error instanceof Error ? error.message : 'Failed to load log';
         return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
-};
+}
 
-export const GET = withRequestContext(getHandler);
+export const GET = withErrorBoundary(handleGet);
 

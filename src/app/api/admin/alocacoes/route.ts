@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
@@ -61,7 +66,10 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_ALOCACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { cuidadorId, pacienteId, slotId, turno, diaSemana, dataInicio, hospital, quarto } = body;
@@ -94,3 +102,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Erro ao criar alocação' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

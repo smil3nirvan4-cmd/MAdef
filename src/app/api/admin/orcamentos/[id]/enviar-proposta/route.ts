@@ -1,4 +1,4 @@
-﻿export const runtime = 'nodejs';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -6,11 +6,16 @@ import logger from '@/lib/logger';
 import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('SEND_PROPOSTA');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json().catch(() => ({}));
         let sendOptions;
@@ -82,3 +87,5 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Erro ao enfileirar proposta' }, { status: 500 });
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

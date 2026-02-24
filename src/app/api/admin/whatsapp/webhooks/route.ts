@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const EVENTS = [
     'message_received',
@@ -49,7 +51,10 @@ function toClientWebhook(webhook: any) {
     };
 }
 
-export async function GET(_request: NextRequest) {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         await ensureSeed();
         const webhooks = await prisma.whatsAppWebhook.findMany({ orderBy: { createdAt: 'desc' } });
@@ -60,7 +65,10 @@ export async function GET(_request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { name, url, events, secret, active } = body || {};
@@ -86,7 +94,10 @@ export async function POST(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
+async function handlePut(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { id, ...updates } = body || {};
@@ -112,11 +123,14 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-export async function PATCH(request: NextRequest) {
-    return PUT(request);
+async function handlePatch(request: NextRequest) {
+    return handlePut(request);
 }
 
-export async function DELETE(request: NextRequest) {
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
@@ -131,3 +145,9 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Erro ao excluir webhook' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);
+export const PUT = withErrorBoundary(handlePut);
+export const PATCH = withErrorBoundary(handlePatch);
+export const DELETE = withErrorBoundary(handleDelete);

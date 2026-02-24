@@ -5,6 +5,7 @@ import logger from '@/lib/logger';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok } from '@/lib/api/response';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
 
 function buildRetryKeys(originalIdempotencyKey: string | null, originalId: string) {
@@ -90,4 +91,4 @@ const postHandler = async (
     }
 };
 
-export const POST = withRequestContext(postHandler);
+export const POST = withErrorBoundary(withRequestContext(postHandler));

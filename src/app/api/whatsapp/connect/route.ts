@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function POST() {
+async function handlePost(_request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     const bridgeConfig = resolveBridgeConfig();
 
     try {
@@ -46,3 +51,5 @@ export async function POST() {
         );
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

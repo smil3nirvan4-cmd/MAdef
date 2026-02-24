@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_RH');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
@@ -56,7 +61,10 @@ export async function GET(request: NextRequest) {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_RH');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const { nome, telefone, area, endereco, competencias } = body;
@@ -79,3 +87,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Erro ao criar' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

@@ -7,6 +7,7 @@ import { enqueueWhatsAppContratoJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, ok } from '@/lib/api/response';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 
@@ -26,7 +27,7 @@ function resolveMissingColumn(error: unknown): { table: string; column: string }
     };
 }
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -147,3 +148,5 @@ export async function POST(
         return fail(E.DATABASE_ERROR, message, { status: 500 });
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

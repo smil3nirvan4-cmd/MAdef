@@ -1,11 +1,12 @@
 export const runtime = 'nodejs';
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
-import { withRequestContext } from '@/lib/api/with-request-context';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 import { E, fail, ok } from '@/lib/api/response';
 
 const actionSchema = z.object({
@@ -34,6 +35,9 @@ const getHandler = async (
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
 
@@ -94,6 +98,9 @@ const postHandler = async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -141,5 +148,5 @@ const postHandler = async (
     }
 };
 
-export const GET = withRequestContext(getHandler);
-export const POST = withRequestContext(postHandler);
+export const GET = withErrorBoundary(getHandler);
+export const POST = withErrorBoundary(postHandler);

@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 function collectRouteFiles(basePath: string, relative = ''): string[] {
     const absolute = path.join(basePath, relative);
@@ -58,7 +60,10 @@ function toPagePath(pageFileRelative: string): string {
     return normalized ? `/${normalized}` : '/';
 }
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_ANALYTICS');
+    if (guard instanceof NextResponse) return guard;
+
     if (process.env.NODE_ENV !== 'development') {
         return NextResponse.json(
             { success: false, error: 'Route registry disponivel apenas em desenvolvimento.' },
@@ -104,3 +109,4 @@ export async function GET() {
     });
 }
 
+export const GET = withErrorBoundary(handleGet);

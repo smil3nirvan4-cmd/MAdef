@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_PACIENTES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search');
@@ -46,3 +51,5 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Erro' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);

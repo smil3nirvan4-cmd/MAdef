@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import {
     calcularOrcamento,
     calculateEnterprisePricing,
@@ -260,7 +261,7 @@ async function tryPersistEnterpriseOrcamento(args: {
     return created.id;
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const ip = getClientIp(request);
         const rateLimit = checkRateLimit(`orcamento:${ip}`, 40, 60_000);
@@ -423,3 +424,5 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

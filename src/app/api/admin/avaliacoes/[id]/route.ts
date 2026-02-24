@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { E, fail } from '@/lib/api/response';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 function isMissingColumnError(error: unknown): boolean {
     return Boolean(error && typeof error === 'object' && (error as { code?: string }).code === 'P2022');
@@ -20,10 +22,13 @@ function resolveMissingColumn(error: unknown): { table: string; column: string }
     };
 }
 
-export async function GET(
+async function handleGet(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('VIEW_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const schemaCapabilities = await getDbSchemaCapabilities();
@@ -83,10 +88,13 @@ export async function GET(
     }
 }
 
-export async function PATCH(
+async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('MANAGE_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -136,10 +144,13 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
+async function handleDelete(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('MANAGE_AVALIACOES');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         await prisma.avaliacao.delete({ where: { id } });
@@ -148,3 +159,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erro ao excluir avaliacao' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const PATCH = withErrorBoundary(handlePatch);
+export const DELETE = withErrorBoundary(handleDelete);

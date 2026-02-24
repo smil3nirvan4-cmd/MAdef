@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchPaciente } from '@/lib/database';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_PACIENTES');
+    if (guard instanceof NextResponse) return guard;
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
 
@@ -24,3 +29,5 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Erro ao buscar pacientes' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);

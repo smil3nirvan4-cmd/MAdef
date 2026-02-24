@@ -45,7 +45,7 @@ describe('GET /api/admin/orcamentos', () => {
 
     it('returns 401 when not authenticated', async () => {
         mocks.auth.mockResolvedValue(null);
-        const response = await GET();
+        const response = await GET(makeReq('https://example.com/api/admin/orcamentos'));
         const body = await response.json();
 
         expect(response.status).toBe(401);
@@ -60,7 +60,7 @@ describe('GET /api/admin/orcamentos', () => {
             { id: 'o1', pacienteId: 'p1', status: 'RASCUNHO', paciente: { id: 'p1', nome: 'Ana' } },
         ]);
 
-        const response = await GET();
+        const response = await GET(makeReq('https://example.com/api/admin/orcamentos'));
         const body = await response.json();
 
         expect(response.status).toBe(200);

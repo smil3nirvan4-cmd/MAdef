@@ -5,11 +5,16 @@ import { prisma } from '@/lib/prisma';
 import { buildOrcamentoPDFData } from '@/lib/documents/build-pdf-data';
 import { generateContratoPDF } from '@/lib/documents/pdf-generator';
 import { parseOrcamentoSendOptions } from '@/lib/documents/send-options';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function POST(
+async function handlePost(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('VIEW_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json().catch(() => ({}));
         let sendOptions;
@@ -60,3 +65,4 @@ export async function POST(
     }
 }
 
+export const POST = withErrorBoundary(handlePost);

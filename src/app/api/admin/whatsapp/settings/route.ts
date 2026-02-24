@@ -1,5 +1,7 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 const DEFAULT_SETTINGS: Record<string, string> = {
     autoReplyEnabled: 'true',
@@ -43,7 +45,10 @@ async function loadSettingsObject() {
     return settings;
 }
 
-export async function GET(_request: NextRequest) {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         await ensureSeed();
         const settings = await loadSettingsObject();
@@ -63,7 +68,10 @@ export async function GET(_request: NextRequest) {
     }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePatch(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_SETTINGS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const entries = Object.entries(body || {});
@@ -100,6 +108,10 @@ export async function PATCH(request: NextRequest) {
     }
 }
 
-export async function PUT(request: NextRequest) {
-    return PATCH(request);
+async function handlePut(request: NextRequest) {
+    return handlePatch(request);
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const PATCH = withErrorBoundary(handlePatch);
+export const PUT = withErrorBoundary(handlePut);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { prisma } from '@/lib/prisma';
 import {
     extractPlaceholders,
@@ -27,7 +28,7 @@ function parsePlaceholders(value: string | null): string[] {
     return [];
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
     const guard = await guardCapability('VIEW_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -123,3 +124,6 @@ export async function POST(request: NextRequest) {
         },
     });
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

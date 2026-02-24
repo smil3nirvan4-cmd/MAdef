@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
@@ -279,7 +280,7 @@ async function persistOrcamentoWithLegacyFallback(
     }
 }
 
-export async function POST(req: Request) {
+async function handlePost(req: Request) {
     try {
         const body = await req.json();
         const {
@@ -522,3 +523,5 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

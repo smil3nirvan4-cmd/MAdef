@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(
+async function handleGet(
     request: NextRequest,
     { params }: { params: Promise<{ telefone: string }> }
 ) {
+    const guard = await guardCapability('VIEW_LOGS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { telefone } = await params;
 
@@ -86,3 +91,5 @@ export async function GET(
         );
     }
 }
+
+export const GET = withErrorBoundary(handleGet);

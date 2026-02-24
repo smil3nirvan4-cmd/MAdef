@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getPricingConfigSnapshot } from '@/lib/pricing/config-service';
 import { computeInputHash } from '@/lib/pricing/input-hash';
 import { z } from 'zod';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 
 const scenarioSnapshotSchema = z.object({
     input: z.unknown(),
@@ -61,7 +62,7 @@ function toJsonString(value: unknown): string | null {
     }
 }
 
-export async function GET() {
+async function handleGet() {
     const guard = await guardCapability('VIEW_ORCAMENTOS');
     if (guard instanceof NextResponse) {
         return guard;
@@ -89,7 +90,7 @@ export async function GET() {
     }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) {
         return guard;
@@ -169,3 +170,6 @@ export async function POST(request: NextRequest) {
         });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withErrorBoundary(handlePost);

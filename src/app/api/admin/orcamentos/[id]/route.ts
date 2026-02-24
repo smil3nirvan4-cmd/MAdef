@@ -1,15 +1,20 @@
-﻿export const runtime = 'nodejs';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
 import { enqueueWhatsAppPropostaJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
-export async function GET(
+async function handleGet(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('VIEW_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const orcamento = await prisma.orcamento.findUnique({
@@ -82,10 +87,13 @@ async function enviarProposta(orcamentoId: string) {
     };
 }
 
-export async function PATCH(
+async function handlePatch(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const guard = await guardCapability('MANAGE_ORCAMENTOS');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();
@@ -148,3 +156,6 @@ export async function PATCH(
         return NextResponse.json({ success: false, error: 'Erro ao atualizar orcamento' }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const PATCH = withErrorBoundary(handlePatch);

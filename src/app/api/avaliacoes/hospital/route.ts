@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/database';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const body = await request.json();
         const { nome, hospital, quarto, nivel, phone } = body;
@@ -42,3 +43,5 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Erro interno ao processar plantão' }, { status: 500 });
     }
 }
+
+export const POST = withErrorBoundary(handlePost);

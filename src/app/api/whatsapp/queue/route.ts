@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getQueueStatus } from '@/lib/whatsapp/queue';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { guardCapability } from '@/lib/auth/capability-guard';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/whatsapp/queue
- * Retorna o status da fila de mensagens
- */
-export async function GET() {
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const status = getQueueStatus();
         return NextResponse.json({
@@ -21,3 +22,5 @@ export async function GET() {
         }, { status: 500 });
     }
 }
+
+export const GET = withErrorBoundary(handleGet);

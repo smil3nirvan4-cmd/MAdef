@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { prisma } from '@/lib/prisma';
 import {
     renderContract,
@@ -20,7 +21,7 @@ const renderSchema = z.object({
     cancellationPolicy: z.string().optional(),
 });
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     const guard = await guardCapability('MANAGE_ORCAMENTOS');
     if (guard instanceof NextResponse) return guard;
 
@@ -97,3 +98,5 @@ export async function POST(request: NextRequest) {
         },
     });
 }
+
+export const POST = withErrorBoundary(handlePost);
