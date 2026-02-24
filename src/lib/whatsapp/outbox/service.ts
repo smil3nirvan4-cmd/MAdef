@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import logger from '@/lib/logger';
 import { normalizeOutboundPhoneBR } from '@/lib/phone-validator';
 import { prisma } from '@/lib/prisma';
+import { triggerOutboxProcessing } from '@/lib/jobs/whatsapp.queue';
 import type {
     OutboxIntent,
     OutboxStatus,
@@ -137,6 +138,9 @@ async function upsertByIdempotency(
         scheduledAt: scheduledAt?.toISOString() || null,
         context: payload.context || null,
     });
+
+    // Trigger BullMQ worker to process immediately (falls back to polling if Redis unavailable)
+    triggerOutboxProcessing().catch(() => {});
 
     return {
         queueItemId: created.id,

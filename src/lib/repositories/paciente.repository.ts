@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { invalidate } from '@/lib/cache';
 
 export const pacienteRepository = {
     async findAll(opts: { page?: number; pageSize?: number; search?: string; status?: string }) {
@@ -76,7 +77,9 @@ export const pacienteRepository = {
     },
 
     async update(id: string, data: Prisma.PacienteUpdateInput) {
-        return prisma.paciente.update({ where: { id }, data });
+        const result = await prisma.paciente.update({ where: { id }, data });
+        invalidate('dashboard:').catch(() => {});
+        return result;
     },
 
     async findByIdWithAllRelations(id: string) {

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { invalidate } from '@/lib/cache';
 
 export const cuidadorRepository = {
     async findAll(opts: { status?: string; area?: string; search?: string }) {
@@ -64,7 +65,9 @@ export const cuidadorRepository = {
     },
 
     async update(id: string, data: Prisma.CuidadorUpdateInput) {
-        return prisma.cuidador.update({ where: { id }, data });
+        const result = await prisma.cuidador.update({ where: { id }, data });
+        invalidate('dashboard:').catch(() => {});
+        return result;
     },
 
     async deleteWithRelations(id: string) {

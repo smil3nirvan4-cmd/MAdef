@@ -3,11 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { guardCapability } from '@/lib/auth/capability-guard';
 import { withErrorBoundary } from '@/lib/api/with-error-boundary';
 import { ok } from '@/lib/api/response';
+import { cached } from '@/lib/cache';
 
-async function handleGet() {
-    const guard = await guardCapability('VIEW_ANALYTICS');
-    if (guard instanceof NextResponse) return guard;
-
+async function fetchDashboardStats() {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfToday.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -57,7 +55,7 @@ async function handleGet() {
 
     const conversasAtivas = conversasAtivasRaw.length;
 
-    return ok({
+    return {
         totalLeads,
         leadsNovos,
         totalCandidatos,
@@ -70,12 +68,19 @@ async function handleGet() {
         mensagensHoje,
         mensagensSemana,
         conversasAtivas,
-        // Compatibilidade com dashboard já existente
         candidatosPendentes,
         avaliacoesHoje,
         mensagens24h,
         cuidadoresAprovados: candidatosAprovados,
-    });
+    };
+}
+
+async function handleGet() {
+    const guard = await guardCapability('VIEW_ANALYTICS');
+    if (guard instanceof NextResponse) return guard;
+
+    const stats = await cached('dashboard:stats', fetchDashboardStats, 30);
+    return ok(stats);
 }
 
 export const GET = withErrorBoundary(handleGet);

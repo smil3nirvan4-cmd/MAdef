@@ -8,8 +8,10 @@ export default defineConfig({
         include: ['**/*.test.ts'],
         exclude: ['node_modules', '.next', 'whatsapp-bridge/**'],
         coverage: {
-            reporter: ['text', 'json', 'html'],
-            include: ['src/lib/**/*.ts'],
+            provider: 'v8',
+            reporter: ['text', 'text-summary'],
+            include: ['src/lib/**/*.ts', 'src/app/api/**/*.ts'],
+            exclude: ['**/*.test.ts', '**/*.d.ts'],
         },
     },
     resolve: {
