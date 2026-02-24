@@ -1,5 +1,6 @@
 import { IStateManager, UserState } from '../state/types';
 import { MemoryInMemState } from '../state/memory';
+import logger from '@/lib/observability/logger';
 
 // Factory Logic with async initialization
 let stateManager: IStateManager = MemoryInMemState;
@@ -11,7 +12,7 @@ async function initializeStateManager(): Promise<IStateManager> {
     if (initialized) return stateManager;
 
     if (FORCE_MEMORY_STATE) {
-        console.warn('⚠️ [State] Using In-Memory State Manager (Forced via Env Var)');
+        logger.warning('state.init', 'Using In-Memory State Manager (Forced via Env Var)', { module: 'state-manager' });
         stateManager = MemoryInMemState;
         initialized = true;
         return stateManager;
@@ -19,7 +20,7 @@ async function initializeStateManager(): Promise<IStateManager> {
 
     // Auto-detect: Se não tem DATABASE_URL, usa Memory
     if (!process.env.DATABASE_URL) {
-        console.warn('⚠️ [State] No DATABASE_URL found. Using In-Memory State Manager.');
+        logger.warning('state.init', 'No DATABASE_URL found. Using In-Memory State Manager.', { module: 'state-manager' });
         stateManager = MemoryInMemState;
         initialized = true;
         return stateManager;
@@ -29,12 +30,11 @@ async function initializeStateManager(): Promise<IStateManager> {
         // Dynamic ESM import for conditional loading
         const prismaModule = await import('../state/prisma');
         stateManager = prismaModule.PrismaState;
-        console.log('✅ [State] Using Prisma Database State');
+        logger.info('state.init', 'Using Prisma Database State', { module: 'state-manager' });
         initialized = true;
         return stateManager;
     } catch (_e) {
-        console.warn('⚠️ [State] Using In-Memory State Manager (Fallback)');
-        console.warn('   For production, configure REDIS_URL or ensure Prisma is available');
+        logger.warning('state.init', 'Using In-Memory State Manager (Fallback). For production, configure REDIS_URL or ensure Prisma is available.', { module: 'state-manager' });
         stateManager = MemoryInMemState;
         initialized = true;
         return stateManager;

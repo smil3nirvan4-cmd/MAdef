@@ -1,12 +1,13 @@
 import { Worker } from 'bullmq';
 import { getRedis } from '@/lib/redis/client';
+import logger from '@/lib/observability/logger';
 
 let worker: Worker | null = null;
 
 export async function startWhatsAppWorker(): Promise<void> {
     const redis = await getRedis();
     if (!redis) {
-        console.warn('[BullMQ Worker] Redis unavailable, worker not started');
+        logger.warning('bullmq.worker', 'Redis unavailable, worker not started', { module: 'whatsapp-worker' });
         return;
     }
 
@@ -35,16 +36,16 @@ export async function startWhatsAppWorker(): Promise<void> {
         );
 
         worker.on('completed', (job) => {
-            console.log(`[BullMQ Worker] Job ${job?.id} completed`);
+            logger.info('bullmq.worker', `Job ${job?.id} completed`, { module: 'whatsapp-worker', jobId: job?.id });
         });
 
         worker.on('failed', (job, err) => {
-            console.error(`[BullMQ Worker] Job ${job?.id} failed:`, err.message);
+            logger.error('bullmq.worker', `Job ${job?.id} failed`, { module: 'whatsapp-worker', jobId: job?.id, errorMessage: err.message });
         });
 
-        console.log('[BullMQ Worker] WhatsApp outbox worker started');
+        logger.info('bullmq.worker', 'WhatsApp outbox worker started', { module: 'whatsapp-worker' });
     } catch (err) {
-        console.warn('[BullMQ Worker] Failed to start worker:', err);
+        logger.warning('bullmq.worker', 'Failed to start worker', { module: 'whatsapp-worker', error: String(err) });
     }
 }
 

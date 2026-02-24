@@ -150,4 +150,18 @@ const logger = {
     },
 };
 
+export function createContextLogger(context: Record<string, string>) {
+    return {
+        info(msg: string, data?: Record<string, unknown>): Promise<void> {
+            return logEvent({ type: 'INFO', action: context.module || 'app', message: msg, metadata: { ...context, ...data } });
+        },
+        warn(msg: string, data?: Record<string, unknown>): Promise<void> {
+            return logEvent({ type: 'WARNING', action: context.module || 'app', message: msg, metadata: { ...context, ...data } });
+        },
+        error(msg: string, data?: Record<string, unknown>): Promise<void> {
+            return logEvent({ type: 'ERROR', action: context.module || 'app', message: msg, metadata: { ...context, ...data } });
+        },
+    };
+}
+
 export default logger;

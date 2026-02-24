@@ -13,6 +13,7 @@ import { notifyAdminHelp } from '@/lib/notifications/emergency';
 import { handleReprovado } from './reprovado';
 import { handleAguardando } from './aguardando';
 import { handleConfirmacaoProposta, handleAssinaturaContrato as handleAssinaturaContratoNovo } from './confirmacao-proposta';
+import logger from '@/lib/observability/logger';
 
 
 
@@ -65,7 +66,7 @@ export async function handleIncomingMessage(msg: any) {
             payload: parseButtonPayload(btnResp.selectedButtonId || '')
         };
         text = btnResp.selectedDisplayText || btnResp.selectedButtonId || '';
-        console.log('🔘 BOTÃO CLICADO:', JSON.stringify(buttonResponse));
+        logger.whatsapp('message.button', 'Botao clicado', { module: 'handlers', buttonResponse });
     }
 
     // TEMPLATE BUTTON REPLY
@@ -77,7 +78,7 @@ export async function handleIncomingMessage(msg: any) {
             payload: parseButtonPayload(tplResp.selectedId || '')
         };
         text = tplResp.selectedDisplayText || tplResp.selectedId || '';
-        console.log('🔘 TEMPLATE BUTTON CLICADO:', JSON.stringify(buttonResponse));
+        logger.whatsapp('message.template_button', 'Template button clicado', { module: 'handlers', buttonResponse });
     }
 
     // LIST RESPONSE - Resposta de lista
@@ -89,7 +90,7 @@ export async function handleIncomingMessage(msg: any) {
             description: listResp.description || ''
         };
         text = listResp.singleSelectReply?.selectedRowId || listResp.title || '';
-        console.log('📋 LISTA SELECIONADA:', JSON.stringify(listResponse));
+        logger.whatsapp('message.list', 'Lista selecionada', { module: 'handlers', listResponse });
     }
 
     // INTERACTIVE RESPONSE (formato mais recente)
@@ -103,9 +104,9 @@ export async function handleIncomingMessage(msg: any) {
                 payload: parseButtonPayload(body.id || '')
             };
             text = body.display_text || body.id || '';
-            console.log('🔘 INTERACTIVE RESPONSE:', JSON.stringify(buttonResponse));
+            logger.whatsapp('message.interactive', 'Interactive response recebida', { module: 'handlers', buttonResponse });
         } catch (_e) {
-            console.warn('⚠️ Erro ao parsear interactiveResponseMessage');
+            logger.warning('message.interactive', 'Erro ao parsear interactiveResponseMessage', { module: 'handlers' });
         }
     }
 
@@ -124,12 +125,14 @@ export async function handleIncomingMessage(msg: any) {
         return;
     }
 
-    console.log('═══════════════════════════════════════════════════');
-    console.log(`📩 MENSAGEM RECEBIDA DE: ${fullJid}`);
-    console.log(`💬 CONTEÚDO: "${message.body}"`);
-    if (buttonResponse) console.log(`🔘 BOTÃO: ${JSON.stringify(buttonResponse)}`);
-    if (listResponse) console.log(`📋 LISTA: ${JSON.stringify(listResponse)}`);
-    console.log('═══════════════════════════════════════════════════');
+    logger.whatsapp('message.received', `Mensagem recebida de ${fullJid}`, {
+        module: 'handlers',
+        from: fullJid,
+        body: message.body,
+        type: message.type,
+        ...(buttonResponse ? { buttonResponse } : {}),
+        ...(listResponse ? { listResponse } : {}),
+    });
 
     // LOG: Mensagem recebida - save with FULL JID for dashboard display
     if (logMessage) {

@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import logger from '@/lib/observability/logger';
 
 let instance: Redis | null = null;
 let initialized = false;
@@ -20,16 +21,16 @@ function createRedis(): Redis | null {
         });
 
         redis.on('error', (err) => {
-            console.warn('[Redis] Connection error:', err.message);
+            logger.warning('redis.connection', 'Connection error', { module: 'redis-client', errorMessage: err.message });
         });
 
         redis.on('connect', () => {
-            console.log('[Redis] Connected');
+            logger.info('redis.connection', 'Connected', { module: 'redis-client' });
         });
 
         return redis;
     } catch {
-        console.warn('[Redis] Failed to create client');
+        logger.warning('redis.init', 'Failed to create client', { module: 'redis-client' });
         return null;
     }
 }
@@ -45,7 +46,7 @@ export async function getRedis(): Promise<Redis | null> {
         await instance.connect();
         return instance;
     } catch {
-        console.warn('[Redis] Failed to connect, running without L2 cache');
+        logger.warning('redis.connection', 'Failed to connect, running without L2 cache', { module: 'redis-client' });
         instance = null;
         return null;
     }

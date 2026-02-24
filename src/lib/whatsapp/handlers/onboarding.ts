@@ -4,6 +4,7 @@ import { sendMessage } from '../client';
 import { notifyEmergencyTeam } from '@/lib/notifications/emergency';
 import { prisma } from '@/lib/db';
 import { buildAppUrl } from '@/lib/config/public-url';
+import logger from '@/lib/observability/logger';
 
 // Salvar lead de paciente no banco de dados
 async function savePatientLead(phone: string, data: Record<string, unknown>) {
@@ -31,10 +32,10 @@ async function savePatientLead(phone: string, data: Record<string, unknown>) {
                 status: 'LEAD',
             },
         });
-        console.log(`✅ [DB] Lead de paciente salvo: ${paciente.id} - ${phone}`);
+        logger.info('db.patient_lead', `Lead de paciente salvo: ${paciente.id}`, { module: 'onboarding', pacienteId: paciente.id, phone });
         return paciente;
     } catch (error) {
-        console.error('❌ [DB] Erro ao salvar lead de paciente:', error);
+        logger.error('db.patient_lead', 'Erro ao salvar lead de paciente', error instanceof Error ? error : { error }, { module: 'onboarding' });
         return null;
     }
 }
@@ -56,10 +57,10 @@ async function saveCaregiverCandidate(phone: string, data: Record<string, unknow
                 status: 'CANDIDATO',
             },
         });
-        console.log(`✅ [DB] Candidato cuidador salvo: ${cuidador.id} - ${phone}`);
+        logger.info('db.caregiver_candidate', `Candidato cuidador salvo: ${cuidador.id}`, { module: 'onboarding', cuidadorId: cuidador.id, phone });
         return cuidador;
     } catch (error) {
-        console.error('❌ [DB] Erro ao salvar candidato cuidador:', error);
+        logger.error('db.caregiver_candidate', 'Erro ao salvar candidato cuidador', error instanceof Error ? error : { error }, { module: 'onboarding' });
         return null;
     }
 }
@@ -72,7 +73,7 @@ export async function handleOnboarding(
     // Extrair número para armazenamento de estado (remover @lid ou @s.whatsapp.net)
     const phone = from.replace('@s.whatsapp.net', '').replace('@lid', '');
 
-    console.log(`🚀 HandleOnboarding: Step atual = ${state.currentStep}, De = ${from} (phone: ${phone})`);
+    logger.whatsapp('onboarding.step', `HandleOnboarding: Step atual = ${state.currentStep}`, { module: 'onboarding', from, phone, step: state.currentStep });
 
     // Step 1: Welcome
     if (state.currentStep === 'WELCOME') {
@@ -208,7 +209,7 @@ Digite o número:
             try {
                 signupUrl = buildAppUrl(`/cadastro?ref=${encodeURIComponent(from)}`);
             } catch (error) {
-                console.error('Erro ao montar URL pública de cadastro:', error);
+                logger.error('onboarding.url', 'Erro ao montar URL publica de cadastro', error instanceof Error ? error : { error }, { module: 'onboarding' });
                 await sendMessage(from, 'No momento, o link de cadastro está indisponível. Nossa equipe vai te atender por aqui.');
                 await setUserState(phone, {
                     currentStep: 'AWAITING_PATIENT_NAME'

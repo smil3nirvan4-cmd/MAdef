@@ -1,3 +1,5 @@
+import logger from '@/lib/observability/logger';
+
 interface EmergencyNotificationData {
     telefone: string;
     timestamp: Date;
@@ -27,7 +29,7 @@ async function sendSlackNotification(data: EmergencyNotificationData): Promise<b
         });
         return response.ok;
     } catch (error) {
-        console.error('Erro ao enviar notificação Slack:', error);
+        logger.error('emergency.slack', 'Erro ao enviar notificacao Slack', error instanceof Error ? error : { error }, { module: 'emergency' });
         return false;
     }
 }
@@ -61,7 +63,7 @@ Um usuário reportou uma emergência médica via WhatsApp.
         );
         return response.ok;
     } catch (error) {
-        console.error('Erro ao enviar notificação Telegram:', error);
+        logger.error('emergency.telegram', 'Erro ao enviar notificacao Telegram', error instanceof Error ? error : { error }, { module: 'emergency' });
         return false;
     }
 }
@@ -70,10 +72,7 @@ async function sendEmailNotification(data: EmergencyNotificationData): Promise<b
     const emergencyEmail = process.env.EMERGENCY_NOTIFICATION_EMAIL;
     if (!emergencyEmail) return false;
 
-    console.log(`[EMAIL] Notificação de emergência para ${emergencyEmail}:`, {
-        telefone: data.telefone,
-        timestamp: data.timestamp
-    });
+    logger.info('emergency.email', `Notificacao de emergencia para ${emergencyEmail}`, { module: 'emergency', telefone: data.telefone, timestamp: data.timestamp.toISOString() });
 
     return true;
 }
@@ -84,7 +83,7 @@ export async function notifyEmergencyTeam(telefone: string): Promise<void> {
         timestamp: new Date()
     };
 
-    console.log('🚨 [EMERGÊNCIA] Notificando equipe sobre emergência médica:', data);
+    logger.info('emergency.notify', 'Notificando equipe sobre emergencia medica', { module: 'emergency', telefone: data.telefone, timestamp: data.timestamp.toISOString() });
 
     const results = await Promise.allSettled([
         sendSlackNotification(data),
@@ -97,14 +96,14 @@ export async function notifyEmergencyTeam(telefone: string): Promise<void> {
     ).length;
 
     if (successCount === 0) {
-        console.warn('⚠️ [EMERGÊNCIA] Nenhum canal de notificação configurado ou disponível');
+        logger.warning('emergency.notify', 'Nenhum canal de notificacao configurado ou disponivel', { module: 'emergency' });
     } else {
-        console.log(`✅ [EMERGÊNCIA] Notificação enviada para ${successCount} canal(is)`);
+        logger.info('emergency.notify', `Notificacao enviada para ${successCount} canal(is)`, { module: 'emergency', successCount });
     }
 }
 
 export async function notifyAdminHelp(telefone: string): Promise<void> {
-    console.log(`📞 [AJUDA] Usuário ${telefone} solicitou falar com atendente`);
+    logger.info('admin.help', `Usuario ${telefone} solicitou falar com atendente`, { module: 'emergency', telefone });
 
     const webhookUrl = process.env.SLACK_WEBHOOK_URL;
     if (webhookUrl) {
@@ -117,7 +116,7 @@ export async function notifyAdminHelp(telefone: string): Promise<void> {
                 })
             });
         } catch (error) {
-            console.error('Erro ao notificar admin:', error);
+            logger.error('admin.help', 'Erro ao notificar admin', error instanceof Error ? error : { error }, { module: 'emergency' });
         }
     }
 }

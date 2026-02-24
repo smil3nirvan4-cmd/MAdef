@@ -1,5 +1,6 @@
 import { MockRepository } from '../repositories/mock-db';
 import type { IDatabaseFactory } from '../repositories/types';
+import logger from '@/lib/observability/logger';
 
 // Factory Logic to select DB implementation with async initialization
 let db: IDatabaseFactory = MockRepository;
@@ -26,12 +27,12 @@ async function initializeDatabase(): Promise<IDatabaseFactory> {
         // Dynamic ESM import for Prisma Implementation
         const prismaModule = await import('../repositories/prisma-db');
         db = prismaModule.PrismaRepository;
-        console.log('✅ [DB] Using Prisma Real Database');
+        logger.info('db.init', 'Using Prisma Real Database', { module: 'database' });
         initialized = true;
         return db;
     } catch (_e) {
         const reason = FORCE_MOCK ? 'Mock forced' : !isValidDatabaseUrl ? 'Invalid DATABASE_URL' : 'Prisma not found';
-        console.warn(`⚠️ [DB] Using In-Memory Mock Repository (Reason: ${reason})`);
+        logger.warning('db.init', `Using In-Memory Mock Repository (Reason: ${reason})`, { module: 'database', reason });
         db = MockRepository;
         initialized = true;
         return db;

@@ -1,5 +1,6 @@
 import { Queue } from 'bullmq';
 import { getRedis } from '@/lib/redis/client';
+import logger from '@/lib/observability/logger';
 
 let queue: Queue | null = null;
 let initialized = false;
@@ -10,7 +11,7 @@ export async function getWhatsAppQueue(): Promise<Queue | null> {
 
     const redis = await getRedis();
     if (!redis) {
-        console.warn('[BullMQ] Redis unavailable, WhatsApp queue disabled (sync fallback)');
+        logger.warning('bullmq.init', 'Redis unavailable, WhatsApp queue disabled (sync fallback)', { module: 'whatsapp-queue' });
         return null;
     }
 
@@ -23,10 +24,10 @@ export async function getWhatsAppQueue(): Promise<Queue | null> {
                 removeOnFail: { count: 200 },
             },
         });
-        console.log('[BullMQ] WhatsApp outbox queue initialized');
+        logger.info('bullmq.init', 'WhatsApp outbox queue initialized', { module: 'whatsapp-queue' });
         return queue;
     } catch (err) {
-        console.warn('[BullMQ] Failed to create queue:', err);
+        logger.warning('bullmq.init', 'Failed to create queue', { module: 'whatsapp-queue', error: String(err) });
         return null;
     }
 }

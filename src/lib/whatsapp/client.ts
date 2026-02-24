@@ -1,4 +1,5 @@
 import { resolveBridgeConfig } from './bridge-config';
+import logger from '@/lib/observability/logger';
 
 // Import logMessage for tracking sent messages
 let logMessage: ((params: { telefone: string; direcao: 'IN' | 'OUT'; conteudo: string; flow?: string; step?: string }) => Promise<void>) | null = null;
@@ -15,7 +16,7 @@ export async function sendMessage(to: string, text: string): Promise<{ success: 
     const bridgeUrl = getBridgeUrl();
     const jid = to.includes('@') ? to : `${to.replace(/\D/g, '')}@s.whatsapp.net`;
 
-    console.log(`📤 [Bridge] Enviando para ${jid}: ${text.substring(0, 50)}...`);
+    logger.whatsapp('bridge.send', `Enviando para ${jid}`, { module: 'whatsapp-client', jid, preview: text.substring(0, 50) });
 
     try {
         const res = await fetch(`${bridgeUrl}/send`, {
@@ -42,7 +43,7 @@ export async function sendMessage(to: string, text: string): Promise<{ success: 
 
         return { success: true };
     } catch (error: any) {
-        console.error('❌ [Bridge] Erro ao enviar:', error.message);
+        logger.error('bridge.send', 'Erro ao enviar mensagem via Bridge', { module: 'whatsapp-client', errorMessage: error.message });
         return { success: false, error: error.message };
     }
 }
@@ -113,6 +114,6 @@ export function getSocket() {
 
 // Inicialização dummy para compatibilidade
 export async function initializeWhatsApp() {
-    console.log('ℹ️ Cliente rodando em modo Bridge (Stateless). Nenhuma ação necessária.');
+    logger.info('whatsapp.init', 'Cliente rodando em modo Bridge (Stateless). Nenhuma acao necessaria.', { module: 'whatsapp-client' });
     return null;
 }
