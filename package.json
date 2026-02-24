@@ -37,6 +37,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@types/pdfkit": "^0.17.5",
     "baileys": "^7.0.0-rc.9",
+    "bullmq": "^5.70.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "ioredis": "^5.9.3",
