@@ -4,6 +4,7 @@ import path from 'path';
 import { resolveBridgeConfig } from '@/lib/whatsapp/bridge-config';
 import { getDbSchemaCapabilities } from '@/lib/db/schema-capabilities';
 import { resolveDatabaseTargetInfo } from '@/lib/db/database-target';
+import { getRedis } from '@/lib/redis/client';
 
 interface HealthStatus {
     status: 'healthy' | 'degraded' | 'unhealthy';
@@ -16,6 +17,7 @@ interface HealthStatus {
     databaseTarget: string;
     checks: {
         database: { status: string; latency?: number };
+        redis: { status: string; latencyMs?: number };
         fileSystem: { status: string; files?: string[] };
         whatsapp: {
             status: string;
@@ -38,6 +40,7 @@ export async function GET() {
     const dbInfo = resolveDatabaseTargetInfo(process.env.DATABASE_URL);
     const checks: HealthStatus['checks'] = {
         database: { status: 'unknown' },
+        redis: { status: 'unknown' },
         fileSystem: { status: 'unknown' },
         whatsapp: { status: 'unknown' },
         memory: { used: 0, total: 0, percentage: 0 },
@@ -58,6 +61,19 @@ export async function GET() {
         };
     } catch {
         checks.database = { status: 'error' };
+    }
+
+    try {
+        const redisStart = Date.now();
+        const redis = await getRedis();
+        if (redis) {
+            await redis.ping();
+            checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart };
+        } else {
+            checks.redis = { status: 'not_configured' };
+        }
+    } catch {
+        checks.redis = { status: 'error' };
     }
 
     try {
