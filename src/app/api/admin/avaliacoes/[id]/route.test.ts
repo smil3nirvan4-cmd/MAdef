@@ -2,9 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
 
 const mocks = vi.hoisted(() => ({
+    guardCapability: vi.fn(),
     avaliacaoFindUnique: vi.fn(),
     loggerWarning: vi.fn(),
     getDbSchemaCapabilities: vi.fn(),
+}));
+
+vi.mock('@/lib/auth/capability-guard', () => ({
+    guardCapability: mocks.guardCapability,
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -38,6 +43,7 @@ function req(): NextRequest {
 describe('GET /api/admin/avaliacoes/[id]', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.guardCapability.mockResolvedValue({ role: 'ADMIN', userId: 'admin@test.com' });
         mocks.getDbSchemaCapabilities.mockResolvedValue({
             dbSchemaOk: true,
             missingColumns: [],
