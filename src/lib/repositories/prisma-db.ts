@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { logAudit, computeChanges } from '@/lib/audit';
 import {
     IDatabaseFactory
 } from './types';
@@ -9,13 +10,33 @@ export const PrismaRepository: IDatabaseFactory = {
         async findByPhone(phone) { return prisma.cuidador.findUnique({ where: { telefone: phone } }); },
         async findAllPending() { return prisma.cuidador.findMany({ where: { status: 'AGUARDANDO_RH' }, orderBy: { createdAt: 'desc' } }); },
         async upsert(phone, data) {
-            return prisma.cuidador.upsert({
+            const existing = await prisma.cuidador.findUnique({ where: { telefone: phone } });
+            const result = await prisma.cuidador.upsert({
                 where: { telefone: phone },
                 update: data,
                 create: { telefone: phone, ...data }
             });
+            await logAudit({
+                entity: 'Cuidador',
+                entityId: result.id,
+                action: existing ? 'UPDATE' : 'CREATE',
+                before: existing ? (existing as unknown as Record<string, unknown>) : null,
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
         },
-        async update(id, data) { return prisma.cuidador.update({ where: { id }, data }); }
+        async update(id, data) {
+            const before = await prisma.cuidador.findUnique({ where: { id } });
+            const result = await prisma.cuidador.update({ where: { id }, data });
+            await logAudit({
+                entity: 'Cuidador',
+                entityId: id,
+                action: 'UPDATE',
+                before: before as unknown as Record<string, unknown>,
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
+        }
     },
     paciente: {
         async findByPhone(phone) { return prisma.paciente.findUnique({ where: { telefone: phone } }); },
@@ -32,12 +53,20 @@ export const PrismaRepository: IDatabaseFactory = {
             });
         },
         async upsert(phone, data) {
-
-            return prisma.paciente.upsert({
+            const existing = await prisma.paciente.findUnique({ where: { telefone: phone } });
+            const result = await prisma.paciente.upsert({
                 where: { telefone: phone },
                 update: data,
                 create: { telefone: phone, ...data }
             });
+            await logAudit({
+                entity: 'Paciente',
+                entityId: result.id,
+                action: existing ? 'UPDATE' : 'CREATE',
+                before: existing ? (existing as unknown as Record<string, unknown>) : null,
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
         }
     },
     whatsapp: {
@@ -91,7 +120,16 @@ export const PrismaRepository: IDatabaseFactory = {
         async getAll() { return prisma.formSubmission.findMany({ orderBy: { createdAt: 'desc' } }); }
     },
     avaliacao: {
-        async create(data) { return prisma.avaliacao.create({ data }); },
+        async create(data) {
+            const result = await prisma.avaliacao.create({ data });
+            await logAudit({
+                entity: 'Avaliacao',
+                entityId: result.id,
+                action: 'CREATE',
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
+        },
         async findPending() {
             return prisma.avaliacao.findMany({
                 where: { status: { in: ['PENDENTE', 'ENVIADA'] } },
@@ -101,13 +139,53 @@ export const PrismaRepository: IDatabaseFactory = {
         }
     },
     orcamento: {
-        async create(data) { return prisma.orcamento.create({ data }); },
-        async update(id, data) { return prisma.orcamento.update({ where: { id }, data }); },
+        async create(data) {
+            const result = await prisma.orcamento.create({ data });
+            await logAudit({
+                entity: 'Orcamento',
+                entityId: result.id,
+                action: 'CREATE',
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
+        },
+        async update(id, data) {
+            const before = await prisma.orcamento.findUnique({ where: { id } });
+            const result = await prisma.orcamento.update({ where: { id }, data });
+            await logAudit({
+                entity: 'Orcamento',
+                entityId: id,
+                action: 'UPDATE',
+                before: before as unknown as Record<string, unknown>,
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
+        },
         async findByPaciente(pacienteId) { return prisma.orcamento.findMany({ where: { pacienteId }, orderBy: { createdAt: 'desc' } }); }
     },
     alocacao: {
-        async create(data) { return prisma.alocacao.create({ data }); },
-        async update(id, data) { return prisma.alocacao.update({ where: { id }, data }); },
+        async create(data) {
+            const result = await prisma.alocacao.create({ data });
+            await logAudit({
+                entity: 'Alocacao',
+                entityId: result.id,
+                action: 'CREATE',
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
+        },
+        async update(id, data) {
+            const before = await prisma.alocacao.findUnique({ where: { id } });
+            const result = await prisma.alocacao.update({ where: { id }, data });
+            await logAudit({
+                entity: 'Alocacao',
+                entityId: id,
+                action: 'UPDATE',
+                before: before as unknown as Record<string, unknown>,
+                after: result as unknown as Record<string, unknown>,
+            });
+            return result;
+        },
         async findByCuidador(cuidadorId) {
             return prisma.alocacao.findMany({
                 where: { cuidadorId },
