@@ -17,6 +17,7 @@ model Cuidador {
   scoreRH      Int?
   competencias String?
   endereco     String?
+  deletedAt    DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   alocacoes    Alocacao[]
@@ -35,6 +36,7 @@ model Paciente {
   status     String               @default("LEAD")
   prioridade String               @default("NORMAL")
   gqpScore   Int?
+  deletedAt  DateTime?
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   alocacoes  Alocacao[]
@@ -72,6 +74,7 @@ model Avaliacao {
   avaliadorId     String?
   validadoEm      DateTime?
   status          String    @default("PENDENTE")
+  deletedAt       DateTime?
   createdAt       DateTime  @default(now())
   paciente        Paciente  @relation(fields: [pacienteId], references: [id])
   dadosDetalhados String? // JSON com discovery, patient, clinical, abemid, etc
@@ -114,6 +117,7 @@ model Orcamento {
   aprovadoPor           String?
   enviadoEm             DateTime?
   aceitoEm              DateTime?
+  deletedAt             DateTime?
   createdAt             DateTime                   @default(now())
   paciente              Paciente                   @relation(fields: [pacienteId], references: [id])
   unidade               Unidade?                   @relation(fields: [unidadeId], references: [id])
@@ -145,6 +149,7 @@ model Alocacao {
   respondidoEm  DateTime?
   confirmadoT24 DateTime?
   confirmadoT2  DateTime?
+  deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   paciente      Paciente? @relation(fields: [pacienteId], references: [id])
   cuidador      Cuidador  @relation(fields: [cuidadorId], references: [id])

@@ -15,10 +15,10 @@ if (!globalState.mockRepoStore) {
         session: { id: 'main', status: 'DISCONNECTED', qrCode: null, connectedAt: null },
         messages: [],
         cuidadores: [
-            { id: '1', telefone: '5511999990001', nome: 'João Silva', area: 'Cuidador de Idosos', status: 'AGUARDANDO_RH', quizScore: 85, createdAt: new Date() }
+            { id: '1', telefone: '5511999990001', nome: 'João Silva', area: 'Cuidador de Idosos', status: 'AGUARDANDO_RH', quizScore: 85, deletedAt: null, createdAt: new Date() }
         ],
         pacientes: [
-            { id: 'p1', telefone: '5511988880001', nome: 'Sra. Ana Souza', prioridade: 'ALTA', status: 'LEAD', cidade: 'São Paulo', createdAt: new Date() }
+            { id: 'p1', telefone: '5511988880001', nome: 'Sra. Ana Souza', prioridade: 'ALTA', status: 'LEAD', cidade: 'São Paulo', deletedAt: null, createdAt: new Date() }
         ],
         submissions: [],
         avaliacoes: [],
@@ -131,6 +131,7 @@ export const MockRepository: IDatabaseFactory = {
                 whatsappErro: null,
                 whatsappTentativas: 0,
                 valorProposto: null,
+                deletedAt: null,
                 createdAt: new Date()
             };
             store.avaliacoes.push(nova);
@@ -167,6 +168,7 @@ export const MockRepository: IDatabaseFactory = {
                 aprovadoPor: (data as any).aprovadoPor ?? null,
                 enviadoEm: (data as any).enviadoEm ?? null,
                 aceitoEm: (data as any).aceitoEm ?? null,
+                deletedAt: null,
                 createdAt: new Date()
             };
             store.orcamentos.push(novo);
@@ -199,6 +201,7 @@ export const MockRepository: IDatabaseFactory = {
                 respondidoEm: null,
                 confirmadoT24: null,
                 confirmadoT2: null,
+                deletedAt: null,
                 createdAt: new Date()
             };
             store.alocacoes.push(novo);
