@@ -6,7 +6,7 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         include: ['**/*.test.ts'],
-        exclude: ['node_modules', '.next', 'whatsapp-bridge/**'],
+        exclude: ['node_modules', '.next', 'whatsapp-bridge/**', 'e2e/**'],
         coverage: {
             reporter: ['text', 'json', 'html'],
             include: ['src/lib/**/*.ts'],
