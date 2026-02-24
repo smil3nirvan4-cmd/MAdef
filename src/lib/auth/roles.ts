@@ -45,6 +45,7 @@ export const CAPABILITIES = [
     'VIEW_ANALYTICS',
     'RETRY_QUEUE_ITEM',
     'CANCEL_QUEUE_ITEM',
+    'MANAGE_LGPD',
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];

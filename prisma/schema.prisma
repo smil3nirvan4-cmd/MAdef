@@ -661,6 +661,25 @@ model OrcamentoAuditLog {
 }
 
 // ==========================================
+// LGPD — CONSENTIMENTO E COMPLIANCE
+// ==========================================
+
+model ConsentRecord {
+  id            String    @id @default(cuid())
+  subjectPhone  String
+  tipo          String    // TERMS | MARKETING | DATA_PROCESSING | PROFILING
+  consentido    Boolean
+  versaoTermos  String    @default("1.0")
+  ipAddress     String?
+  userAgent     String?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([subjectPhone, tipo])
+  @@index([subjectPhone, createdAt])
+}
+
+// ==========================================
 // SISTEMA DE LOGS
 // ==========================================
 
