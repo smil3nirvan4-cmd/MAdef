@@ -1,7 +1,7 @@
 # MAdef — Home Care Platform
 
 ## Stack
-Next.js 16, React 19, TypeScript 5.9, Prisma 6, SQLite, NextAuth 5 beta, Baileys (WhatsApp), Vitest 4, Pino, Zod 4
+Next.js 16, React 19, TypeScript 5.9, Prisma 6, PostgreSQL, NextAuth 5 beta, Baileys (WhatsApp), Vitest 4, Playwright, OpenTelemetry, BullMQ, Redis, Pino, Zod 4
 
 ## Commands
 - Build: `npm run build`
@@ -17,7 +17,7 @@ Next.js 16, React 19, TypeScript 5.9, Prisma 6, SQLite, NextAuth 5 beta, Baileys
 - Auth: src/proxy.ts (NOT middleware.ts — Next.js 16 uses proxy pattern)
 - RBAC: guardCapability() from src/lib/auth/capability-guard.ts (takes Capability, not req)
 - Error handling: withErrorBoundary() from src/lib/api/with-error-boundary.ts
-- Rate limiting: checkRateLimit() from src/lib/api/rate-limit.ts (utility, not wrapper)
+- Rate limiting: checkRateLimit() from src/lib/api/rate-limit.ts (integrated in withErrorBoundary)
 - Responses: ok(), fail(), serverError(), paginated() from src/lib/api/response.ts
 - DB: Prisma singleton from src/lib/prisma.ts
 - Repos: src/lib/repositories/ (factory pattern: mock-db.ts, prisma-db.ts, types.ts)
@@ -53,3 +53,25 @@ async function handleGet(req: NextRequest) {
 
 export const GET = withErrorBoundary(handleGet)
 ```
+
+## E2E Tests
+- Playwright headless Chromium in e2e/ (API-only tests, no browser needed)
+- Run: `npm run test:e2e`
+- DO NOT mix with vitest (separate directories, separate configs)
+- Config: playwright.config.ts in root
+- Auth: e2e/global-setup.ts handles login + cookie persistence
+
+## OpenTelemetry
+- Disabled by default (OTEL_ENABLED=false)
+- Enable: OTEL_ENABLED=true + optional OTEL_EXPORTER_OTLP_ENDPOINT
+- Console exporter used if no endpoint configured
+- Manual spans in withErrorBoundary (method, route, status, errors)
+- Setup: src/lib/observability/tracing.ts, called from src/instrumentation.ts
+
+## Rate Limiting
+- POST/PUT/DELETE: 30/min per IP
+- Auth routes: 10/min (brute force prevention)
+- WhatsApp routes: 60/min
+- GET: 100/min
+- 429 response with headers: X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After
+- Integrated in withErrorBoundary — automatic for all wrapped routes
