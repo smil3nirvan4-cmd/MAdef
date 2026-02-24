@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ok, fail, E } from '@/lib/api/response';
 
 const DEFAULT_TEMPLATES = [
     { name: 'Boas-vindas Cuidador', category: 'onboarding', content: 'Olá {{nome}}! Bem-vindo à Mãos Amigas.' },
@@ -16,31 +20,32 @@ async function ensureSeed() {
     });
 }
 
-export async function GET(_request: NextRequest) {
-    try {
-        await ensureSeed();
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const templates = await prisma.whatsAppTemplate.findMany({
-            orderBy: { createdAt: 'desc' },
-        });
-        const categories = [...new Set(templates.map((t) => t.category))];
+    await ensureSeed();
 
-        return NextResponse.json({ success: true, templates, categories });
-    } catch (error) {
-        console.error('[API] templates GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao listar templates' }, { status: 500 });
-    }
+    const templates = await prisma.whatsAppTemplate.findMany({
+        orderBy: { createdAt: 'desc' },
+    });
+    const categories = [...new Set(templates.map((t) => t.category))];
+
+    return ok({ templates, categories });
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
+    const body = await request.json();
+    const { name, category, content, isActive } = body || {};
+
+    if (!name || !category || !content) {
+        return fail(E.VALIDATION_ERROR, 'name, category e content são obrigatórios', { status: 400 });
+    }
+
     try {
-        const body = await request.json();
-        const { name, category, content, isActive } = body || {};
-
-        if (!name || !category || !content) {
-            return NextResponse.json({ success: false, error: 'name, category e content são obrigatórios' }, { status: 400 });
-        }
-
         const template = await prisma.whatsAppTemplate.create({
             data: {
                 name: String(name).trim(),
@@ -50,56 +55,56 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        return NextResponse.json({ success: true, template });
+        return ok({ template });
     } catch (error: any) {
-        console.error('[API] templates POST erro:', error);
         const message = String(error?.message || '');
         if (message.includes('Unique constraint')) {
-            return NextResponse.json({ success: false, error: 'Já existe template com este nome' }, { status: 409 });
+            return fail(E.CONFLICT, 'Já existe template com este nome', { status: 409 });
         }
-        return NextResponse.json({ success: false, error: 'Erro ao criar template' }, { status: 500 });
+        throw error;
     }
 }
 
-export async function PUT(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { id, ...updates } = body || {};
+async function handlePut(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+    const body = await request.json();
+    const { id, ...updates } = body || {};
 
-        const template = await prisma.whatsAppTemplate.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.name !== undefined && { name: String(updates.name).trim() }),
-                ...(updates.category !== undefined && { category: String(updates.category).trim() }),
-                ...(updates.content !== undefined && { content: String(updates.content) }),
-                ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
-            },
-        });
-
-        return NextResponse.json({ success: true, template });
-    } catch (error) {
-        console.error('[API] templates PUT erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar template' }, { status: 500 });
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id é obrigatório', { status: 400 });
     }
+
+    const template = await prisma.whatsAppTemplate.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.name !== undefined && { name: String(updates.name).trim() }),
+            ...(updates.category !== undefined && { category: String(updates.category).trim() }),
+            ...(updates.content !== undefined && { content: String(updates.content) }),
+            ...(updates.isActive !== undefined && { isActive: Boolean(updates.isActive) }),
+        },
+    });
+
+    return ok({ template });
 }
 
-export async function DELETE(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-        await prisma.whatsAppTemplate.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[API] templates DELETE erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir template' }, { status: 500 });
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id é obrigatório', { status: 400 });
     }
+
+    await prisma.whatsAppTemplate.delete({ where: { id } });
+    return ok({ deleted: true });
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 20, windowSec: 60 });
+export const PUT = withRateLimit(withErrorBoundary(handlePut), { max: 20, windowSec: 60 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 20, windowSec: 60 });

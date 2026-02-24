@@ -1,12 +1,14 @@
 export const runtime = 'nodejs';
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { OUTBOX_INTENTS } from '@/lib/whatsapp/outbox/types';
+import { guardCapability } from '@/lib/auth/capability-guard';
 import { withRequestContext } from '@/lib/api/with-request-context';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
 import { E, fail, ok, paginated } from '@/lib/api/response';
 import { parseFilter, parsePagination, parseSort } from '@/lib/api/query-params';
 
@@ -64,6 +66,9 @@ function normalizeStatusFilter(rawStatus: string | null) {
 }
 
 const getHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const url = new URL(request.url);
         const { searchParams } = url;
@@ -214,6 +219,9 @@ const getHandler = async (request: NextRequest) => {
 };
 
 const postHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('SEND_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const parsed = actionSchema.parse(body || {});
@@ -279,6 +287,9 @@ const postHandler = async (request: NextRequest) => {
 };
 
 const patchHandler = async (request: NextRequest) => {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const body = await request.json();
         const id = String(body?.id || '');

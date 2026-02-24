@@ -1,5 +1,9 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ok, fail, E } from '@/lib/api/response';
 
 const DEFAULT_SETTINGS: Record<string, string> = {
     autoReplyEnabled: 'true',
@@ -43,63 +47,63 @@ async function loadSettingsObject() {
     return settings;
 }
 
-export async function GET(_request: NextRequest) {
-    try {
-        await ensureSeed();
-        const settings = await loadSettingsObject();
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const stats = {
-            messagesIn24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'IN' } }),
-            messagesOut24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'OUT' } }),
-            activeFlows: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
-            cooldowns: await prisma.whatsAppCooldown.count(),
-        };
+    await ensureSeed();
+    const settings = await loadSettingsObject();
 
-        return NextResponse.json({ success: true, settings, stats });
-    } catch (error) {
-        console.error('[API] settings GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao carregar configuracoes' }, { status: 500 });
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const stats = {
+        messagesIn24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'IN' } }),
+        messagesOut24h: await prisma.mensagem.count({ where: { timestamp: { gte: last24h }, direcao: 'OUT' } }),
+        activeFlows: await prisma.whatsAppFlowState.count({ where: { currentFlow: { not: 'IDLE' } } }),
+        cooldowns: await prisma.whatsAppCooldown.count(),
+    };
+
+    return ok({ settings, stats });
+}
+
+async function handlePatch(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_SETTINGS');
+    if (guard instanceof NextResponse) return guard;
+
+    const body = await request.json();
+    const entries = Object.entries(body || {});
+
+    if (entries.length === 0) {
+        return fail(E.VALIDATION_ERROR, 'Nenhuma configuracao recebida', { status: 400 });
     }
+
+    await prisma.$transaction(
+        entries.map(([key, value]) =>
+            prisma.whatsAppSetting.upsert({
+                where: { key },
+                update: { value: String(value) },
+                create: { key, value: String(value) },
+            })
+        )
+    );
+
+    const settings = await loadSettingsObject();
+
+    await prisma.systemLog.create({
+        data: {
+            type: 'INFO',
+            action: 'automation_settings_updated',
+            message: 'Configuracoes de automacao atualizadas',
+            metadata: JSON.stringify(body),
+        },
+    });
+
+    return ok({ settings });
 }
 
-export async function PATCH(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const entries = Object.entries(body || {});
-
-        if (entries.length === 0) {
-            return NextResponse.json({ success: false, error: 'Nenhuma configuracao recebida' }, { status: 400 });
-        }
-
-        await prisma.$transaction(
-            entries.map(([key, value]) =>
-                prisma.whatsAppSetting.upsert({
-                    where: { key },
-                    update: { value: String(value) },
-                    create: { key, value: String(value) },
-                })
-            )
-        );
-
-        const settings = await loadSettingsObject();
-
-        await prisma.systemLog.create({
-            data: {
-                type: 'INFO',
-                action: 'automation_settings_updated',
-                message: 'Configuracoes de automacao atualizadas',
-                metadata: JSON.stringify(body),
-            },
-        });
-
-        return NextResponse.json({ success: true, settings });
-    } catch (error) {
-        console.error('[API] settings PATCH erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao salvar configuracoes' }, { status: 500 });
-    }
+async function handlePut(request: NextRequest) {
+    return handlePatch(request);
 }
 
-export async function PUT(request: NextRequest) {
-    return PATCH(request);
-}
+export const GET = withErrorBoundary(handleGet);
+export const PATCH = withRateLimit(withErrorBoundary(handlePatch), { max: 20, windowSec: 60 });
+export const PUT = withRateLimit(withErrorBoundary(handlePut), { max: 20, windowSec: 60 });

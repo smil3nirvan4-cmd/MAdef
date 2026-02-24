@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ok, fail, E } from '@/lib/api/response';
 
 const DEFAULT_LABELS = [
     { name: 'VIP', color: '#FFD700' },
@@ -22,79 +26,72 @@ function withDescription(label: any) {
     };
 }
 
-export async function GET(_request: NextRequest) {
-    try {
-        await ensureSeed();
-        const labels = await prisma.whatsAppLabel.findMany({ orderBy: { name: 'asc' } });
-        return NextResponse.json({ success: true, labels: labels.map(withDescription) });
-    } catch (error) {
-        console.error('[API] labels GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao listar labels' }, { status: 500 });
-    }
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
+    await ensureSeed();
+    const labels = await prisma.whatsAppLabel.findMany({ orderBy: { name: 'asc' } });
+    return ok({ labels: labels.map(withDescription) });
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { name, color } = body || {};
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (!name) {
-            return NextResponse.json({ success: false, error: 'name é obrigatório' }, { status: 400 });
-        }
+    const body = await request.json();
+    const { name, color } = body || {};
 
-        const label = await prisma.whatsAppLabel.create({
-            data: {
-                name: String(name).trim(),
-                color: String(color || '#3B82F6'),
-            },
-        });
-
-        return NextResponse.json({ success: true, label: withDescription(label) });
-    } catch (error: any) {
-        console.error('[API] labels POST erro:', error);
-        const message = String(error?.message || '');
-        if (message.includes('Unique constraint')) {
-            return NextResponse.json({ success: false, error: 'Etiqueta já existe' }, { status: 409 });
-        }
-        return NextResponse.json({ success: false, error: 'Erro ao criar etiqueta' }, { status: 500 });
+    if (!name) {
+        return fail(E.VALIDATION_ERROR, 'name é obrigatório');
     }
+
+    const label = await prisma.whatsAppLabel.create({
+        data: {
+            name: String(name).trim(),
+            color: String(color || '#3B82F6'),
+        },
+    });
+
+    return ok({ label: withDescription(label) });
 }
 
-export async function PUT(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { id, ...updates } = body || {};
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+async function handlePut(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const label = await prisma.whatsAppLabel.update({
-            where: { id: String(id) },
-            data: {
-                ...(updates.name !== undefined && { name: String(updates.name).trim() }),
-                ...(updates.color !== undefined && { color: String(updates.color) }),
-            },
-        });
-
-        return NextResponse.json({ success: true, label: withDescription(label) });
-    } catch (error) {
-        console.error('[API] labels PUT erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar etiqueta' }, { status: 500 });
+    const body = await request.json();
+    const { id, ...updates } = body || {};
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id é obrigatório');
     }
+
+    const label = await prisma.whatsAppLabel.update({
+        where: { id: String(id) },
+        data: {
+            ...(updates.name !== undefined && { name: String(updates.name).trim() }),
+            ...(updates.color !== undefined && { color: String(updates.color) }),
+        },
+    });
+
+    return ok({ label: withDescription(label) });
 }
 
-export async function DELETE(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await prisma.whatsAppLabel.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[API] labels DELETE erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir etiqueta' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id é obrigatório');
     }
+
+    await prisma.whatsAppLabel.delete({ where: { id } });
+    return ok({ deleted: true });
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 20, windowSec: 60 });
+export const PUT = withRateLimit(withErrorBoundary(handlePut), { max: 20, windowSec: 60 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 20, windowSec: 60 });

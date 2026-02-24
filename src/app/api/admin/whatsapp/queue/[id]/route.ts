@@ -1,10 +1,11 @@
 export const runtime = 'nodejs';
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { processWhatsAppOutboxOnce } from '@/lib/whatsapp/outbox/worker';
 import { buildQueueCorrelationTerms } from '@/lib/whatsapp/outbox/correlation';
+import { guardCapability } from '@/lib/auth/capability-guard';
 import { withRequestContext } from '@/lib/api/with-request-context';
 import { E, fail, ok } from '@/lib/api/response';
 
@@ -34,6 +35,9 @@ const getHandler = async (
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
 
@@ -94,6 +98,9 @@ const postHandler = async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
     try {
         const { id } = await params;
         const body = await request.json();

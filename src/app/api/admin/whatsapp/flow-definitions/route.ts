@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ok, fail, E } from '@/lib/api/response';
 
 const STEP_TYPES = ['message', 'question', 'buttons', 'list', 'media', 'condition', 'action', 'delay'];
 const MEDIA_TYPES = ['image', 'video', 'audio', 'document'];
@@ -73,100 +77,96 @@ async function ensureSeed() {
     });
 }
 
-export async function GET(request: NextRequest) {
-    try {
-        await ensureSeed();
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (id) {
-            const flow = await prisma.whatsAppFlowDefinition.findUnique({ where: { id } });
-            if (!flow) {
-                return NextResponse.json({ success: false, error: 'Fluxo não encontrado' }, { status: 404 });
-            }
-            return NextResponse.json({ success: true, flow: toClientFlow(flow) });
+    await ensureSeed();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+        const flow = await prisma.whatsAppFlowDefinition.findUnique({ where: { id } });
+        if (!flow) {
+            return fail(E.NOT_FOUND, 'Fluxo não encontrado', { status: 404 });
         }
-
-        const flows = await prisma.whatsAppFlowDefinition.findMany({
-            orderBy: [{ category: 'asc' }, { name: 'asc' }],
-        });
-        const categories = [...new Set(flows.map((f) => f.category))];
-
-        return NextResponse.json({
-            success: true,
-            flows: flows.map(toClientFlow),
-            categories,
-            stepTypes: STEP_TYPES,
-            mediaTypes: MEDIA_TYPES,
-            actionTypes: ACTION_TYPES,
-        });
-    } catch (error) {
-        console.error('[API] flow-definitions GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao listar fluxos' }, { status: 500 });
+        return ok({ flow: toClientFlow(flow) });
     }
+
+    const flows = await prisma.whatsAppFlowDefinition.findMany({
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+    const categories = [...new Set(flows.map((f) => f.category))];
+
+    return ok({
+        flows: flows.map(toClientFlow),
+        categories,
+        stepTypes: STEP_TYPES,
+        mediaTypes: MEDIA_TYPES,
+        actionTypes: ACTION_TYPES,
+    });
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const now = Date.now();
-        const flow = await prisma.whatsAppFlowDefinition.create({
-            data: {
-                id: body?.id ? String(body.id) : `FLOW_${now}`,
-                name: String(body?.name || `Fluxo ${now}`),
-                description: body?.description ? String(body.description) : '',
-                trigger: body?.trigger ? String(body.trigger) : '',
-                category: body?.category ? String(body.category) : 'custom',
-                isActive: body?.active !== false,
-                definition: JSON.stringify(Array.isArray(body?.steps) ? body.steps : [{ id: 'start', type: 'message', content: 'Olá' }]),
-            },
-        });
-        return NextResponse.json({ success: true, flow: toClientFlow(flow) });
-    } catch (error) {
-        console.error('[API] flow-definitions POST erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao criar fluxo' }, { status: 500 });
-    }
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
+    const body = await request.json();
+    const now = Date.now();
+    const flow = await prisma.whatsAppFlowDefinition.create({
+        data: {
+            id: body?.id ? String(body.id) : `FLOW_${now}`,
+            name: String(body?.name || `Fluxo ${now}`),
+            description: body?.description ? String(body.description) : '',
+            trigger: body?.trigger ? String(body.trigger) : '',
+            category: body?.category ? String(body.category) : 'custom',
+            isActive: body?.active !== false,
+            definition: JSON.stringify(Array.isArray(body?.steps) ? body.steps : [{ id: 'start', type: 'message', content: 'Olá' }]),
+        },
+    });
+    return ok({ flow: toClientFlow(flow) });
 }
 
-export async function PATCH(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const id = body?.id ? String(body.id) : '';
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+async function handlePatch(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const flow = await prisma.whatsAppFlowDefinition.update({
-            where: { id },
-            data: {
-                ...(body.name !== undefined && { name: String(body.name) }),
-                ...(body.description !== undefined && { description: String(body.description) }),
-                ...(body.trigger !== undefined && { trigger: String(body.trigger) }),
-                ...(body.category !== undefined && { category: String(body.category) }),
-                ...(body.active !== undefined && { isActive: Boolean(body.active) }),
-                ...(body.steps !== undefined && { definition: JSON.stringify(Array.isArray(body.steps) ? body.steps : []) }),
-            },
-        });
-
-        return NextResponse.json({ success: true, flow: toClientFlow(flow) });
-    } catch (error) {
-        console.error('[API] flow-definitions PATCH erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao atualizar fluxo' }, { status: 500 });
+    const body = await request.json();
+    const id = body?.id ? String(body.id) : '';
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id é obrigatório');
     }
+
+    const flow = await prisma.whatsAppFlowDefinition.update({
+        where: { id },
+        data: {
+            ...(body.name !== undefined && { name: String(body.name) }),
+            ...(body.description !== undefined && { description: String(body.description) }),
+            ...(body.trigger !== undefined && { trigger: String(body.trigger) }),
+            ...(body.category !== undefined && { category: String(body.category) }),
+            ...(body.active !== undefined && { isActive: Boolean(body.active) }),
+            ...(body.steps !== undefined && { definition: JSON.stringify(Array.isArray(body.steps) ? body.steps : []) }),
+        },
+    });
+
+    return ok({ flow: toClientFlow(flow) });
 }
 
-export async function DELETE(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id é obrigatório' }, { status: 400 });
-        }
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await prisma.whatsAppFlowDefinition.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[API] flow-definitions DELETE erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao excluir fluxo' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id é obrigatório');
     }
+
+    await prisma.whatsAppFlowDefinition.delete({ where: { id } });
+    return ok({ deleted: true });
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 20, windowSec: 60 });
+export const PATCH = withRateLimit(withErrorBoundary(handlePatch), { max: 20, windowSec: 60 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 20, windowSec: 60 });

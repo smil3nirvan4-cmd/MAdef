@@ -5,6 +5,11 @@ const mocks = vi.hoisted(() => ({
     avaliacaoFindUnique: vi.fn(),
     loggerWarning: vi.fn(),
     getDbSchemaCapabilities: vi.fn(),
+    auth: vi.fn(),
+}));
+
+vi.mock('@/auth', () => ({
+    auth: mocks.auth,
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -20,6 +25,14 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/logger', () => ({
     default: {
         warning: mocks.loggerWarning,
+        error: vi.fn().mockResolvedValue(undefined),
+    },
+}));
+
+vi.mock('@/lib/observability/request-context', () => ({
+    RequestContext: {
+        getRequestId: () => 'test-request-id',
+        getDurationMs: () => 0,
     },
 }));
 
@@ -38,6 +51,10 @@ function req(): NextRequest {
 describe('GET /api/admin/avaliacoes/[id]', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        process.env.ADMIN_EMAIL = 'admin@test.com';
+        mocks.auth.mockResolvedValue({
+            user: { email: 'admin@test.com' },
+        });
         mocks.getDbSchemaCapabilities.mockResolvedValue({
             dbSchemaOk: true,
             missingColumns: [],
@@ -56,7 +73,8 @@ describe('GET /api/admin/avaliacoes/[id]', () => {
         const payload = await response.json();
 
         expect(response.status).toBe(200);
-        expect(payload.avaliacao.id).toBe('av1');
+        expect(payload.success).toBe(true);
+        expect(payload.data.avaliacao.id).toBe('av1');
     });
 
     it('returns 503 when schema guard detects drift', async () => {

@@ -1,6 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs';
 import path from 'node:path';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { ok, fail, E } from '@/lib/api/response';
 
 function collectRouteFiles(basePath: string, relative = ''): string[] {
     const absolute = path.join(basePath, relative);
@@ -58,13 +61,13 @@ function toPagePath(pageFileRelative: string): string {
     return normalized ? `/${normalized}` : '/';
 }
 
-export async function GET() {
+async function handleGet(_request: NextRequest) {
     if (process.env.NODE_ENV !== 'development') {
-        return NextResponse.json(
-            { success: false, error: 'Route registry disponivel apenas em desenvolvimento.' },
-            { status: 403 }
-        );
+        return fail(E.FORBIDDEN, 'Route registry disponivel apenas em desenvolvimento.', { status: 403 });
     }
+
+    const guard = await guardCapability('MANAGE_SETTINGS');
+    if (guard instanceof NextResponse) return guard;
 
     const apiBase = path.join(process.cwd(), 'src', 'app', 'api');
     const adminBase = path.join(process.cwd(), 'src', 'app', 'admin');
@@ -91,8 +94,7 @@ export async function GET() {
 
     const routeSet = new Set([...apiRoutes.map((r) => r.route), ...adminPages.map((p) => p.route)]);
 
-    return NextResponse.json({
-        success: true,
+    return ok({
         environment: process.env.NODE_ENV,
         generatedAt: new Date().toISOString(),
         apiRoutes,
@@ -104,3 +106,4 @@ export async function GET() {
     });
 }
 
+export const GET = withErrorBoundary(handleGet);

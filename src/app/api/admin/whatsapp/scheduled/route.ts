@@ -1,93 +1,94 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { enqueueWhatsAppTextJob } from '@/lib/whatsapp/outbox/service';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ok, fail, E } from '@/lib/api/response';
 
 function normalizePhone(raw: string) {
     return String(raw || '').replace(/\D/g, '');
 }
 
-export async function GET(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const status = searchParams.get('status') || 'pending';
+async function handleGet(request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        const scheduled = await prisma.whatsAppScheduled.findMany({
-            where: status ? { status } : undefined,
-            orderBy: { scheduledAt: 'asc' },
-            take: 200,
-        });
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') || 'pending';
 
-        return NextResponse.json({
-            success: true,
-            scheduled: scheduled.map((item) => ({
-                id: item.id,
-                phone: item.to,
-                message: item.message,
-                scheduledAt: item.scheduledAt,
-                status: item.status,
-                sentAt: item.sentAt,
-                createdAt: item.createdAt,
-            })),
-        });
-    } catch (error) {
-        console.error('[API] scheduled GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao listar agendamentos' }, { status: 500 });
-    }
+    const scheduled = await prisma.whatsAppScheduled.findMany({
+        where: status ? { status } : undefined,
+        orderBy: { scheduledAt: 'asc' },
+        take: 200,
+    });
+
+    return ok({
+        scheduled: scheduled.map((item) => ({
+            id: item.id,
+            phone: item.to,
+            message: item.message,
+            scheduledAt: item.scheduledAt,
+            status: item.status,
+            sentAt: item.sentAt,
+            createdAt: item.createdAt,
+        })),
+    });
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const phone = normalizePhone(body?.phone);
-        const message = body?.message ? String(body.message) : '';
-        const scheduledAt = body?.scheduledAt ? new Date(body.scheduledAt) : null;
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('SEND_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (!phone || !message || !scheduledAt || Number.isNaN(scheduledAt.getTime())) {
-            return NextResponse.json({ success: false, error: 'phone, message e scheduledAt sao obrigatorios' }, { status: 400 });
-        }
+    const body = await request.json();
+    const phone = normalizePhone(body?.phone);
+    const message = body?.message ? String(body.message) : '';
+    const scheduledAt = body?.scheduledAt ? new Date(body.scheduledAt) : null;
 
-        const scheduled = await prisma.whatsAppScheduled.create({
-            data: {
-                to: phone,
-                message,
-                scheduledAt,
-                status: 'pending',
-            },
-        });
+    if (!phone || !message || !scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+        return fail(E.VALIDATION_ERROR, 'phone, message e scheduledAt sao obrigatorios', { status: 400 });
+    }
 
-        const queue = await enqueueWhatsAppTextJob({
-            phone,
-            text: message,
+    const scheduled = await prisma.whatsAppScheduled.create({
+        data: {
+            to: phone,
+            message,
             scheduledAt,
-            context: {
-                source: 'admin_scheduled',
-                scheduledId: scheduled.id,
-            },
-            metadata: {
-                type: 'SCHEDULED',
-                scheduledId: scheduled.id,
-            },
-        });
+            status: 'pending',
+        },
+    });
 
-        return NextResponse.json({ success: true, scheduled, queue });
-    } catch (error) {
-        console.error('[API] scheduled POST erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao agendar mensagem' }, { status: 500 });
-    }
+    const queue = await enqueueWhatsAppTextJob({
+        phone,
+        text: message,
+        scheduledAt,
+        context: {
+            source: 'admin_scheduled',
+            scheduledId: scheduled.id,
+        },
+        metadata: {
+            type: 'SCHEDULED',
+            scheduledId: scheduled.id,
+        },
+    });
+
+    return ok({ scheduled, queue });
 }
 
-export async function DELETE(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) {
-            return NextResponse.json({ success: false, error: 'id e obrigatorio' }, { status: 400 });
-        }
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        await prisma.whatsAppScheduled.delete({ where: { id } });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[API] scheduled DELETE erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao cancelar agendamento' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+        return fail(E.VALIDATION_ERROR, 'id e obrigatorio', { status: 400 });
     }
+
+    await prisma.whatsAppScheduled.delete({ where: { id } });
+    return ok({ deleted: true });
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 10, windowSec: 60 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 20, windowSec: 60 });

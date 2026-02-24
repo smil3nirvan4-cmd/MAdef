@@ -1,64 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { guardCapability } from '@/lib/auth/capability-guard';
+import { withErrorBoundary } from '@/lib/api/with-error-boundary';
+import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ok, fail, E } from '@/lib/api/response';
 
 function normalizePhone(phone: string) {
     return String(phone || '').replace(/\D/g, '');
 }
 
-export async function GET(_request: NextRequest) {
-    try {
-        const blacklist = await prisma.whatsAppBlacklist.findMany({
-            orderBy: { createdAt: 'desc' },
-        });
-        return NextResponse.json({ success: true, blacklist });
-    } catch (error) {
-        console.error('[API] blacklist GET erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao listar blacklist' }, { status: 500 });
-    }
+async function handleGet(_request: NextRequest) {
+    const guard = await guardCapability('VIEW_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
+
+    const blacklist = await prisma.whatsAppBlacklist.findMany({
+        orderBy: { createdAt: 'desc' },
+    });
+    return ok({ blacklist });
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const phone = normalizePhone(body?.phone);
-        const reason = body?.reason ? String(body.reason) : null;
+async function handlePost(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (!phone) {
-            return NextResponse.json({ success: false, error: 'phone é obrigatório' }, { status: 400 });
-        }
+    const body = await request.json();
+    const phone = normalizePhone(body?.phone);
+    const reason = body?.reason ? String(body.reason) : null;
 
-        const entry = await prisma.whatsAppBlacklist.upsert({
-            where: { phone },
-            update: { reason },
-            create: { phone, reason },
-        });
-
-        return NextResponse.json({ success: true, entry });
-    } catch (error) {
-        console.error('[API] blacklist POST erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao adicionar blacklist' }, { status: 500 });
+    if (!phone) {
+        return fail(E.VALIDATION_ERROR, 'phone é obrigatório');
     }
+
+    const entry = await prisma.whatsAppBlacklist.upsert({
+        where: { phone },
+        update: { reason },
+        create: { phone, reason },
+    });
+
+    return ok({ entry });
 }
 
-export async function DELETE(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const phone = normalizePhone(searchParams.get('phone') || '');
-        const id = searchParams.get('id');
+async function handleDelete(request: NextRequest) {
+    const guard = await guardCapability('MANAGE_WHATSAPP');
+    if (guard instanceof NextResponse) return guard;
 
-        if (!phone && !id) {
-            return NextResponse.json({ success: false, error: 'phone ou id é obrigatório' }, { status: 400 });
-        }
+    const { searchParams } = new URL(request.url);
+    const phone = normalizePhone(searchParams.get('phone') || '');
+    const id = searchParams.get('id');
 
-        if (id) {
-            await prisma.whatsAppBlacklist.delete({ where: { id } });
-        } else {
-            await prisma.whatsAppBlacklist.delete({ where: { phone } });
-        }
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error('[API] blacklist DELETE erro:', error);
-        return NextResponse.json({ success: false, error: 'Erro ao remover da blacklist' }, { status: 500 });
+    if (!phone && !id) {
+        return fail(E.VALIDATION_ERROR, 'phone ou id é obrigatório');
     }
+
+    if (id) {
+        await prisma.whatsAppBlacklist.delete({ where: { id } });
+    } else {
+        await prisma.whatsAppBlacklist.delete({ where: { phone } });
+    }
+
+    return ok({ deleted: true });
 }
+
+export const GET = withErrorBoundary(handleGet);
+export const POST = withRateLimit(withErrorBoundary(handlePost), { max: 20, windowSec: 60 });
+export const DELETE = withRateLimit(withErrorBoundary(handleDelete), { max: 20, windowSec: 60 });
