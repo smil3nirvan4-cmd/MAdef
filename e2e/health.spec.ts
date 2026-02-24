@@ -19,9 +19,13 @@ test.describe('Health & Accessibility', () => {
         expect(Object.keys(body.paths).length).toBeGreaterThan(10);
     });
 
-    test('unauthenticated request to admin route returns 401', async ({ request }) => {
-        const response = await request.get('/api/admin/pacientes');
-        expect(response.status()).toBe(401);
+    test('unauthenticated request to admin route is denied', async () => {
+        // Use native fetch without any stored cookies
+        const response = await fetch('http://localhost:3000/api/admin/pacientes', {
+            redirect: 'manual',
+        });
+        // Should be 401 (guardCapability) or 302 (proxy redirect to login)
+        expect([401, 302, 307]).toContain(response.status);
     });
 
     test('invalid route returns 404', async ({ request }) => {
