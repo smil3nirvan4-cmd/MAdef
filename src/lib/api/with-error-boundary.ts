@@ -4,16 +4,35 @@ import { E } from './error-codes';
 import logger from '@/lib/observability/logger';
 import { metrics } from '@/lib/observability/metrics';
 import { RequestContext } from '@/lib/observability/request-context';
+import { checkRateLimit, getClientIp, resolveRateLimitConfig } from './rate-limit';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 const tracer = trace.getTracer('madef-api');
 
 type RouteHandler = (request: NextRequest, context?: any) => Promise<NextResponse>;
 
+function rateLimitResponse(remaining: number, maxRequests: number, retryAfterMs: number): NextResponse {
+    const retryAfterSec = Math.ceil(retryAfterMs / 1000);
+    return NextResponse.json(
+        {
+            success: false,
+            error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' },
+        },
+        {
+            status: 429,
+            headers: {
+                'X-RateLimit-Limit': String(maxRequests),
+                'X-RateLimit-Remaining': String(remaining),
+                'Retry-After': String(retryAfterSec),
+            },
+        },
+    );
+}
+
 /**
  * Wraps an API route handler with a consistent error boundary.
  * Catches unhandled exceptions and returns structured error responses.
- * Also logs errors, tracks metrics, and records OpenTelemetry spans.
+ * Also enforces rate limiting, logs errors, tracks metrics, and records OpenTelemetry spans.
  */
 export function withErrorBoundary(handler: RouteHandler): RouteHandler {
     return async (request: NextRequest, context?: any) => {
@@ -21,6 +40,17 @@ export function withErrorBoundary(handler: RouteHandler): RouteHandler {
         const pathname = request?.nextUrl?.pathname ?? '/unknown';
         const method = request?.method ?? 'GET';
         const requestId = request?.headers?.get('x-request-id') ?? '';
+
+        // Rate limiting
+        const clientIp = getClientIp(request);
+        const rlConfig = resolveRateLimitConfig(pathname, method);
+        const rlKey = `${clientIp}:${method}:${pathname}`;
+        const rl = checkRateLimit(rlKey, rlConfig.maxRequests, rlConfig.windowMs);
+
+        if (!rl.allowed) {
+            metrics.increment('http_rate_limited_total', { method, route: pathname });
+            return rateLimitResponse(rl.remaining, rlConfig.maxRequests, rl.retryAfterMs);
+        }
 
         return RequestContext.run({ requestId, route: pathname }, async () => {
             const span = tracer.startSpan(`${method} ${pathname}`);
@@ -33,6 +63,10 @@ export function withErrorBoundary(handler: RouteHandler): RouteHandler {
                 const durationMs = Date.now() - startMs;
                 metrics.increment('http_requests_total', { method, status: String(response.status) });
                 metrics.observe('http_request_duration_ms', durationMs);
+
+                // Attach rate limit headers to successful responses
+                response.headers.set('X-RateLimit-Limit', String(rlConfig.maxRequests));
+                response.headers.set('X-RateLimit-Remaining', String(rl.remaining));
 
                 span.setAttribute('http.status_code', response.status);
                 span.setStatus({ code: SpanStatusCode.OK });

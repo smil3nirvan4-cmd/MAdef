@@ -32,6 +32,7 @@ vi.mock('@/lib/enterprise/feature-flags', () => ({
 vi.mock('@/lib/api/rate-limit', () => ({
     checkRateLimit: mocks.checkRateLimit,
     getClientIp: mocks.getClientIp,
+    resolveRateLimitConfig: () => ({ maxRequests: 100, windowMs: 60_000 }),
 }));
 
 vi.mock('@/lib/prisma', () => ({
