@@ -4,6 +4,7 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     Browsers,
+    fetchLatestBaileysVersion,
 } = require('baileys');
 const pino = require('pino');
 const QRCode = require('qrcode');
@@ -304,9 +305,18 @@ async function connectWhatsApp({ resetRetry = true, source = 'manual' } = {}) {
         ensureJsonFileIntegrity(STATE_FILE, {});
         ensureJsonFileIntegrity(SESSION_FILE, {});
         const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+        let waVersion;
+        try {
+            const vInfo = await fetchLatestBaileysVersion();
+            waVersion = vInfo.version;
+            console.log(`[bridge] using WA version: ${JSON.stringify(waVersion)}`);
+        } catch (e) {
+            console.warn(`[bridge] failed to fetch WA version: ${e.message}`);
+        }
 
         sock = makeWASocket({
             auth: state,
+            version: waVersion,
             printQRInTerminal: false,
             browser: resolveBrowser(),
             logger: pino({ level: process.env.WA_LOG_LEVEL || 'error' }),

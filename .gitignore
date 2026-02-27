@@ -69,3 +69,7 @@ auth_info/
 .wa-state.json
 .wa-automation-settings.json
 .wa-bridge-port
+
+# WhatsApp session (runtime, never commit)
+whatsapp-bridge/auth_info/
+.wa-session.json

@@ -25,6 +25,8 @@ export default function PhoneInput({
     const [displayValue, setDisplayValue] = useState('');
     const [validation, setValidation] = useState<PhoneValidationResult | null>(null);
     const [touched, setTouched] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const [phoneCorrected, setPhoneCorrected] = useState(false);
 
     const formatForDisplay = useCallback((input: string): string => {
         const digits = input.replace(/\D/g, '');
@@ -42,40 +44,59 @@ export default function PhoneInput({
         return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
     }, []);
 
+    // Sync display from external value changes (only when not focused)
     useEffect(() => {
-        if (value) {
+        if (value && !isFocused) {
             const result = validateBrazilianPhone(value);
             setValidation(result);
-            // If the number was auto-corrected, display the corrected version
-            if (result.corrected && result.number) {
+            if (result.corrected && result.number && result.ddd) {
                 setDisplayValue(`(${result.ddd}) ${result.number.slice(0, 5)}-${result.number.slice(5)}`);
+                setPhoneCorrected(true);
             } else {
                 setDisplayValue(formatForDisplay(value));
+                setPhoneCorrected(false);
             }
         }
-    }, [value, formatForDisplay]);
+    }, [value, formatForDisplay, isFocused]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value;
         const digits = input.replace(/\D/g, '').slice(0, 11);
 
+        // During typing: validate but do NOT apply auto-correction to display
+        const result = validateBrazilianPhone(digits);
+        setValidation(result);
+        setPhoneCorrected(false);
+
+        // Always show what user actually typed
+        setDisplayValue(formatForDisplay(digits));
+
+        // Always propagate RAW digits (no correction) during typing
+        onChange(digits, result);
+    };
+
+    const handleBlur = () => {
+        setIsFocused(false);
+        setTouched(true);
+
+        // Now apply auto-correction on blur
+        const digits = displayValue.replace(/\D/g, '');
         const result = validateBrazilianPhone(digits);
         setValidation(result);
 
-        // If auto-corrected, propagate the corrected number and show corrected display
         if (result.corrected && result.ddd && result.number) {
             const correctedDigits = `${result.ddd}${result.number}`;
             setDisplayValue(`(${result.ddd}) ${result.number.slice(0, 5)}-${result.number.slice(5)}`);
+            setPhoneCorrected(true);
             onChange(correctedDigits, result);
         } else {
-            setDisplayValue(formatForDisplay(digits));
-            onChange(digits, result);
+            setPhoneCorrected(false);
         }
     };
 
     const showError = showValidation && touched && validation && !validation.isValid;
     const showSuccess = showValidation && touched && validation?.isValid;
-    const showCorrected = showValidation && touched && validation?.corrected;
+    const showCorrected = showValidation && touched && phoneCorrected;
 
     return (
         <div className={`flex flex-col gap-1 ${className}`}>
@@ -91,7 +112,8 @@ export default function PhoneInput({
                     type="tel"
                     value={displayValue}
                     onChange={handleChange}
-                    onBlur={() => setTouched(true)}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={handleBlur}
                     placeholder={placeholder}
                     required={required}
                     className={`w-full pl-12 pr-10 py-2 border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-ring focus:border-primary-500 outline-none transition-all
